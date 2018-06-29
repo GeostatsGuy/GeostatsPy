@@ -29,4 +29,9 @@ The current state of GeostatsPy. These are the functions we have included here:
 16. declus - cell-ased declustering
 17.sgsim - sequantial Gaussian simulation limited to 2D and unconditional
 
+#### Requirements
+
+GSLIB executables must be in current directory (or a directory in path environmental variable).  Executables are available at http://www.statios.com/Quick/gslib.html.
+
+
 Warning, there has been no attempt to make these functions robust in the precense of bad inputs. If you get a crazy error check the inputs. Are the arrays the correct dimension? Is the parameter order mixed up? Make sure the inputs are consistent with the descriptions in this document.
