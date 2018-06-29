@@ -9,7 +9,7 @@ Make the robust, well-known Geostatistical Library, GSLIB, available in Python.
 
 #### Available Functions
 
-The current state of PyThese are the functions we have included here:
+The current state of GeostatsPy. These are the functions we have included here:
 
 1. GSLIB2Dataframe - load GSLIB Geo-EAS data tables to Pandas DataFrame
 2. DataFrame2GSLIB - save Pandas DataFrame to GSLIB Geo-EAS data tables
