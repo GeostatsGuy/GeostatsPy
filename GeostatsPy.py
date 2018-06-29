@@ -367,8 +367,8 @@ def vmodel_2d(nlag,step,azi,nug,nst,tstr1,c1,azi1,rmaj1,rmin1,tstr2=1,c2=0,azi2=
         while reading:
             try:
                 head = [next(myfile) for x in range(1)]
-                lag.append(head[0].split()[1])
-                gamma.append(head[0].split()[2])
+                lag.append(float(head[0].split()[1]))
+                gamma.append(float(head[0].split()[2]))
                 iline = iline + 1
             except StopIteration:
                 reading = False   
