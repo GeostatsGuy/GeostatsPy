@@ -1,5 +1,5 @@
 
-## GeostatsPy: a Set of Functions for GSLIB: Geostatistical Library into Python Workflows
+## GeostatsPy: a Set of Functions for GSLIB: Geostatistical Library in Python Workflows
 
 ### Michael Pyrcz, Associate Professor, University of Texas at Austin 
 
