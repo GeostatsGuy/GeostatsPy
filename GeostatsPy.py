@@ -232,17 +232,10 @@ def locpix_log_st(array,xmin,xmax,ymin,ymax,step,vmin,vmax,df,xcol,ycol,vcol,tit
     return cs
 
 # affine distribution correction reimplemented in Python with numpy methods 
-def affine(array,tmean,tstdev):    
-    if array.ndim != 2:
-        Print("Error: must use a 2D array")
-        return
-    nx = array.shape[0]
-    ny = array.shape[1]
+def affine(array,tmean,tstdev): 
     mean = np.average(array)
-    stdev = np.std(array)
-    for iy in range(0,ny):
-        for ix in range(0,nx):
-             array[ix,iy] = (tstdev/stdev)*(array[ix,iy] - mean) + tmean  
+    stdev = np.std(array)  
+    array = (tstdev/stdev)*(array - mean) + tmean
     return(array) 
 
 # normal score transform, wrapper for nscore from GSLIB (.exe must be in working directory)(not used in this demo)   
