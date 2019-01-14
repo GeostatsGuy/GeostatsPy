@@ -1,7 +1,6 @@
-import math                       	# for trig and constants
-from numba import jit             	# for precompile speed up 
-import numpy as np			# for ndarrays	
-import numpy.linalg as linalg		# for matrix math
+import math                        # for trig and constants
+import scipy.spatial as sp         # for fast nearest nearbour search
+from numba import jit              # for precompile speed up 
 # GSLIB's KB2D program (Deutsch and Journel, 1998) converted from the original Fortran to Python 
 # translated by Michael Pyrcz, the University of Texas at Austin (Jan, 2019)
 
@@ -48,9 +47,15 @@ def kb2d(df,xcol,ycol,vcol,tmin,tmax,nx,xmn,xsiz,ny,ymn,ysiz,nxdis,nydis,
 # Load the data
     df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]    # trim values outside tmin and tmax
     nd = len(df_extract)
+    ndmax = min(ndmax,nd)
     x = df_extract[xcol].values
     y = df_extract[ycol].values
     vr = df_extract[vcol].values
+    
+# Make a KDTree for fast search of nearest neighbours   
+    dp = list((y[i], x[i]) for i in range(0,nd))
+    data_locs = np.column_stack((y,x))
+    tree = sp.cKDTree(data_locs, leafsize=16, compact_nodes=True, copy_data=False, balanced_tree=True)
 
 # Summary statistics for the data after trimming
     avg = vr.mean()
@@ -109,45 +114,15 @@ def kb2d(df,xcol,ycol,vcol,tmin,tmax,nx,xmn,xsiz,ny,ymn,ysiz,nxdis,nydis,
         yloc = ymn + (iy-0)*ysiz  
         for ix in range(0,nx):
             xloc = xmn + (ix-0)*xsiz
-
+            current_node = (yloc,xloc)
+        
 # Find the nearest samples within each octant: First initialize
 # the counter arrays:
             na = -1   # accounting for 0 as first index
             dist.fill(1.0e+20)
             nums.fill(-1)
-
-# Scan all the samples (this is inefficient and the user with lots of
-# data should move to ktb3d):
-            for iid in range(0,nd): # this was line 6 
-                dx = x[iid] - xloc
-                dy = y[iid] - yloc
-                h2 = dx*dx + dy*dy
-                #print(h2,rad2)
-                if h2 <= rad2:
-                    if (na < ndmax) or (h2 <= dist[na]):
-
-# Consider this sample (it will be added in the correct location):
-                        if na < ndmax: 
-                            na = na + 1
-                        nums[na] = iid
-                        dist[na] = h2
-                        if na > 1:
-                            
-# Sort samples found thus far in increasing order of distance:
-                            n1 = na-1
-                            for ii in range(0,n1+1):
-                                k=ii
-                                if h2 < dist[ii]:
-                                    jk = 0
-                                    for jj in range(k,n1+1):
-                                        j  = n1-jk
-                                        jk = jk+1
-                                        j1 = j+1
-                                        dist[j1] = dist[j]
-                                        nums[j1] = nums[j]
-                                    dist[k] = h2
-                                    nums[k] = iid
-                                    break # return to line 6, exit ii loop
+            dist, nums = tree.query(current_node,ndmax) # use kd tree for fast nearest data search
+            na = len(dist) - 1
 
 # Is there enough samples?
             if na + 1 < ndmin:   # accounting for min index of 0
@@ -270,7 +245,7 @@ def kb2d(df,xcol,ycol,vcol,tmin,tmax,nx,xmn,xsiz,ny,ymn,ysiz,nxdis,nydis,
         print('      average   ' + str(ak) + '  variance  ' + str(vk))
 
     return kmap, vmap
-    
+
 @jit(nopython=True) # all NumPy array operations included in this function for precompile with NumBa
 def setup_rotmat(c0,nst,it,cc,ang,PMX):
     DTOR=3.14159265/180.0; EPSLON=0.000000; PI=3.141593
@@ -330,18 +305,13 @@ def cova2(x1,y1,x2,y2,nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov):
 
 # Power model:
                 cov1  = PMX - cc[js]*(h**aa[js])
-                cova2 = cova2 + cov1
-            
+                cova2 = cova2 + cov1      
     return cova2
 
-def ksol_numpy(neq,a,r):
-    #print('ksol python input')
-    #print(a)
-    a = a[0:neq*neq]           # trim the array
+def ksol_numpy(neq,a,r):    # using Numpy methods
+    a = a[0:neq*neq]             # trim the array
     a = np.reshape(a,(neq,neq))  # reshape to 2D
-    #print('ksol python a reshape')
-    #print(a)
-    ainv = linalg.inv(a)       # invert matrix
-    r = r[0:neq]               # trim the array
-    s = np.matmul(ainv,r)                 # matrix multiplication
+    ainv = linalg.inv(a)         # invert matrix
+    r = r[0:neq]                 # trim the array
+    s = np.matmul(ainv,r)        # matrix multiplication
     return s
