@@ -6,6 +6,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt                          
 import random as rand
+import scipy.signal as signal
 image_type = 'tif'; dpi = 600
 
 # utility to convert 1D or 2D numpy ndarray to a GSLIB Geo-EAS file for use with GSLIB methods   
