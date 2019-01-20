@@ -6,7 +6,8 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt                          
 import random as rand
-import scipy.signal as signal
+import math       .
+import scipy.signal as signal           
 image_type = 'tif'; dpi = 600
 
 # utility to convert 1D or 2D numpy ndarray to a GSLIB Geo-EAS file for use with GSLIB methods   
@@ -784,3 +785,9 @@ def DataFrame2ndarray(df,xcol,ycol,vcol,xmin,xmax,ymin,ymax,step):
         ix = min(nx-1,int( (df.iloc[isamp][xcol] - xmin)/step ))   
         array[iy,ix] = df.iloc[isamp][vcol]        
     return(array) 
+
+# Calculate weighted average and standard deviation
+def weighted_avg_and_std(values, weights):                  # from Eric O Lebigot, stack overflow
+    average = np.average(values, weights=weights)
+    variance = np.average((values-average)**2, weights=weights)
+    return (average, math.sqrt(variance))
