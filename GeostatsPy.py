@@ -330,7 +330,7 @@ def varmapv_2d(df,xcol,ycol,vcol,nx,ny,lagdist,minpairs,vmax,bstand,title,vlabel
     
     lag = []; gamma = []; npair = []
     
-    df_ext = pd.DataFrame({'X':df[xcol],'Y':df[ycol],'Z':rand_sample[vcol]})
+    df_ext = pd.DataFrame({'X':df[xcol],'Y':df[ycol],'Z':df[vcol]})
     Dataframe2GSLIB("varmap_out.dat",df_ext)
     
     file = open("varmap.par", "w")
