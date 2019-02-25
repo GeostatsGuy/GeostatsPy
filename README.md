@@ -5,11 +5,11 @@
 
 ## GeostatsPy Package 
 
-The GeostatsPy Package brings GSLIB: Geostatistical Library (Deutsch and Journel, 1998) functions to Python. GSLIB is extrememly robust and practical code for building spatial modeling workflows. I specifically wanted it in Python to support my students in my **Data Analytics**, **Geostatistics** and **Machine Learning** courses. I find my students benefit from hands-on opportunities, infact it is hard to imagine teaching these topics without providing the opportunity to handle the numerical methods and build workflows. 
+The GeostatsPy Package brings GSLIB: Geostatistical Library (Deutsch and Journel, 1998) functions to Python. GSLIB is extremely robust and practical code for building spatial modeling workflows. I specifically wanted it in Python to support my students in my **Data Analytics**, **Geostatistics** and **Machine Learning** courses. I find my students benefit from hands-on opportunities, in fact it is hard to imagine teaching these topics without providing the opportunity to handle the numerical methods and build workflows. 
 
 This package includes 2 parts:
 
-1. geostatspy.gslib includes low tech wrappers of GSLIB functionality (note: some functions require access to GSLIB executables) 
+1. geostatspy.GSLIB includes low tech wrappers of GSLIB functionality (note: some functions require access to GSLIB executables) 
 
 2. geostatspy.geostats includes GSLIB functions rewritten in Python.  
 
@@ -17,7 +17,7 @@ This package includes 2 parts:
 
 Here's a list and some details on each of the functions available.
 
-#### geostatspy.gslib Functions
+#### geostatspy.GSLIB Functions
 
 Utilities to support moving between Python DataFrames and ndarrays, and Data Tables, Gridded Data and Models in Geo-EAS file format (standard to GSLIB):
 
@@ -25,7 +25,7 @@ Utilities to support moving between Python DataFrames and ndarrays, and Data Tab
 2. **GSLIB2ndarray** - utility to convert GSLIB Geo-EAS files to a 1D or 2D numpy ndarray for use with Python methods
 3. **Dataframe2GSLIB(data_file,df)** - utility to convert pandas DataFrame to a GSLIB Geo-EAS file for use with GSLIB methods
 4. **GSLIB2Dataframe** - utility to convert GSLIB Geo-EAS files to a pandas DataFrame for use with Python methods
-5. **DataFrame2ndarray** - take spatial data from a DataFrame and make a sparse 2D ndarray(NaN where no data in cell)
+5. **DataFrame2ndarray** - take spatial data from a DataFrame and make a sparse 2D ndarray (NaN where no data in cell)
 
 Visualization functions with the same parameterization as GSLIB using matplotlib:
 
@@ -76,7 +76,7 @@ Numerical methods in GSLIB translated to Python:
 33. **nscore** - GSLIB's NSCORE program (Deutsch and Journel, 1998) converted from the original Fortran to Python 
 34. **kb2d** - GSLIB's KB2D program (Deutsch and Journel, 1998) converted from the original Fortran to Python 
 
-More are functionality will be added soon.
+More functionality will be added soon.
 
 ### Package Dependencies
 
@@ -84,15 +84,12 @@ The functions rely on the following packages:
 
 1. **numpy** - for ndarrays
 2. **pandas** - for DataFrames
-3. **math** - for trig functions etc.
-4. **numpy.linalg** - for linear algebra
-5. **numba** - for numerical speed up
-6. **scipy** - for fast nearest nearbour search
-7. **os** - for setting working directory and running fortran executables (for some geostatspy.GSLIB functions)
-8. **matplotlib.pyplot** - for plotting	                          
-9. **random** - for random numbers
+3. **numpy.linalg** - for linear algebra
+4. **numba** - for numerical speed up
+5. **scipy** - for fast nearest neighbor search
+6. **matplotlib.pyplot** - for plotting	                          
 
-By design these packages are all standard and should be available with standard Python installs (e.g. https://www.anaconda.com/download/).
+These packages should be available with any modern Python distribution (e.g. https://www.anaconda.com/download/).
 
 If you get a package import error, you may have to first install some of these packages. This can usually be accomplished by opening up a command window on Windows and then typing 'python -m pip install [package-name]'. More assistance is available with the respective package docs.  
 
@@ -100,7 +97,7 @@ If you get a package import error, you may have to first install some of these p
 
 GeostatsPy includes functions that run 2D workflows in GSLIB from Python (i.e. low tech wrappers), Python translations and in some cases reimplementations of GSLIB methods, along with utilities to move between GSLIB's Geo-EAS data sets and Pandas DataFrames, and grids and 2D NumPy ndarrays respectively and other useful operations such as resampling from regular datasets and rescaling distributions.  
 
-The reimplimentations as of now include NSCORE, GAM, GAMV, DECLUS and most of the visualizations using the standard GSLIB parametric inputs and matplotlib back end. The low tech wrappers simply write the GSLIB parameters, run the GSLIB executables and then read in the GSLIB output. This allows for construction of Python workflows with the very robust GSLIB programs.
+The reimplementations as of now include NSCORE, GAM, GAMV, DECLUS and most of the visualizations using the standard GSLIB parametric inputs and matplotlib back end. The low tech wrappers simply write the GSLIB parameters, run the GSLIB executables and then read in the GSLIB output. This allows for construction of Python workflows with the very robust GSLIB programs.
 
 #### Why make this package? 
 
@@ -120,7 +117,7 @@ The graphical / visualization methods have 2 variants. '_ST' specifies that func
 
 #### Assistance Welcome
 
-Found an issue (I'm sure there are issues!)? Got a new idea? Want to work on this? Let me know, submit revisions, I'm happy to collaborate,
+Found an issue (I'm sure there are issues!)? Got a new idea? Want to work on this? Let me know, submit revisions, I'm happy to collaborate.
 
 ### Package Examples
 
@@ -137,9 +134,6 @@ Here's a simple exaple of declustering with the geostatspy package.  It looks lo
 ```python
 import geostatspy.GSLIB as GSLIB                          # GSLIB utilities, viz and wrapped functions
 import geostatspy.geostats as geostats                    # GSLIB converted to Python
-import os                                                 # to set current working directory 
-import numpy as np                                        # arrays and matrix math
-import pandas as pd                                       # DataFrames
 import matplotlib.pyplot as plt                           # plotting
 import scipy.stats                                        # summary stats of ndarrays
 
