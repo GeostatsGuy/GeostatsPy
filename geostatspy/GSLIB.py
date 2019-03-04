@@ -977,6 +977,60 @@ def gamv_2d(df, xcol, ycol, vcol, nlag, lagdist, azi, atol, bstand):
 
     return lag, gamma, npair
 
+def gamv_3d(df, xcol, ycol, zcol, vcol, nlag, lagdist,lag_tol, azi, atol, bandh, dip, dtol, bandv, isill):
+    """Irregularly sampled variogram, 3D wrapper for gam from GSLIB (.exe must
+    be available in PATH or working directory).
+
+    :param df: dataframe
+    :param xcol: TODO
+    :param ycol: TODO
+    :param zcol: TODO
+    :param vcol: TODO
+    :param nlag: TODO
+    :param lagdist: TODO
+    :param azi: TODO
+    :param atol: TODO
+    :param bstand: TODO
+    :return: TODO
+    """
+    lag = []
+    gamma = []
+    npair = []
+
+    df_ext = pd.DataFrame({"X": df[xcol], "Y": df[ycol], "Z": df[zcol],"Variable": df[vcol]})
+    Dataframe2GSLIB("gamv_out.dat", df_ext)
+
+    with open("gamv.par", "w") as f:
+        f.write("                  Parameters for GAMV                                      \n")
+        f.write("                  *******************                                      \n")
+        f.write("                                                                           \n")
+        f.write("START OF PARAMETERS:                                                       \n")
+        f.write("gamv_out.dat                    -file with data                            \n")
+        f.write("1   2   3                         -   columns for X, Y, Z coordinates      \n")
+        f.write("1   4   0                         -   number of variables,col numbers      \n")
+        f.write("-1.0e21     1.0e21                -   trimming limits                      \n")
+        f.write("gamv.out                          -file for variogram output               \n")
+        f.write(str(nlag) + "                      -number of lags                          \n")
+        f.write(str(lagdist) + "                       -lag separation distance                 \n")
+        f.write(str(lag_tol) + "                   -lag tolerance                           \n")
+        f.write("1                                 -number of directions                    \n")
+        f.write(str(azi) + " " + str(atol) + " " + str(bandh) + " " +str(dip) + " " + str(dtol) + " " + str(bandv)+ "  -azm,atol,bandh,dip,dtol,bandv \n")
+        f.write(str(isill) + "                    -standardize sills? (0=no, 1=yes)        \n")
+        f.write("1                                 -number of variograms                    \n")
+        f.write("1   1   1                         -tail var., head var., variogram type    \n")
+
+    os.system("gamv.exe gamv.par")
+
+    with open("gamv.out") as f:
+        next(f)  # skip the first line
+
+        for line in f:
+            _, l, g, n, *_ = line.split()
+            lag.append(float(l))
+            gamma.append(float(g))
+            npair.append(float(n))
+
+    return lag, gamma, npair
 
 def varmapv_2d(
     df,
@@ -1714,3 +1768,5 @@ def DataFrame2ndarray(df, xcol, ycol, vcol, xmin, xmax, ymin, ymax, step):
         ix = min(nx - 1, int((df.iloc[isamp][xcol] - xmin) / step))
         array[iy, ix] = df.iloc[isamp][vcol]
     return array
+
+
