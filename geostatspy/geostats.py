@@ -281,17 +281,17 @@ def cova2(x1, y1, x2, y2, nst, c0, pmx, cc, aa, it, ang, anis, rotmat, maxcov):
             hr = h / aa[js]
             if hr < 1.0:
                 cova2_ = cova2_ + cc[js] * (1.0 - hr * (1.5 - 0.5 * hr * hr))
-            elif it[js] == 2:
-                # Exponential model
-                cova2_ = cova2_ + cc[js] * np.exp(-3.0 * h / aa[js])
-            elif it[js] == 3:
-                # Gaussian model
-                hh = -3.0 * (h * h) / (aa[js] * aa[js])
-                cova2_ = cova2_ + cc[js] * np.exp(hh)
-            elif it[js] == 4:
-                # Power model
-                cov1 = pmx - cc[js] * (h ** aa[js])
-                cova2_ = cova2_ + cov1
+        elif it[js] == 2:
+            # Exponential model
+            cova2_ = cova2_ + cc[js] * np.exp(-3.0 * h / aa[js])
+        elif it[js] == 3:
+            # Gaussian model
+            hh = -3.0 * (h * h) / (aa[js] * aa[js])
+            cova2_ = cova2_ + cc[js] * np.exp(hh)
+        elif it[js] == 4:
+            # Power model
+            cov1 = pmx - cc[js] * (h ** aa[js])
+            cova2_ = cova2_ + cov1
     return cova2_
 
 
@@ -775,6 +775,75 @@ def variogram_loop(x, y, vr, xlag, xltol, nlag, azm, atol, bandwh):
 
     return dis, vario, npp
 
+def vmodel(
+    nlag,
+    xlag,
+    azm,
+    vario
+):
+    """GSLIB's VMODEL program (Deutsch and Journel, 1998) converted from the
+    original Fortran to Python by Michael Pyrcz, the University of Texas at
+    Austin (Mar, 2019).
+    :param nlag: number of variogram lags 
+    :param xlag: size of the lags
+    :param axm: direction by 2D azimuth, 000 is y positive, 090 is x positive 
+    :param vario: dictionary with the variogram parameters
+    :return:
+    """
+    
+# Parameters
+    MAXNST=4
+    DEG2RAD=3.14159265/180.0 
+    MAXROT=MAXNST+1
+    EPSLON = 1.0e-20
+    VERSION= 1.01
+  
+# Declare arrays
+    index = np.zeros(nlag+1)
+    h = np.zeros(nlag+1)
+    gam = np.zeros(nlag+1)
+    cov = np.zeros(nlag+1)
+    ro = np.zeros(nlag+1)
+    
+# Load the variogram
+    nst = vario["nst"]
+    cc = np.zeros(nst)
+    aa = np.zeros(nst)
+    it = np.zeros(nst)
+    ang = np.zeros(nst)
+    anis = np.zeros(nst)
+    
+    c0 = vario["nug"]
+    cc[0] = vario["cc1"]
+    it[0] = vario["it1"]
+    ang[0] = vario["azi1"]
+    aa[0] = vario["hmaj1"]
+    anis[0] = vario["hmin1"] / vario["hmaj1"]
+    if nst == 2:
+        cc[1] = vario["cc2"]
+        it[1] = vario["it2"]
+        ang[1] = vario["azi2"]
+        aa[1] = vario["hmaj2"]
+        anis[1] = vario["hmin2"] / vario["hmaj2"]
+                    
+    xoff = math.sin(DEG2RAD*azm)*xlag
+    yoff = math.cos(DEG2RAD*azm)*xlag
+    print(' x,y,z offsets = ' + str(xoff) + ',' + str(yoff))
+    rotmat, maxcov = geostats.setup_rotmat(c0, nst, it, cc, ang, 99999.9)   
+          
+    
+    xx = 0.0; yy = 0.0      
+    for il in range(0,nlag+1):
+        index[il] = il
+        cov[il] = geostats.cova2(0.0,0.0,xx,yy,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov)
+        gam[il] = maxcov - cov[il]
+        ro[il]  = cov[il]/maxcov
+        h[il]   = math.sqrt(max((xx*xx+yy*yy),0.0))
+        xx = xx + xoff
+        yy = yy + yoff
+
+# finished
+    return index,h,gam,cov,ro
 
 def nscore(
     df, vcol, wcol=None, ismooth=False, dfsmooth=None, smcol=0, smwcol=0
