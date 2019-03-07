@@ -25,6 +25,79 @@ import numpy.linalg as linalg  # for linear algebra
 import scipy.spatial as sp  # for fast nearest neighbor search
 from numba import jit  # for numerical speed up
 
+def backtr(df,vcol,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):   
+    """Back transform an entire DataFrame column with a provided transformation table and tail extrapolation.
+
+    :param df: the source DataFrame
+    :param vcol: the column with the variable to transfrom
+    :param vr: the transformation table, 1D ndarray with the original values
+    :param vrg: the transformation table, 1D ndarray with the trasnformed variable
+    :param zmin: lower trimming limits
+    :param zmax: upper trimming limits
+    :param ltail: lower tail value
+    :param ltpar: lower tail extrapolation parameter
+    :param utail: upper tail value
+    :param utpar: upper tail extrapolation parameter
+    :return: TODO
+    """    
+    
+    EPSLON=1.0e-20
+    nd = len(df); nt = len(vr) # number of data to transform and number of data in table
+    backtr = np.zeros(nd)
+    vrgs = df[vcol].values
+    # Value in the lower tail?    1=linear, 2=power, (3 and 4 are invalid):
+    for id in range(0,nd):
+        if vrgs[id] <= vrg[0]:
+            backtr[id] = vr[0]
+            cdflo  = gcum(vrg[0])
+            cdfbt  = gcum(vrgs[id])
+            if ltail == 1:
+                backtr[id] = powint(0.0,cdflo,zmin,vr[0],cdfbt,1.0)
+            elif ltail == 2:
+                cpow   = 1.0 / ltpar
+                backtr[id] = powint(0.0,cdflo,zmin,vr[0],cdfbt,cpow)
+        # Value in the upper tail?     1=linear, 2=power, 4=hyperbolic:
+        elif vrgs[id] >= vrg[nt-1]:
+            backtr[id] = vr[nt-1]
+            cdfhi  = gcum(vrg[nt-1])
+            cdfbt  = gcum(vrgs[id])
+            if utail == 1:
+                backtr[id] = powint(cdfhi,1.0,vr[nt-1],zmax,cdfbt,1.0)
+            elif utail == 2: 
+                cpow   = 1.0 / utpar
+                backtr[id] = powint(cdfhi,1.0,vr[nt-1],zmax,cdfbt,cpow)
+            elif utail == 4:
+                plambda = (vr[nt-1]**utpar)*(1.0-gcum(vrg[nt-1]))
+                backtr[id] = (plambda/(1.0-gcum(vrgs)))**(1.0/utpar)
+        else:
+            # Value within the transformation table:
+            j = locate(vrg,1,nt,vrgs[id])
+            j = max(min((nt-2),j),1)
+            backtr[id] = powint(vrg[j],vrg[j+1],vr[j],vr[j+1],vrgs[id],1.0)
+    return backtr
+
+def gcum(x):
+    """Calculate the cumulative probability of the standard normal distribution.
+
+    :param x: the value from the standard normal distribution 
+    :return: TODO
+    """    
+    
+    z = x
+    if z < 0: 
+        z = -z
+    t  = 1./(1.+ 0.2316419*z)
+    gcum = t*(0.31938153   + t*(-0.356563782 + t*(1.781477937 + t*(-1.821255978 + t*1.330274429))))
+    e2   = 0.
+    #  6 standard deviations out gets treated as infinity:
+    if z <= 6.: 
+        e2 = np.exp(-z*z/2.)*0.3989422803
+    gcum = 1.0- e2 * gcum
+    if x >= 0:
+        return gcum
+    gcum = 1.0 - gcum
+    return gcum
+
 def locate(xx,iis,iie,x):
     """Return value `j` such that `x` is between `xx[j]` and `xx[j+1]`, where
     `xx` is an array of length `n`, and `x` is a given value. `xx` must be
