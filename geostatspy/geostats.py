@@ -25,11 +25,45 @@ import numpy.linalg as linalg  # for linear algebra
 import scipy.spatial as sp  # for fast nearest neighbor search
 from numba import jit  # for numerical speed up
 
+def locate(xx,iis,iie,x):
+    """Return value `j` such that `x` is between `xx[j]` and `xx[j+1]`, where
+    `xx` is an array of length `n`, and `x` is a given value. `xx` must be
+    monotonic, either increasing or decreasing (GSLIB version).
+
+    :param xx: array
+    :param iis: start point
+    :param iie: end point
+    :param x: given value
+    :return: TODO
+    """
+    
+    n = len(xx)
+# Initialize lower and upper methods:
+    if iis <= 0: 
+        iis = 0
+    if iie >= n:
+        iie = n-1
+    jl = iis-1
+    ju = iie
+    if xx[n-1] <= x:
+        j = iie
+        return j
+# If we are not done then compute a midpoint:
+    while (ju-jl) > 1: 
+        jm = int((ju+jl)/2)
+# Replace the lower or upper limit with the midpoint:
+        if (xx[iie] > xx[iis]) == (x > xx[jm]):
+            jl = jm
+        else:
+            ju = jm
+# Return with the array index:
+    j = jl
+    return j
 
 def dlocate(xx, iis, iie, x):
     """Return value `j` such that `x` is between `xx[j]` and `xx[j+1]`, where
     `xx` is an array of length `n`, and `x` is a given value. `xx` must be
-    monotonic, either increasing or decreasing.
+    monotonic, either increasing or decreasing (updated with Python bisect)
 
     :param xx: array
     :param iis: start point
@@ -44,6 +78,24 @@ def dlocate(xx, iis, iie, x):
     array = xx[iis: iie - 1]  # this is accounting for swith to 0,...,n-1 index
     j = bisect(array, x)
     return j
+
+def powint(xlow,xhigh,ylow,yhigh,xval,power):
+    """Power-based interpolator 
+
+    :param xlow: x lower interval
+    :param xhigh: x upper interval
+    :param ylow: y lower interval
+    :param yhigh: y upper interval
+    :param xval: value on x
+    :param power: power for interpolation
+    :return: TODO
+    """    
+    EPSLON=1.0e-20
+    if (xhigh-xlow) < EPSLON:
+        powint = (yhigh+ylow)/2.0
+    else:
+        powint = ylow + (yhigh-ylow)*(((xval-xlow)/(xhigh-xlow))**power)
+    return powint
 
 
 def dsortem(ib, ie, a, iperm, b=0, c=0, d=0, e=0, f=0, g=0, h=0):
