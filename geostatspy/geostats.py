@@ -669,7 +669,7 @@ def variogram_loop(x, y, vr, xlag, xltol, nlag, azm, atol, bandwh):
     # Main loop over all pairs
     for i in range(0, nd):
         for j in range(0, nd):
-
+            
             # Definition of the lag corresponding to the current pair
             dx = x[j] - x[i]
             dy = y[j] - y[i]
@@ -774,6 +774,96 @@ def variogram_loop(x, y, vr, xlag, xltol, nlag, azm, atol, bandwh):
             tm[i] = tm[i] / rnum
 
     return dis, vario, npp
+
+def varmapv(df,xcol,ycol,vcol,tmin,tmax,nxlag,nylag,dxlag,dylag,minnp,isill):
+    """Calculate the variogram map from irregularly spaced data.
+
+    :param df: DataFrame with the spatial data, xcol, ycol, vcol coordinates and property columns
+    :param xcol: DataFrame column with x coordinate
+    :param ycol: DataFrame column with y coordinate
+    :param vcol: DataFrame column with value of interest
+    :param tmin: lower trimming limit
+    :param tmax: upper trimming limit
+    :param nxlag: number of lags in the x direction
+    :param nxlag: number of lags in the y direction
+    :param dxlag: size of the lags in the x direction
+    :param dylag: size of the lags in the y direction
+    :param minnp: minimum number of pairs to calculate a variogram value
+    :param isill: standardize sill to be 1.0
+    :return: TODO
+    """
+    # Load the data
+    df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]    # trim values outside tmin and tmax
+    nd = len(df_extract)
+    x = df_extract[xcol].values
+    y = df_extract[ycol].values
+    vr = df_extract[vcol].values  
+    
+    # Summary statistics for the data after trimming
+    avg = vr.mean()
+    stdev = vr.std()
+    sills = stdev**2.0
+    ssq = sills
+    vrmin = vr.min()
+    vrmax = vr.max() 
+    
+    # Initialize the summation arrays
+    npp = np.zeros((nylag*2+1,nxlag*2+1))
+    gam = np.zeros((nylag*2+1,nxlag*2+1))
+    nppf = np.zeros((nylag*2+1,nxlag*2+1))
+    gamf = np.zeros((nylag*2+1,nxlag*2+1))
+    hm = np.zeros((nylag*2+1,nxlag*2+1))
+    tm = np.zeros((nylag*2+1,nxlag*2+1))
+    hv = np.zeros((nylag*2+1,nxlag*2+1))
+    tv = np.zeros((nylag*2+1,nxlag*2+1))
+    
+    # First fix the location of a seed point: 
+    for i in range(0,nd):     
+        # Second loop over the data: 
+        for j in range(0,nd): 
+            # The lag:
+            ydis = y[j] - y[i]
+            iyl = nylag + int(ydis/dylag)
+            if iyl < 0 or iyl > nylag*2: # acocunting for 0,...,n-1 array indexing
+                continue
+            xdis = x[j] - x[i]
+            ixl = nxlag + int(xdis/dxlag)
+            if ixl < 0 or ixl > nxlag*2: # acocunting for 0,...,n-1 array indexing
+                continue             
+            # We have an acceptable pair, therefore accumulate all the statistics
+            # that are required for the variogram:
+            npp[iyl,ixl] = npp[iyl,ixl] + 1 # our ndarrays read from the base to top, so we flip
+            tm[iyl,ixl] = tm[iyl,ixl] + vr[i]
+            hm[iyl,ixl] = hm[iyl,ixl] + vr[j]
+            tv[iyl,ixl] = tm[iyl,ixl] + vr[i]*vr[i]
+            hv[iyl,ixl] = hm[iyl,ixl] + vr[j]*vr[j]
+            gam[iyl,ixl] = gam[iyl,ixl] + ((vr[i]-vr[j])*(vr[i]-vr[j]))
+            
+    # Get average values for gam, hm, tm, hv, and tv, then compute
+    # the correct "variogram" measure:
+    for iy in range(0,nylag*2+1): 
+        for ix in range(0,nxlag*2+1): 
+            if npp[iy,ix] <= minnp:
+                gam[iy,ix] = -999.
+                hm[iy,ix]  = -999.
+                tm[iy,ix]  = -999.
+                hv[iy,ix]  = -999.
+                tv[iy,ix]  = -999.
+            else:
+                rnum = npp[iy,ix]
+                gam[iy,ix] = gam[iy,ix] / (2*rnum) # semivariogram
+                hm[iy,ix] = hm[iy,ix] / rnum
+                tm[iy,ix] = tm[iy,ix] / rnum
+                hv[iy,ix] = hv[iy,ix] / rnum - hm[iy,ix]*hm[iy,ix]
+                tv[iy,ix] = tv[iy,ix] / rnum - tm[iy,ix]*tm[iy,ix]                
+                # Attempt to standardize:
+            if isill > 0:
+                gamf[iy,ix] = gamf[iy,ix]/sills
+    for iy in range(0,nylag*2+1): 
+        for ix in range(0,nxlag*2+1):             
+            gamf[iy,ix] = gam[nylag*2-iy,ix]
+            nppf[iy,ix] = npp[nylag*2-iy,ix]        
+    return gamf, nppf
 
 def vmodel(
     nlag,
