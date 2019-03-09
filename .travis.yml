@@ -10,10 +10,8 @@ install:
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
   - conda info -a
-  - conda install numpy pandas numba scipy matplotlib
-
-before_script:
-  - cd $TRAVIS_BUILD_DIR/geostatspy/tests
+  - conda install numpy pandas numba scipy
 
 script:
-  - python test.py
+  - python -m unittest discover
+

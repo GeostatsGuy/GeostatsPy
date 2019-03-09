@@ -1499,10 +1499,10 @@ def kb2d(
 
     return kmap, vmap
 
-def ik2d(
-    df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,nx,xmn,xsiz,ny,ymn,ysiz,ndmin,ndmax,radius,ktype,vario): 
+def ik2d(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,nx,xmn,xsiz,ny,ymn,ysiz,ndmin,ndmax,radius,
+         ktype,vario):
 
-     """A 2D version of GSLIB's IK3D Indicator Kriging program (Deutsch and Journel, 1998) converted from the
+    """A 2D version of GSLIB's IK3D Indicator Kriging program (Deutsch and Journel, 1998) converted from the
     original Fortran to Python by Michael Pyrcz, the University of Texas at
     Austin (March, 2019).
 
@@ -1533,8 +1533,8 @@ def ik2d(
     :param vario: list with all of the indicator variograms (sill of 1.0) in consistent order with above parameters
     :return:
     """
-    
-# Find the needed paramters:
+
+    # Find the needed paramters:
     PMX = 9999.9
     MAXSAM = ndmax + 1
     MAXEQ = MAXSAM + 1

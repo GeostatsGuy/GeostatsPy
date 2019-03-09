@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import os
 import unittest
 
 from geostatspy import geostats
@@ -9,7 +10,10 @@ class UnitTest(unittest.TestCase):
 
     def setUp(self):
         # Any inputs go here
-        self.sample_data = pd.read_csv('sample_data.csv', sep=',')
+
+        this_dir = os.path.dirname(os.path.abspath(__file__))  # Get current directory
+        sample_data_path = this_dir + '/sample_data.csv'  # Set data file path
+        self.sample_data = pd.read_csv(sample_data_path, sep=',')
 
         return
 
