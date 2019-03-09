@@ -435,6 +435,69 @@ def ksol_numpy(neq, a, r):
     s = np.matmul(ainv, r)  # matrix multiplication
     return s
 
+def correct_trend(trend):
+    """Correct a indicator based trend model for closure (probabilities sum to 1.0).
+
+    :param trend: ndarray [ny,nx,ncut]
+    :return: nadarray [ny,nx,ncut] corrected for closure
+    """
+    ny = trend.shape[0]
+    nx = trend.shape[1]
+    ncut = trend.shape[2]
+    for iy in range(0,ny):
+        for ix in range(0,nx):
+            sum = 0.0
+            for ic in range(0,ncut):
+                sum = sum + trend[iy,ix,ic]
+            if sum > 0.0:
+                for icut in range(0,ncut):
+                    trend[iy,ix,ic] = trend[iy,ix,ic] / sum
+    return trend
+
+def ordrel(ivtype,ncut,ccdf):
+    """Correct a indicator based CDF for order relations.
+
+    :param ivtype: variable type, 0 - categorical and 1 - continuous
+    :param ncut: number of categories or thresholds
+    :param ccdf: input cumulative distribution function
+    :return: cumulative distribution function correct for order relations
+    """
+#    print('input ordering relations'); print(ccdf)
+    ccdfo = np.zeros(ncut)
+    ccdf1 = np.zeros(ncut)
+    ccdf2 = np.zeros(ncut) # do we need MAXCUT = 100 for these 2?
+
+# Make sure conditional cdf is within [0,1]:
+    for i in range(0,ncut):
+        if ccdf[i] < 0.0:
+            ccdf1[i] = 0.0
+            ccdf2[i] = 0.0
+        elif ccdf[i] > 1.0:
+            ccdf1[i] = 1.0
+            ccdf2[i] = 1.0
+        else:
+            ccdf1[i] = ccdf[i]
+            ccdf2[i] = ccdf[i]
+#    print('ordering relations'); print(ccdf1,ccdf2)
+
+# Correct sequentially up, then down, and then average:
+    if ivtype == 0:
+        sumcdf = 0.0
+        for i in range(0,ncut):
+            sumcdf = sumcdf + ccdf1[i]
+        if sumcdf <= 0.0: sumcdf = 1.0
+        for i in range(0,ncut):
+            ccdfo[i] = ccdf1[i] / sumcdf
+    else:
+        for i in range(1,ncut):
+            if ccdf1[i] < ccdf1[i-1]: ccdf1[i] = ccdf1[i-1]
+        for i in range(ncut-2,0,-1):
+            if ccdf2[i] > ccdf2[i+1]: ccdf2[i] = ccdf2[i+1]
+        for i in range(0,ncut):
+            ccdfo[i] = 0.5*(ccdf1[i]+ccdf2[i])
+
+# Return with corrected CDF:
+    return ccdfo
 
 def declus(df, xcol, ycol, vcol, iminmax, noff, ncell, cmin, cmax):
     """GSLIB's DECLUS program (Deutsch and Journel, 1998) converted from the
