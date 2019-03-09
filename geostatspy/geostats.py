@@ -1435,3 +1435,276 @@ def kb2d(
         print('      average   ' + str(ak) + '  variance  ' + str(vk))
 
     return kmap, vmap
+
+def ik2d(
+    df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,nx,xmn,xsiz,ny,ymn,ysiz,ndmin,ndmax,radius,ktype,vario): 
+
+     """A 2D version of GSLIB's IK3D Indicator Kriging program (Deutsch and Journel, 1998) converted from the
+    original Fortran to Python by Michael Pyrcz, the University of Texas at
+    Austin (March, 2019).
+
+    :param df: pandas DataFrame with the spatial data
+    :param xcol: name of the x coordinate column
+    :param ycol: name of the y coordinate column
+    :param vcol: name of the property column (cateogorical or continuous - note continuous is untested)
+    :param ivtype: variable type, 0 - categorical, 1 - continuous
+    :param koption: kriging option, 0 - estimation, 1 - cross validation (under construction)
+    :param ncut: number of categories or continuous thresholds
+    :param thresh: an ndarray with the category labels or continuous thresholds
+    :param gcdf: global CDF, not used if trend is present
+    :param trend: an ndarray [ny,ny,ncut] with the local trend proportions or cumulative CDF values
+    :param tmin: property trimming limit
+    :param tmax: property trimming limit
+    :param nx: definition of the grid system (x axis)
+    :param xmn: definition of the grid system (x axis)
+    :param xsiz: definition of the grid system (x axis)
+    :param ny: definition of the grid system (y axis)
+    :param ymn: definition of the grid system (y axis)
+    :param ysiz: definition of the grid system (y axis)
+    :param nxdis: number of discretization points for a block
+    :param nydis: number of discretization points for a block
+    :param ndmin: minimum number of data points to use for kriging a block
+    :param ndmax: maximum number of data points to use for kriging a block
+    :param radius: maximum isotropic search radius
+    :param ktype: kriging type, 0 - simple kriging and 1 - ordinary kriging
+    :param vario: list with all of the indicator variograms (sill of 1.0) in consistent order with above parameters
+    :return:
+    """
+    
+# Find the needed paramters:
+    PMX = 9999.9
+    MAXSAM = ndmax + 1
+    MAXEQ = MAXSAM + 1
+    mik = 0  # full indicator kriging
+    use_trend = False
+    if trend.shape[0] == nx and trend.shape[1] == ny and trend.shape[2] == ncut: use_trend = True
+    
+# load the variogram
+    MAXNST = 2
+    nst = np.zeros(ncut,dtype=int); c0 = np.zeros(ncut); cc = np.zeros((MAXNST,ncut)) 
+    aa = np.zeros((MAXNST,ncut),dtype=int); it = np.zeros((MAXNST,ncut),dtype=int) 
+    ang = np.zeros((MAXNST,ncut)); anis = np.zeros((MAXNST,ncut))
+
+    for icut in range(0,ncut):
+        nst[icut] = int(vario[icut]['nst'])
+        c0[icut] = vario[icut]['nug']; cc[0,icut] = vario[icut]['cc1']; it[0,icut] = vario[icut]['it1']; 
+        ang[0,icut] = vario[icut]['azi1']; 
+        aa[0,icut] = vario[icut]['hmaj1']; anis[0,icut] = vario[icut]['hmin1']/vario[icut]['hmaj1'];
+        if nst[icut] == 2:
+            cc[1,icut] = vario[icut]['cc2']; it[1,icut] = vario[icut]['it2']; ang[1,icut] = vario[icut]['azi2']; 
+            aa[1,icut] = vario[icut]['hmaj2']; anis[1,icut] = vario[icut]['hmin2']/vario[icut]['hmaj2'];
+
+# Load the data
+    df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]    # trim values outside tmin and tmax
+    MAXDAT = len(df_extract)
+    MAXCUT = ncut
+    MAXNST = 2
+    MAXROT = MAXNST*MAXCUT+ 1
+    ikout = np.zeros((nx,ny,ncut))
+    maxcov = np.zeros(ncut)
+            
+    # Allocate the needed memory:   
+    xa = np.zeros(MAXSAM)
+    ya = np.zeros(MAXSAM)
+    vra = np.zeros(MAXSAM)
+    dist = np.zeros(MAXSAM)
+    nums = np.zeros(MAXSAM)
+    r = np.zeros(MAXEQ)
+    rr = np.zeros(MAXEQ)
+    s = np.zeros(MAXEQ)
+    a = np.zeros(MAXEQ*MAXEQ)
+    ikmap = np.zeros((nx,ny,ncut))
+    vr = np.zeros((MAXDAT,MAXCUT+1))
+    
+    nviol = np.zeros(MAXCUT)
+    aviol = np.zeros(MAXCUT)
+    xviol = np.zeros(MAXCUT)
+    
+    ccdf = np.zeros(ncut)
+    ccdfo = np.zeros(ncut)
+    ikout = np.zeros((nx,ny,ncut))
+    
+    x = df_extract[xcol].values
+    y = df_extract[ycol].values
+    v = df_extract[vcol].values
+    
+# The indicator data are constructed knowing the thresholds and the
+# data value.
+    
+    if ivtype == 0:
+        for icut in range(0,ncut): 
+            vr[:,icut] = np.where((v <= thresh[icut] + 0.5) & (v > thresh[icut] - 0.5), '1', '0')
+    else:
+        for icut in range(0,ncut): 
+            vr[:,icut] = np.where(v <= thresh[icut], '1', '0')
+    vr[:,ncut] = v
+
+# Make a KDTree for fast search of nearest neighbours   
+    dp = list((y[i], x[i]) for i in range(0,MAXDAT))
+    data_locs = np.column_stack((y,x))
+    tree = sp.cKDTree(data_locs, leafsize=16, compact_nodes=True, copy_data=False, balanced_tree=True)
+    
+# Summary statistics of the input data
+    
+    avg = vr[:,ncut].mean()
+    stdev = vr[:,ncut].std()
+    ss = stdev**2.0
+    vrmin = vr[:,ncut].min()
+    vrmax = vr[:,ncut].max()
+    print('Data for IK3D: Variable column ' + str(vcol))
+    print('  Number   = ' + str(MAXDAT))
+    ndh = MAXDAT
+    
+    actloc = np.zeros(MAXDAT, dtype = int)
+    for i in range(1,MAXDAT):
+        actloc[i] = i
+    
+# Set up the rotation/anisotropy matrices that are needed for the
+# variogram and search:
+
+    print('Setting up rotation matrices for variogram and search')
+    radsqd = radius * radius
+    rotmat = []
+    for ic in range(0,ncut):  
+        rotmat_temp, maxcov[ic] = setup_rotmat(c0[ic],int(nst[ic]),it[:,ic],cc[:,ic],ang[:,ic],9999.9)
+        rotmat.append(rotmat_temp)    
+# Initialize accumulators:  # not setup yet
+    nk = 0
+    xk = 0.0
+    vk = 0.0
+    for icut in range (0,ncut):
+        nviol[icut] =  0
+        aviol[icut] =  0.0
+        xviol[icut] = -1.0
+    nxy   = nx*ny
+    print('Working on the kriging')
+
+# Report on progress from time to time:
+    if koption == 0: 
+        nxy   = nx*ny
+        nloop = nxy
+        irepo = max(1,min((nxy/10),10000))
+    else:
+        nloop = 10000000
+        irepo = max(1,min((nd/10),10000))
+    ddh = 0.0
+    
+# MAIN LOOP OVER ALL THE BLOCKS IN THE GRID:
+    for index in range(0,nloop):
+      
+        if (int(index/irepo)*irepo) == index: print('   currently on estimate ' + str(index))
+    
+        if koption == 0:
+            iy   = int((index)/nx) 
+            ix   = index - (iy)*nx
+            xloc = xmn + (ix)*xsiz
+            yloc = ymn + (iy)*ysiz
+        else:
+            ddh = 0.0
+            # TODO: pass the cross validation value
+
+# Find the nearest samples within each octant: First initialize the counter arrays:
+        na = -1   # accounting for 0 as first index
+        dist.fill(1.0e+20)
+        nums.fill(-1)
+        current_node = (yloc,xloc)
+        dist, close = tree.query(current_node,ndmax) # use kd tree for fast nearest data search
+        # remove any data outside search radius
+        close = close[dist<radius]
+        dist = dist[dist<radius] 
+        nclose = len(dist) 
+
+# Is there enough samples?
+
+        if nclose < ndmin:   # accounting for min index of 0
+            for i in range(0,ncut):
+                ccdfo[i] = UNEST
+            print('UNEST at ' + str(ix) + ',' + str(iy))
+        else:         
+
+# Loop over all the thresholds/categories:
+            for ic in range(0,ncut):
+                krig = True
+                if mik == 1 and ic >= 1: krig = False
+
+# Identify the close data (there may be a different number of data at
+# each threshold because of constraint intervals); however, if
+# there are no constraint intervals then this step can be avoided.
+                nca = -1
+                for ia in range(0,nclose):
+                    j  = int(close[ia]+0.5)
+                    ii = actloc[j]
+                    accept = True
+                    if koption != 0 and (abs(x[j]-xloc) + abs(y[j]-yloc)).lt.EPSLON: accept = False
+                    if accept:
+                        nca = nca + 1
+                        vra[nca] = vr[ii,ic]
+                        xa[nca]  = x[j]
+                        ya[nca]  = y[j]
+
+# If there are no samples at this threshold then use the global cdf:
+                if nca == -1:
+                    if use_trend:
+                        ccdf[ic] = trend[ny-iy-1,ix,ic]
+                    else:
+                        ccdf[ic] = gcdf[ic]
+                else:
+            
+# Now, only load the variogram, build the matrix,... if kriging:
+                    neq = nclose + ktype
+                    na = nclose
+
+# Set up kriging matrices:
+                    iin=-1 # accounting for first index of 0
+                    for j in range(0,na):
+# Establish Left Hand Side Covariance Matrix:
+                        for i in range(0,na):  # was j - want full matrix                    
+                            iin = iin + 1
+                            a[iin] = cova2(xa[i],ya[i],xa[j],ya[j],nst[ic],c0[ic],PMX,cc[:,ic],aa[:,ic],it[:,ic],ang[:,ic],anis[:,ic],rotmat[ic],maxcov[ic]) 
+                        if ktype == 1:
+                            iin = iin + 1
+                            a[iin] = maxcov[ic]            
+                        r[j] = cova2(xloc,yloc,xa[j],ya[j],nst[ic],c0[ic],PMX,cc[:,ic],aa[:,ic],it[:,ic],ang[:,ic],anis[:,ic],rotmat[ic],maxcov[ic]) 
+    
+# Set the unbiasedness constraint:
+                    if ktype == 1:
+                        for i in range(0,na):
+                            iin = iin + 1
+                            a[iin] = maxcov[ic]
+                        iin      = iin + 1
+                        a[iin]   = 0.0
+                        r[neq-1]  = maxcov[ic]
+                        rr[neq-1] = r[neq]
+# Solve the system:
+                    if neq == 1:
+                        ising = 0.0
+                        s[0]  = r[0] / a[0]
+                    else:
+                        s = ksol_numpy(neq,a,r)
+
+# Finished kriging (if it was necessary):
+
+# Compute Kriged estimate of cumulative probability:
+                    sumwts   = 0.0
+                    ccdf[ic] = 0.0
+                    for i in range(0,nclose):
+                        ccdf[ic] = ccdf[ic] + vra[i]*s[i]
+                        sumwts   = sumwts   + s[i]
+                    if ktype == 0: 
+                        if use_trend == True:
+                            ccdf[ic] = ccdf[ic] + (1.0-sumwts)*trend[ny-iy-1,ix,ic]
+                        else:
+                            ccdf[ic] = ccdf[ic] + (1.0-sumwts)*gcdf[ic]
+
+# Keep looping until all the thresholds are estimated:
+ 
+# Correct and write the distribution to the output file:
+            nk = nk + 1
+            ccdfo = ordrel(ivtype,ncut,ccdf)
+        
+# Write the IK CCDF for this grid node:
+            if koption == 0:
+                 ikout[ny-iy-1,ix,:] = ccdfo
+            else:
+                 print('TBD')
+    return ikout  
