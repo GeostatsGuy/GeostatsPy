@@ -384,7 +384,7 @@ def cova2(x1, y1, x2, y2, nst, c0, pmx, cc, aa, it, ang, anis, rotmat, maxcov):
     :param maxcov: TODO
     :return: TODO
     """
-    EPSLON = 0.000_000
+    EPSLON = 0.000001
 
     # Check for very small distance
     dx = x2 - x1
