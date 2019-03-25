@@ -5,13 +5,11 @@ provide the opportunity to build 2D spatial modeling projects in Python without
 the need to rely on compiled Fortran code from GSLIB. If you want to use the
 GSLIB compiled code called from Python workflows use the functions available
 with geostatspy.GSLIB.
-
 This file includes the (1) GSLIB subroutines (converted to Python), followed by
 the (2) functions: declus, gam, gamv, nscore, kb2d (more added all the time)
 Note: some GSLIB subroutines are not included as they were replaced by available
 NumPy and SciPy functionality or they were not required as we don't have to deal
 with graphics and files in the same manner as GSLIB.
-
 The original GSLIB code is from GSLIB: Geostatistical Library by Deutsch and
 Journel, 1998. The reimplementation is by Michael Pyrcz, Associate Professor,
 the University of Texas at Austin.
@@ -24,10 +22,10 @@ import numpy as np  # for ndarrays
 import numpy.linalg as linalg  # for linear algebra
 import scipy.spatial as sp  # for fast nearest neighbor search
 from numba import jit  # for numerical speed up
+from statsmodels.stats.weightstats import DescrStatsW
 
 def backtr(df,vcol,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):   
     """Back transform an entire DataFrame column with a provided transformation table and tail extrapolation.
-
     :param df: the source DataFrame
     :param vcol: the column with the variable to transfrom
     :param vr: the transformation table, 1D ndarray with the original values
@@ -78,7 +76,6 @@ def backtr(df,vcol,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):
 
 def backtr_value(vrgs,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar): 
     """Back transform a single value with a provided transformation table and tail extrapolation.
-
     :param vrgs: value to transform
     :param vr: the transformation table, 1D ndarray with the original values
     :param vrg: the transformation table, 1D ndarray with the trasnformed variable
@@ -124,7 +121,6 @@ def backtr_value(vrgs,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):
 
 def gcum(x):
     """Calculate the cumulative probability of the standard normal distribution.
-
     :param x: the value from the standard normal distribution 
     :return: TODO
     """    
@@ -148,7 +144,6 @@ def locate(xx,iis,iie,x):
     """Return value `j` such that `x` is between `xx[j]` and `xx[j+1]`, where
     `xx` is an array of length `n`, and `x` is a given value. `xx` must be
     monotonic, either increasing or decreasing (GSLIB version).
-
     :param xx: array
     :param iis: start point
     :param iie: end point
@@ -183,7 +178,6 @@ def dlocate(xx, iis, iie, x):
     """Return value `j` such that `x` is between `xx[j]` and `xx[j+1]`, where
     `xx` is an array of length `n`, and `x` is a given value. `xx` must be
     monotonic, either increasing or decreasing (updated with Python bisect)
-
     :param xx: array
     :param iis: start point
     :param iie: end point
@@ -200,7 +194,6 @@ def dlocate(xx, iis, iie, x):
 
 def powint(xlow,xhigh,ylow,yhigh,xval,power):
     """Power-based interpolator 
-
     :param xlow: x lower interval
     :param xhigh: x upper interval
     :param ylow: y lower interval
@@ -219,7 +212,6 @@ def powint(xlow,xhigh,ylow,yhigh,xval,power):
 
 def dsortem(ib, ie, a, iperm, b=0, c=0, d=0, e=0, f=0, g=0, h=0):
     """Sort array in ascending order.
-
     :param ib: start index
     :param ie: end index
     :param a: array
@@ -279,7 +271,6 @@ def dsortem(ib, ie, a, iperm, b=0, c=0, d=0, e=0, f=0, g=0, h=0):
 def gauinv(p):
     """Compute the inverse of the standard normal cumulative distribution
     function.
-
     :param p: cumulative probability value
     :return: TODO
     """
@@ -327,7 +318,6 @@ def gcum(x):
     """Evaluate the standard normal cdf given a normal deviate `x`. `gcum` is
     the area under a unit normal curve to the left of `x`. The results are
     accurate only to about 5 decimal places.
-
     :param x: TODO
     :return: TODO
     """
@@ -357,7 +347,6 @@ def gcum(x):
 def dpowint(xlow, xhigh, ylow, yhigh, xval, pwr):
     """Power interpolate the value of `y` between (`xlow`, `ylow`) and
     (`xhigh`, `yhigh`) for a value of `x` and a power `pwr`.
-
     :param xlow: TODO
     :param xhigh: TODO
     :param ylow: TODO
@@ -375,11 +364,28 @@ def dpowint(xlow, xhigh, ylow, yhigh, xval, pwr):
         )
     return dpowint_
 
+#@jit(nopython=True) # all NumPy array operations included in this function for precompile with NumBa
+def setup_rotmat2(c0,nst,it,cc,ang):
+    DTOR=3.14159265/180.0; EPSLON=0.000000; PI=3.141593
+# The first time around, re-initialize the cosine matrix for the
+# variogram structures:
+    rotmat = np.zeros((4,nst))
+    maxcov = c0
+    for js in range(0,nst):
+        azmuth = (90.0-ang[js])*DTOR
+        rotmat[0,js] =  math.cos(azmuth)
+        rotmat[1,js] =  math.sin(azmuth)
+        rotmat[2,js] = -1*math.sin(azmuth)
+        rotmat[3,js] =  math.cos(azmuth)
+        if it[js] == 4:
+            maxcov = maxcov + 9999.9
+        else:
+            maxcov = maxcov + cc[js]
+    return rotmat, maxcov
 
 @jit(nopython=True)
 def setup_rotmat(c0, nst, it, cc, ang, pmx):
     """Setup rotation matrix.
-
     :param c0: nugget constant (isotropic)
     :param nst: number of nested structures (max. 4)
     :param it: TODO
@@ -412,7 +418,6 @@ def setup_rotmat(c0, nst, it, cc, ang, pmx):
 def cova2(x1, y1, x2, y2, nst, c0, pmx, cc, aa, it, ang, anis, rotmat, maxcov):
     """Calculate the covariance associated with a variogram model specified by a
     nugget effect and nested variogram structures.
-
     :param x1: x coordinate of first point
     :param y1: y coordinate of first point
     :param x2: x coordinate of second point
@@ -477,7 +482,6 @@ def sqdist(x1,y1,z1,x2,y2,z2,ind,rotmat):
 
 def sqdist2(x1,y1,x2,y2,ist,rotmat,anis):
     """Calculate the 2D square distance based on geometric ani
-
     :param x1: x coordinate of first point
     :param y1: y coordinate of first point
     :param x2: x coordinate of second point
@@ -546,7 +550,6 @@ def setrot(ang1,ang2,sang1,anis1,anis2,sanis1,nst,MAXROT):
 
 def ksol_numpy(neq, a, r):
     """Find solution of a system of linear equations.
-
     :param neq: number of equations
     :param a: upper triangular left hand side matrix
     :param r: right hand side matrix
@@ -582,7 +585,7 @@ def ctable(MAXNOD,MAXCXY,MAXCTX,MAXCTY,MAXXYZ,isrot,nx,ny,nst,c0,cc,aa,it,ang,an
     iynode = np.zeros(MAXXYZ)
     covtab = np.zeros((MAXCTX,MAXCTY))
 # Initialize the covariance subroutine and cbb at the same time:
-    rotmat, maxcov = setup_rotmat(c0,nst,it,cc,ang)
+    rotmat, maxcov = setup_rotmat2(c0,nst,it,cc,ang)
     cbb = cova2(0.0,0.0,0.0,0.0,nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
 
 # Now, set up the table and keep track of the node offsets that are
@@ -673,7 +676,7 @@ def krige(ix,iy,xx,yy,lktype,x,y,vr,sec,colocorr,lvm,close,covtab,nctx,ncty,icno
     cbb = cova2(0,0,0,0,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov) 
 #    print(r.shape)
 # Local mean
-    if ktype == 2:
+    if lktype == 2:
         gmean = lvm[cur_index]
     else:
         gmean = 0.0
@@ -914,7 +917,6 @@ def getindex(nc,cmn,csiz,loc):
 
 def correct_trend(trend):
     """Correct a indicator based trend model for closure (probabilities sum to 1.0).
-
     :param trend: ndarray [ny,nx,ncut]
     :return: nadarray [ny,nx,ncut] corrected for closure
     """
@@ -933,7 +935,6 @@ def correct_trend(trend):
 
 def ordrel(ivtype,ncut,ccdf):
     """Correct a indicator based CDF for order relations.
-
     :param ivtype: variable type, 0 - categorical and 1 - continuous
     :param ncut: number of categories or thresholds
     :param ccdf: input cumulative distribution function
@@ -980,9 +981,7 @@ def declus(df, xcol, ycol, vcol, iminmax, noff, ncell, cmin, cmax):
     """GSLIB's DECLUS program (Deutsch and Journel, 1998) converted from the
     original Fortran to Python by Michael Pyrcz, the University of Texas at
     Austin (Jan, 2019).
-
     Note this was simplified to 2D only.
-
     :param df: pandas DataFrame with the spatial data
     :param xcol: name of the x coordinate column
     :param ycol: name of the y coordinate column
@@ -1125,7 +1124,6 @@ def gam(array, tmin, tmax, xsiz, ysiz, ixd, iyd, nlag, isill):
     """GSLIB's GAM program (Deutsch and Journel, 1998) converted from the
     original Fortran to Python by Michael Pyrcz, the University of Texas at
     Austin (Jan, 2019).
-
     :param array: 2D gridded data / model
     :param tmin: property trimming limit
     :param tmax: property trimming limit
@@ -1227,9 +1225,7 @@ def gamv(
     """GSLIB's GAMV program (Deutsch and Journel, 1998) converted from the
     original Fortran to Python by Michael Pyrcz, the University of Texas at
     Austin (Jan, 2019).
-
     Note simplified for 2D, semivariogram only and one direction at a time.
-
     :param df: pandas DataFrame with the spatial data
     :param xcol: name of the x coordinate column
     :param ycol: name of the y coordinate column
@@ -1285,7 +1281,6 @@ def gamv(
 @jit(nopython=True)
 def variogram_loop(x, y, vr, xlag, xltol, nlag, azm, atol, bandwh):
     """Calculate the variogram by looping over combinatorial of data pairs.
-
     :param x: x values
     :param y: y values
     :param vr: property values
@@ -1442,7 +1437,6 @@ def variogram_loop(x, y, vr, xlag, xltol, nlag, azm, atol, bandwh):
 
 def varmapv(df,xcol,ycol,vcol,tmin,tmax,nxlag,nylag,dxlag,dylag,minnp,isill):
     """Calculate the variogram map from irregularly spaced data.
-
     :param df: DataFrame with the spatial data, xcol, ycol, vcol coordinates and property columns
     :param xcol: DataFrame column with x coordinate
     :param ycol: DataFrame column with y coordinate
@@ -1606,7 +1600,6 @@ def nscore(
     """GSLIB's NSCORE program (Deutsch and Journel, 1998) converted from the
     original Fortran to Python by Michael Pyrcz, the University of Texas at
     Austin (Jan, 2019).
-
     :param df: pandas DataFrame with the spatial data
     :param vcol: name of the variable column
     :param wcol: name of the weight column, if None assumes equal weighting
@@ -1698,7 +1691,6 @@ def kb2d(
     """GSLIB's KB2D program (Deutsch and Journel, 1998) converted from the
     original Fortran to Python by Michael Pyrcz, the University of Texas at
     Austin (Jan, 2019).
-
     :param df: pandas DataFrame with the spatial data
     :param xcol: name of the x coordinate column
     :param ycol: name of the y coordinate column
@@ -1976,13 +1968,11 @@ def kb2d(
 
     return kmap, vmap
 
-def ik2d(
-    df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,nx,xmn,xsiz,ny,ymn,ysiz,ndmin,ndmax,radius,ktype,vario): 
-
-     """A 2D version of GSLIB's IK3D Indicator Kriging program (Deutsch and Journel, 1998) converted from the
+def ik2d(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,nx,xmn,xsiz,ny,ymn,ysiz,ndmin,ndmax,radius,ktype,vario):
+          
+    """A 2D version of GSLIB's IK3D Indicator Kriging program (Deutsch and Journel, 1998) converted from the
     original Fortran to Python by Michael Pyrcz, the University of Texas at
     Austin (March, 2019).
-
     :param df: pandas DataFrame with the spatial data
     :param xcol: name of the x coordinate column
     :param ycol: name of the y coordinate column
@@ -2010,7 +2000,7 @@ def ik2d(
     :param vario: list with all of the indicator variograms (sill of 1.0) in consistent order with above parameters
     :return:
     """
-    
+        
 # Find the needed paramters:
     PMX = 9999.9
     MAXSAM = ndmax + 1
@@ -2257,7 +2247,6 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
     MAXNST=2; MAXROT=2; UNEST=-99.0; EPSLON=1.0e-20; VERSION=2.907
     KORDEI=12; MAXOP1=KORDEI+1; MAXINT=2**30
     
-    
 # Set other parameters
     np.random.seed(seed)
     nxy = nx*ny
@@ -2490,7 +2479,7 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
         rotmat = setrot(ang[0],ang[1],sang1,anis[0],anis[1],sanis1,nst,MAXROT=2)
     isrot = 2 # search rotation is appended as 3rd
 
-    rotmat_2d, maxcov = setup_rotmat(c0,nst,it,cc,ang) # will use one in the future
+    rotmat_2d, maxcov = setup_rotmat2(c0,nst,it,cc,ang) # will use one in the future
 #    print('MaxCov = ' + str(maxcov))
     
 # Make a KDTree for fast search of nearest neighbours   
@@ -2700,5 +2689,3 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
             ix   = ind - (iy)*nx
             sim_out[ny-iy-1,ix] = sim[ind]
     return sim_out
-
-    #return np.reshape(order,(100,100)) # checked the random path - passed
