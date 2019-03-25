@@ -658,7 +658,7 @@ def srchnd(ix,iy,nx,ny,sim,noct,nodmax,ixnode,iynode,nlooku,nctx,ncty,UNEST):
             ncnode = ncnode + 1  # moved to account for origin 0
     return ncnode, icnode, cnodev, cnodex, cnodey
 
-def krige(ix,iy,xx,yy,lktype,x,y,vr,sec,colocorr,lvm,close,covtab,nctx,ncty,icnode,ixnode,iynode,cnodev,cnodex,cnodey,nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov,MAXCTX,MAXCTY,MAXKR1,MAXKR2):
+def krige(ix,iy,nx,ny,xx,yy,lktype,x,y,vr,sec,colocorr,lvm,close,covtab,nctx,ncty,icnode,ixnode,iynode,cnodev,cnodex,cnodey,nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov,MAXCTX,MAXCTY,MAXKR1,MAXKR2):
     EPSLON = 1.0e-20
     cur_index  = ix + (iy)*nx
 #    print('krige at grid '); print(ix,iy) 
@@ -2630,7 +2630,7 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
             else:
                 lktype = ktype
                 if ktype == 1 and (nclose+ncnode) < 4: lktype=0
-                cmean, cstdev = krige(ix,iy,xx,yy,lktype,x,y,vr,sec,colocorr,lvm,nums,cov_table,nctx,ncty,icnode,ixnode,iynode,cnodev,cnodex,cnodey,
+                cmean, cstdev = krige(ix,iy,nx,ny,xx,yy,lktype,x,y,vr,sec,colocorr,lvm,nums,cov_table,nctx,ncty,icnode,ixnode,iynode,cnodev,cnodex,cnodey,
                                       nst,c0,9999.9,cc,aa,it,ang,anis,rotmat_2d,maxcov,MAXCTX,MAXCTY,MAXKR1,
                                       MAXKR2)
 
