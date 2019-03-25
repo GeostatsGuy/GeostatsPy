@@ -562,7 +562,7 @@ def ksol_numpy(neq, a, r):
     s = np.matmul(ainv, r)  # matrix multiplication
     return s
 
-def ctable(MAXNOD,MAXCXY,MAXCTX,MAXCTY,MAXXYZ,isrot,nx,ny,nst,c0,cc,aa,it,ang,anis,global_rotmat,radsqd):
+def ctable(MAXNOD,MAXCXY,MAXCTX,MAXCTY,MAXXYZ,xsiz,ysiz,isrot,nx,ny,nst,c0,cc,aa,it,ang,anis,global_rotmat,radsqd):
    
 # Declare constants
     TINY = 1.0e-10
@@ -2489,7 +2489,7 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
               
 # Set up the covariance table and the spiral search:
     cov_table,tmp,order,ixnode,iynode,nlooku,nctx,ncty = ctable(MAXNOD,MAXCXY,MAXCTX,MAXCTY,MXY,
-                                isrot,nx,ny,nst,c0,cc,aa,it,ang,anis,rotmat,radsqd)
+                                xsiz,ysiz,isrot,nx,ny,nst,c0,cc,aa,it,ang,anis,rotmat,radsqd)
        
 #    print('Covariance Table'); print(cov_table)
 # MAIN LOOP OVER ALL THE SIMULAUTIONS:
