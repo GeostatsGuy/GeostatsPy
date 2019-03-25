@@ -628,7 +628,7 @@ def ctable(MAXNOD,MAXCXY,MAXCTX,MAXCTY,MAXXYZ,xsiz,ysiz,isrot,nx,ny,nst,c0,cc,aa
                                    
     return covtab,tmp,order,ixnode,iynode,nlooku,nctx,ncty
 
-def srchnd(ix,iy,nx,ny,sim,noct,nodmax,ixnode,iynode,nlooku,nctx,ncty,UNEST):
+def srchnd(ix,iy,nx,ny,xmn,ymn,sim,noct,nodmax,ixnode,iynode,nlooku,nctx,ncty,UNEST):
 
 # Consider all the nearby nodes until enough have been found:
     ncnode = 0; 
@@ -2603,7 +2603,7 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
 #            print('nodmax ' + str(nodmax))
 #            print('ixnode'); print(ixnode)
                     
-            ncnode, icnode, cnodev, cnodex, cnodey = srchnd(ix,iy,nx,ny,sim,noct,nodmax,ixnode,iynode,nlooku,nctx,ncty,UNEST)
+            ncnode, icnode, cnodev, cnodex, cnodey = srchnd(ix,iy,nx,ny,xmn,ymn,sim,noct,nodmax,ixnode,iynode,nlooku,nctx,ncty,UNEST)
         
 #           print('srchnd'); print(ncnode,icnode,cnodev,cnodex,cnodey)
 #           print('Result of srchnd, cnodex = '); print(cnodex)
