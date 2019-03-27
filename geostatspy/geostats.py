@@ -1578,13 +1578,13 @@ def vmodel(
     xoff = math.sin(DEG2RAD*azm)*xlag
     yoff = math.cos(DEG2RAD*azm)*xlag
     print(' x,y,z offsets = ' + str(xoff) + ',' + str(yoff))
-    rotmat, maxcov = geostats.setup_rotmat(c0, nst, it, cc, ang, 99999.9)   
+    rotmat, maxcov = setup_rotmat(c0, nst, it, cc, ang, 99999.9)   
           
     
     xx = 0.0; yy = 0.0      
     for il in range(0,nlag+1):
         index[il] = il
-        cov[il] = geostats.cova2(0.0,0.0,xx,yy,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov)
+        cov[il] = cova2(0.0,0.0,xx,yy,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov)
         gam[il] = maxcov - cov[il]
         ro[il]  = cov[il]/maxcov
         h[il]   = math.sqrt(max((xx*xx+yy*yy),0.0))
