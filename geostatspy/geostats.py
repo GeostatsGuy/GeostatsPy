@@ -2351,7 +2351,7 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
             else:
                 vrgtr = np.ones(ntr) 
         else:
-            vrtr = df_extract[vcol]
+            vrtr = df_extract[vcol].values
             ntr = len(df_extract)  
             vrgtr = np.copy(wt)
         twt = np.sum(vrgtr)
