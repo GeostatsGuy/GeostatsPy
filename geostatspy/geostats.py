@@ -501,6 +501,11 @@ def sqdist2(x1,y1,x2,y2,ist,rotmat,anis):
     return sqdist_
 
 def setrot(ang1,ang2,sang1,anis1,anis2,sanis1,nst,MAXROT):
+    """GSLIB's SETROT subroutine (Deutsch and Journel, 1998) converted from the
+    original Fortran to Python by Michael Pyrcz, the University of Texas at
+    Austin (March, 2019).
+    Note this was simplified to 2D only.
+    """
     DEG2RAD = 3.141592654/180.0; EPSLON=1.e-20
     rotmat = np.zeros((MAXROT+1,3,3))
     if ang1 >= 0.0 and ang1 < 270.0:
@@ -563,7 +568,11 @@ def ksol_numpy(neq, a, r):
     return s
 
 def ctable(MAXNOD,MAXCXY,MAXCTX,MAXCTY,MAXXYZ,xsiz,ysiz,isrot,nx,ny,nst,c0,cc,aa,it,ang,anis,global_rotmat,radsqd):
-   
+    """GSLIB's CTABLE subroutine (Deutsch and Journel, 1998) converted from the
+    original Fortran to Python by Michael Pyrcz, the University of Texas at
+    Austin (March, 2019).
+    Note this was simplified to 2D only, WARNING: only spiral search setup works currently.
+    """
 # Declare constants
     TINY = 1.0e-10
     PMX = 9999.9
@@ -629,7 +638,12 @@ def ctable(MAXNOD,MAXCXY,MAXCTX,MAXCTY,MAXXYZ,xsiz,ysiz,isrot,nx,ny,nst,c0,cc,aa
     return covtab,tmp,order,ixnode,iynode,nlooku,nctx,ncty
 
 def srchnd(ix,iy,nx,ny,xmn,ymn,xsiz,ysiz,sim,noct,nodmax,ixnode,iynode,nlooku,nctx,ncty,UNEST):
-
+    """GSLIB's SRCHND subroutine (Deutsch and Journel, 1998) converted from the
+    original Fortran to Python by Michael Pyrcz, the University of Texas at
+    Austin (March, 2019).
+    Note this was simplified to 2D only.
+    """
+    
 # Consider all the nearby nodes until enough have been found:
     ncnode = 0; 
     icnode = np.zeros(nodmax,dtype=int); icnode.fill(-1) 
@@ -658,7 +672,258 @@ def srchnd(ix,iy,nx,ny,xmn,ymn,xsiz,ysiz,sim,noct,nodmax,ixnode,iynode,nlooku,nc
             ncnode = ncnode + 1  # moved to account for origin 0
     return ncnode, icnode, cnodev, cnodex, cnodey
 
+def beyond(ivtype,nccut,ccut,ccdf,ncut,cut,cdf,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,zval,cdfval):
+    """GSLIB's BEYOND subroutine (Deutsch and Journel, 1998) converted from the
+    original Fortran to Python by Michael Pyrcz, the University of Texas at
+    Austin (March, 2019).
+    Note this was simplified to 2D only.
+    """
+    EPSLON = 1.0e-20; UNEST=-1.0
+
+# Check for both "zval" and "cdfval" defined or undefined:
+    ierr  = 1; 
+    if zval > UNEST and cdfva > UNEST: 
+        return -1
+    if zval <= UNEST and cdfval <= UNEST: 
+        return - 1
+    
+# Handle the case of a categorical variable:
+    if ivtype == 0:
+        cum = 0
+        for i in range(0,nccut):
+            cum = cum + ccdf[i]
+            if cdfval <= cum:
+                zval = ccut[i]
+                return zval
+        return zval
+    
+# Figure out what part of distribution: ipart = 0 - lower tail
+#                                       ipart = 1 - middle
+#                                       ipart = 2 - upper tail
+    ierr  = 0
+    ipart = 1
+    if zva > UNEST:
+        if zval <= ccut[0]:       
+            ipart = 0
+        if zval >= ccut[nccut-1]:
+            ipart = 2
+    else:
+        if cdfval <= ccdf[0]:
+            ipart = 0
+        if cdfval >= ccdf[nccut-1]:
+            ipart = 2
+      
+# ARE WE IN THE LOWER TAIL?
+
+    if ipart == 0: 
+        if ltail ==1:
+# Straight Linear Interpolation:
+            powr = 1.0
+            if zval > UNEST:
+                cdfval = powint(zmin,ccut[0],0.0,ccdf[0],zval,powr)
+            else:
+                zval = powint(0.0,ccdf[0],zmin,ccut[0],cdfval,powr)
+        elif ltail == 2:
+
+# Power Model interpolation to lower limit "zmin"?
+                if zval > UNEST: 
+                    cdfval = powint(zmin,ccut[0],0.0,ccdf[0],zval,ltpar)
+                else:
+                    powr = 1.0 / ltpar
+                    zval = powint(0.0,ccdf[0],zmin,ccut[0],cdfval,powr)
+                
+# Linear interpolation between the rescaled global cdf?
+        elif ltail == 3:
+            if zval > UNEST:
+# Computing the cdf value. Locate the point and the class bound:
+                idat = locate(cut,1,ncut,zval)
+                iupp = locate(cut,ncut,1,ncut,ccut[0])
+
+# Straight linear interpolation if no data; otherwise, linear:
+                if idat <= -1 or idat >= ncut -1 or iupp <= -1 or iupp >= ncut-1: # modfity for 0 index
+                    cdfval = powint(zmin,cut[0],0.0,cdf[0],zval,1.)
+                else:
+                    temp = powint(cut[idat],cut[idat+1],cdf[idat],cdf[idat+1],zval,1.)
+                    cdfval = temp*ccdf[0]/cdf[iupp]
+            else:
+
+# Computing Z value: Are there any data out in the tail?
+
+                iupp = locate(cut,ncut,1,ncut,ccut[0])
+
+# Straight linear interpolation if no data; otherwise, local linear
+# interpolation:
+                if iupp <= 0 or iupp >= ncut:
+                    zval = powint(0.0,cdf[0],zmin,cut[0],cdfval,1.)
+                else:
+                    temp = cdfval*cdf[iupp]/ccdf[1]
+                    idat = locate(cdf,ncut,1,ncut,temp)
+                    if idat <= -1 or idat >= ncut-1:  # adjusted for 0 origin
+                        zval = powint(0.0,cdf[0],zmin,cut[0],cdfval,1.)
+                    else:
+                        zval = powint(cdf[idat],cdf[idat+1],cut[dat],cut[idat+1],temp,1.)
+        else:
+
+# Error situation - unacceptable option:
+           ierr = 2
+           return -1
+            
+# FINISHED THE LOWER TAIL,  ARE WE IN THE MIDDLE?
+    if ipart == 1:
+
+# Establish the lower and upper limits:
+        if zval > UNEST: 
+            cclow = locate(ccut,1,nccut,zval)
+        else:
+            cclow = locate(ccdf,1,nccut,cdfval)
+            cchigh = cclow + 1
+        if middle == 1:
+
+# Straight Linear Interpolation:
+            powr = 1.0
+            if zval > UNEST:
+                cdfval = powint(ccut[cclow],ccut[cchigh],ccdf[cclow],ccdf[cchigh],zval,powr)
+            else:
+                zval = powint(ccdf[cclow],ccdf[cchigh],ccut[cclow],ccut[cchigh],cdfval,powr)
+                  
+# Power interpolation between class bounds?
+        elif middle == 2:
+                if zval > UNEST:
+                    cdfval = powint(ccut[cclow],ccut[cchigh],ccdf[cclow],ccdf[cchigh],zval,mpar)
+                else:
+                    powr = 1.0 / mpar
+                    zval = powint(ccdf[cclow],ccdf[cchigh],ccut[cclow],ccut[cchigh],cdfval,powr)
+                  
+# Linear interpolation between the rescaled global cdf?
+        elif middle == 3:
+            ilow = locate(cut,ncut,1,ncut,ccut[cclow])
+            iupp = locate(cut,ncut,1,ncut,ccut[cchigh])
+            if cut[ilow] < ccut[cclow]:  
+                ilow = ilow + 1
+            if cut[iupp]  > ccut[cchigh]:  
+                iupp = iupp - 1
+            if zval > UNEST:
+                idat = locate(cut,1,ncut,zval)
+
+# Straight linear interpolation if no data; otherwise, local linear
+# interpolation:
+                if idat <= -1 or idat >= ncut-1 or ilow <= -1 or ilow >= ncut-1 or iupp <= -1 or iupp >= ncut-1 or iupp <= ilow:
+                    cdfval=powint(ccut[cclow],ccut[cchigh],ccdf[cclow],ccdf[cchigh],zval,1.)
+                else:
+                    temp = powint(cut[idat],cut[idat+1],cdf[idat],cdf[idat+1],zval,1.)
+                    cdfval=powint(cdf[ilow],cdf[iupp],ccdf[cclow],ccdf[cchigh],temp,1.)
+            else:
+
+# Straight linear interpolation if no data; otherwise, local linear
+# interpolation:
+                if ilow <= -1 or ilow >= ncut-1 or iup <= -1 or iupp >= ncut-1 or iupp < ilow:
+                    zval=powint(ccdf[cclow],ccdf[cchigh],ccut[cclow],ccut[cchigh],cdfval,1.)
+                else:
+                    temp=powint(ccdf[cclow],ccdf[cchigh],cdf[ilow],cdf[iupp],cdfval,1.)
+                    idat = locate(cdf,1,ncut,temp)
+                    if cut[idat] < ccut[cclow]: 
+                        idat=idat+1
+                    if idat <= -1 or idat >= ncut-1 or cut[idat+1] > ccut[cchigh]:
+                        zval = powint(ccdf[cclow],ccdf[cchigh],ccut[cclow],ccut[cchigh],cdfval,1.)
+                    else:
+                        zval = powint(cdf[idat],cdf[idat+1],cut[idat],cut[idat+1],temp,1.)
+                    zval = powint(cdf[idat],cdf[idat+1],cut[idat],cut[idat+1],temp,1.)
+
+        else:
+
+# Error situation - unacceptable option:
+            ierr = 2
+            return -1
+
+# FINISHED THE MIDDLE,  ARE WE IN THE UPPER TAIL?
+    if ipart == 2: 
+        if utail == 1: 
+            powr = 1.0
+            if zval > UNEST:
+                cdfval = powint(ccut(nccut),zmax,ccdf(nccut),1.0,zval,powr)
+            else:
+                zval   = powint(ccdf(nccut),1.0,ccut(nccut),zmax,cdfval,powr)        
+        elif utail == 2:
+
+# Power interpolation to upper limit "utpar"?
+            if zval > UNEST:
+                cdfval = powint(ccut(nccut),zmax,ccdf(nccut),1.0,zval,utpar)
+            else:
+                powr = 1.0 / utpar
+                zval   = powint(ccdf(nccut),1.0,ccut(nccut),zmax,cdfval,powr)
+
+# Linear interpolation between the rescaled global cdf?
+        elif utail == 3:
+            if zval > UNEST:
+
+# Approximately Locate the point and the class bound:
+                idat = locate(cut,1,ncut,zval,idat)
+                ilow = locate(cut,1,ncut,ccut(nccut),ilow)
+                if cut[idat] < zval:
+                    idat = idat + 1
+                if cut[ilow] < ccut[nccut-1]: 
+                    ilow = ilow + 1
+
+# Straight linear interpolation if no data; otherwise, local linear
+# interpolation:
+                if idat < -1 or idat >= ncut-1 or ilow <= -1 or ilow >= ncut-1:
+                    cdfval = powint(ccut(nccut),zmax,ccdf(nccut),1.0,zval,1.)
+                else:
+                    temp   = powint(cut(idat),cut(idat+1),cdf(idat),cdf(idat+1),zval,1.)
+                    cdfval = powint(cdf(ilow),1.0,ccdf(nccut),1.0,temp,1.)
+
+            else:
+
+# Computing Z value: Are there any data out in the tail?
+                ilow = locate(cut,ncut,1,ncut,ccut(nccut),ilow)
+                if cut[ilow] < ccut[nccut-1]: 
+                    ilow = ilow + 1
+
+# Straight linear interpolation if no data; otherwise, local linear
+# interpolation:
+                if ilow <= -1 or ilow >= ncut-1:
+                    zval   = powint(ccdf(nccut),1.0,ccut(nccut),zmax,cdfval,1.)
+                else:
+                    temp = powint(ccdf(nccut),1.0,cdf(ilow),1.0,cdfval,1.)
+                    idat = locate(cdf,ncut,1,ncut,temp)
+                    if cut[idat] < ccut[nccut-1]: 
+                        idat=idat+1
+                    if idat >= ncut-1:
+                        zval   = powint(ccdf[nccut-1],1.0,ccut[nccut-1],zmax,cdfval,1.)
+                    else:
+                        zval = powint(cdf[idat],cdf[idat+1],cut[idat],cut[idat+1],temp,1.)
+
+# Fit a Hyperbolic Distribution?
+        elif utail == 4:
+
+# Figure out "lambda" and required info:
+            lambd = math.pow(ccut[nccut],utpar)*(1.0-ccdf[nccut-1])
+            if zval > UNEST: 
+                cdfval = 1.0 - (lambd/(math.pow(zval,utpar)))
+            else:
+                zval = (lambd/math.pow((1.0-cdfval),(1.0/utpar)))          
+        else:
+
+# Error situation - unacceptable option:
+            ierr = 2
+            return -1
+        
+
+    if zval < zmin:
+        zval = zmin
+    if zval > zmax: 
+        zval = zmax
+
+# All finished - return:
+
+    return zval
+
 def krige(ix,iy,nx,ny,xx,yy,lktype,x,y,vr,sec,colocorr,lvm,close,covtab,nctx,ncty,icnode,ixnode,iynode,cnodev,cnodex,cnodey,nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov,MAXCTX,MAXCTY,MAXKR1,MAXKR2):
+    """GSLIB's KRIGE subroutine (Deutsch and Journel, 1998) converted from the
+    original Fortran to Python by Michael Pyrcz, the University of Texas at
+    Austin (March, 2019).
+    Note this was simplified to 2D only.
+    """
     EPSLON = 1.0e-20
     cur_index  = ix + (iy)*nx
 #    print('krige at grid '); print(ix,iy) 
@@ -903,6 +1168,272 @@ def krige(ix,iy,nx,ny,xx,yy,lktype,x,y,vr,sec,colocorr,lvm,close,covtab,nctx,nct
         cmean  = cmean  + s[na]*lvm[cur_index]
         cstdev = cstdev - s[na] *rr[na]
 
+# Error message if negative variance:
+    if cstdev < 0.0:
+#        print('ERROR: Negative Variance: ' + str(cstdev))
+        cstdev = 0.0
+    cstdev = math.sqrt(max(cstdev,0.0))
+#    print('kriging estimate and variance' + str(cmean) + ', ' + str(cstdev))
+    return cmean, cstdev
+
+def ikrige(ix,iy,nx,ny,xx,yy,lktype,x,y,vr,sec,colocorr,gmean,lvm,close,covtab,nctx,ncty,icnode,ixnode,iynode,cnodev,cnodex,cnodey,nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov,MAXCTX,MAXCTY,MAXKR1,MAXKR2):
+    """GSLIB's KRIGE subroutine (Deutsch and Journel, 1998) converted from the
+    original Fortran to Python and modified for indicator kriging  by Michael Pyrcz, the University of Texas at
+    Austin (March, 2019).
+    Note this was simplified to 2D only. WARNING: tested only for ktype 0,1,2 (2 is local proportion model / local mean provided, not residual approach)
+    """
+    EPSLON = 1.0e-20
+    cur_index  = ix + (iy)*nx
+#    print('krige at grid '); print(ix,iy) 
+#    print('krige at node '); print(xx,yy)
+#    print('grid index = '); print(cur_index)
+#    print('Check ixnode '); print(ixnode); print(iynode)
+    nclose = len(close)
+    ncnode = (icnode >= 0).sum() 
+#    print('In kriging, maxcov = ' + str(maxcov))
+#    print('kriging')
+#    print('nclose ' + str(nclose) + ', ncnode ' + str(ncnode))
+#    print('MAXKR1'); print(MAXKR1)
+    vra = np.zeros(MAXKR1); vrea = np.zeros(MAXKR1)
+    r = np.zeros(MAXKR1); rr = np.zeros(MAXKR1); s = np.zeros(MAXKR1); a = np.zeros(MAXKR2)
+    cbb = cova2(0,0,0,0,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov) 
+#    print(r.shape)
+# Local mean # just pass the local probability as gmean 
+#   if lktype == 2:
+#       gmean = lvm[cur_index]
+
+# keep input gmean otherwise    
+
+# Size of the kriging system:
+    first = False
+    na    = nclose + ncnode
+#    print('lktype' + str(lktype))
+    if lktype == 0: neq = na
+    if lktype == 1:
+#        print('ordinary kriging')
+        neq = na + 1
+    if lktype == 2: neq = na
+    if lktype == 3: neq = na + 2
+    if lktype == 4: neq = na + 1
+#    print('prior matrix build neq'); print(neq)
+#    print('na'); print(na)
+        
+#    print('kriging data close'); print(close)
+#    print('kriging node close'); print(icnode)
+# Set up kriging matrices:
+    iin=-1 # acocunting for 0 origin
+#    print('krige na' + str(na))
+    for j in range(0,na):
+
+# Sort out the actual location of point "j"
+        if j < nclose: # adjusted for 0 index origin
+            index  = int(close[j])
+            x1     = x[index]
+            y1     = y[index]
+            vra[j] = vr[index]
+#            print('data: index = ' + str(index) + ', x,y ' + str(x1) + ',' + str(y1) + ', value = ' + str(vra[j]))
+#            if lvm.shape[0] > 1: 
+#                vrea[j]= sec[index];
+#            else:
+            vrea[j] = 0.0 # added this - no effect
+#            if lktype == 2: vra[j] = vra[j] - vrea[j] # just using local variable mean not full residual approach
+        else:
+            
+# It is a previously simulated node (keep index for table look-up):
+#            print(j)
+            index  = j-(nclose) # adjust for 0 index
+            x1     = cnodex[index]
+            y1     = cnodey[index]
+            vra[j] = cnodev[index]
+            ind    = icnode[index]
+#            print('prev node: index = ' + str(index) + ', x,y ' + str(x1) + ',' + str(y1) + ', value = ' + str(vra[j])) 
+            ix1    = ix + (int(ixnode[ind])-nctx-1)
+            iy1    = iy + (int(iynode[ind])-ncty-1)
+#            print('ix1, iy1 = '); print(ix1,iy1)
+            index  = ix1 + (iy1-1)*nx
+#            if lktype == 2: 
+#                vrea[j]= lvm[index]
+#                vra[j] = vra[j] - vrea[j]
+        for i in range(0,na): # we need the full matrix 
+#            print('kriging indice populated' + str(j) + ',' + str(i))
+# Sort out the actual location of point "i"
+            if i < nclose:
+                index  = int(close[i]) # adjust for 0 index
+                x2     = x[index]
+                y2     = y[index]
+            else:
+
+# It is a previously simulated node (keep index for table look-up):
+                #print('i = ' + str(i) + ',nclose = ' + str(nclose) + ', na = ' + str(na))
+                index  = i-(nclose)
+                x2     = cnodex[index]
+                y2     = cnodey[index]
+                ind    = icnode[index]
+#                print('previous node index' + str(ind))
+                ix2    = ix + (int(ixnode[ind])-nctx-1)
+                iy2    = iy + (int(iynode[ind])-ncty-1)
+
+# Now, get the covariance value:
+            iin = iin + 1
+#            print('kriging data location = '); print(x2,y2)
+# Decide whether or not to use the covariance look-up table:
+            if j <= nclose or i <= nclose:
+#                print('x1,y1,x2,y2,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov')
+#                print(x1,y1,x2,y2,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov)
+                cov = cova2(x1,y1,x2,y2,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov)
+#                print('cov'); print(cov)
+                a[iin] = cov
+            else:
+
+# Try to use the covariance look-up (if the distance is in range):
+#                ii = nctx + 1 + (ix1 - ix2)
+#                jj = ncty + 1 + (iy1 - iy2)
+                cov = cova2(x1,y1,x2,y2,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov)
+#                if ii < 0 or ii >= MAXCTX or jj < 0 or jj >= MAXCTY:
+#                    cov = cova2(x1,y1,x2,y2,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov)
+#                else:
+#                    cov = covtab[ii,jj]
+#                print(x1,y1,x2,y2,cov)
+                a[iin] = cov
+
+# Get the RHS value (possibly with covariance look-up table):
+        if j <= nclose:
+#            print(cc,aa,it,ang,anis,rotmat,maxcov)
+            cov = cova2(xx,yy,x1,y1,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov)
+#            if cov >= 1.0:
+#                print('cov of 1.0 RHS for data ')
+#                print('ix,iy ='); print(xx,xx)
+#                print('ix1,iy1'); print(x1,y1)      
+            r[j] = cov        
+        else:
+
+# Try to use the covariance look-up (if the distance is in range):
+#            ii = nctx + 1 + (ix - ix1)
+#            jj = ncty + 1 + (iy - iy1)
+    
+#            print('RHS ctable coord' + str(ii) + ',' + str(jj))
+#            print('ix,iy ='); print(ix,iy)
+#            print('ix1,iy1'); print(ix1,iy1)
+#            if ii < 0 or ii >= MAXCTX or jj < 0 or jj >= MAXCTY: # adjusted for origin 0
+#                print('Not using covariance table')
+#                cov = cova2(xx,yy,x1,y1,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov)    
+#            else:
+#               cov = covtab[ii,jj]
+            cov = cova2(xx,yy,x1,y1,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov) 
+#            if cov >= 1.0:
+#                print('cov of 1.0 RHS for node ' + str(j))
+#                print('ix,iy ='); print(xx,xx)
+#                print('ix1,iy1'); print(x1,y1)               
+        
+            r[j] = cov
+#        print('kriging, writing RHS '+ str(j) + ',' + str(cov) + 'loc_est' + str(xx) + ',' + str(yy) + 'data' + str(x1) + ',' + str(y1))
+        rr[j] = r[j]
+        if lktype == 1: # we need the full array
+            iin = iin + 1
+            a[iin] = 1.0 
+        if lktype == 4: # we need the full array
+            iin = iin + 1
+            a[iin] = colocorr*r[j]    
+# Addition of OK constraint:
+    if lktype == 1 or lktype == 3:
+        for i in range(0,na):
+            iin    = iin + 1
+            a[iin] = 1.0
+        iin       = iin + 1
+        a[iin]    = 0.0
+        r[na]  = 1.0
+        rr[na] = 1.0
+
+# Addition of the External Drift Constraint:
+    if lktype == 3:
+        edmin =  999999.
+        edmax = -999999.
+        for i in range(0,na):
+            iin    = iin + 1
+            a[iin] = vrea(i)
+            if a[iin] <edmin: edmin = a[iin]
+            if a[iin] > edmax: edmax = a[iin]
+        iin       = iin + 1
+        a[iin]   = 0.0
+        iin      = iin + 1
+        a[iin]    = 0.0
+        ind      = ix + (iy-1)*nx
+        r[na+1]  = lvm[ind]
+        rr[na+1] = r[na+1]
+        if (edmax-edmin) < EPSLON: neq = neq - 1
+
+# Addition of Collocated Cosimulation Constraint:
+    if lktype == 4:
+        colc = True
+        sfmin =  1.0e21
+        sfmax = -1.0e21
+        for i in range(0,na):
+            iin    = iin + 1
+            a[iin] = colocorr*r[i]
+            if a[iin] < sfmin: sfmin = a[iin]
+            if a[iin] > sfmax: sfmax = a[iin]
+        iin    = iin + 1
+        a[iin] = 1.0
+        ii     = na
+        r[ii]  = colocorr
+        rr[ii] = r[ii]
+#        if (sfmax-sfmin) < EPSLON: 
+#            neq = neq - 1
+#            colc = False
+
+# Solve the Kriging System:
+#    print('Kriging equations neq = ' + str(neq)); 
+#    print('a'); print(a)
+#    print('r'); print(r)
+#    print('data'); print(vra)
+    if neq == 1 and lktype != 3:
+#        print('neq = 1 '); print(a,r)
+        s[0]  = r[0] / a[0]
+    else:
+#        print('neq prior ksol' + str(neq))
+        s = ksol_numpy(neq,a,r)
+#        print('neq post ksol' + str(neq))      
+#        if s.shape[0]< neq:
+#            print('s shape'); print(s.shape)
+#            print('a'); print(a)
+#            print('r'); print(r)            
+
+        ising = 0 # need to figure this out
+#    print('s'); print(s)
+
+# Compute the estimate and kriging variance.  Recall that kriging type
+#     0 = Simple Kriging:
+#     1 = Ordinary Kriging:
+#     2 = Locally Varying Mean:
+#     3 = External Drift:
+#     4 = Collocated Cosimulation:
+
+#    print('kriging weights'); print(s)
+    cmean  = 0.0
+#    print('cbb = ' + str(cbb))
+    cstdev = cbb 
+    sumwts = 0.0
+    for i in range(0,na):
+        cmean  = cmean  + s[i]*vra[i]
+        cstdev = cstdev - s[i]*rr[i]
+        sumwts = sumwts + s[i]
+    if lktype == 1: 
+        cstdev = cstdev - s[na]
+ #       print('Ordinary Weight' + str(s[na]))
+ #   if lktype == 2: cmean  = cmean + gmean
+    if lktype == 4 and colc == True: # we may drop colocated if low covariance dispersion
+        ind    = ix + (iy-1)*nx
+#        print(ind)
+#        print('neq'); print(neq)
+#        print('s'); print(s.shape)
+#        print('lvm'); print(lvm.shape)
+#        print('colc wt = ' + str(s[na]) + ' for ' + str(lvm[cur_index]) + ' at index ' + str(cur_index))
+        cmean  = cmean  + s[na]*lvm[cur_index]
+        cstdev = cstdev - s[na] *rr[na]
+    if lktype == 0 or lktype == 2:
+        cmean = cmean + (1.0-sumwts)*gmean
+#    print('cmean'); print(cmean)
+        
 # Error message if negative variance:
     if cstdev < 0.0:
 #        print('ERROR: Negative Variance: ' + str(cstdev))
@@ -2689,3 +3220,439 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
             ix   = ind - (iy)*nx
             sim_out[ny-iy-1,ix] = sim[ind]
     return sim_out
+
+def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,nx,xmn,xsiz,ny,ymn,ysiz,seed,ndmin,
+          ndmax,nodmax,mults,nmult,noct,radius,ktype,vario):
+          
+    """A 2D version of GSLIB's SISIM Indicator Simulation program (Deutsch and Journel, 1998) converted from the
+    original Fortran to Python by Michael Pyrcz, the University of Texas at
+    Austin (March, 2019). WARNING: only tested for cateogrical ktype 0, 1 and 2 (locally variable proportion).
+    :param df: pandas DataFrame with the spatial data
+    :param xcol: name of the x coordinate column
+    :param ycol: name of the y coordinate column
+    :param vcol: name of the property column (cateogorical or continuous - note continuous is untested)
+    :param ivtype: variable type, 0 - categorical, 1 - continuous
+    :param koption: kriging option, 0 - estimation, 1 - cross validation (under construction)
+    :param ncut: number of categories or continuous thresholds
+    :param thresh: an ndarray with the category labels or continuous thresholds
+    :param gcdf: global CDF, not used if trend is present
+    :param trend: an ndarray [ny,ny,ncut] with the local trend proportions or cumulative CDF values
+    :param tmin: property trimming limit
+    :param tmax: property trimming limit
+    :param nx: definition of the grid system (x axis)
+    :param xmn: definition of the grid system (x axis)
+    :param xsiz: definition of the grid system (x axis)
+    :param ny: definition of the grid system (y axis)
+    :param ymn: definition of the grid system (y axis)
+    :param ysiz: definition of the grid system (y axis)
+    :param nxdis: number of discretization points for a block
+    :param nydis: number of discretization points for a block
+    :param ndmin: minimum number of data points to use for kriging a block
+    :param ndmax: maximum number of data points to use for kriging a block
+    :param radius: maximum isotropic search radius
+    :param ktype: kriging type, 0 - simple kriging and 1 - ordinary kriging
+    :param vario: list with all of the indicator variograms (sill of 1.0) in consistent order with above parameters
+    :return:
+    """
+# Checks
+    if utail == 3 or ltail == 3 or middle == 3:
+        print('ERROR - distribution extrapolation option 3 with table is not available')
+        return sim_out
+    if xcol == "" or ycol == "":
+        print('ERROR - must have x and y column in the DataFrame')
+        return sim_out
+# Set parameters from the include
+    UNEST = -99.0
+    EPSLON = 1.0e-20
+    VERSION = 0.001
+    np.random.seed(seed)
+    colocorr = 0.0 # no collocated cokriging
+    lvm = 0 # no kriging with a locally variable mean
+    sec = []; sec = np.array(sec) # no secondary data
+    ng = 0 # no tabulated values 
+
+# Find the needed paramters:
+    PMX = 9999.9
+    MAXSAM = ndmax + 1
+    MAXEQ = MAXSAM + 1
+    nxy   = nx*ny
+    mik = 0  # full indicator kriging
+    use_trend = False
+    trend1d = np.zeros((nxy,1)) # no trend make a dummy trend
+    if trend.shape[0] == nx and trend.shape[1] == ny and trend.shape[2] == ncut:
+        trend1d = np.zeros((nxy,ncut))
+        use_trend = True
+        index = 0
+        for iy in range(0,ny):
+            for ix in range(0,nx):
+                for ic in range(0,ncut):
+                    trend1d[index,ic] = trend[ny-iy-1,ix,ic] # copy trend
+                index = index + 1
+        
+    MAXORD = nxy
+    MAXNOD = nodmax
+    
+    cnodeiv = np.zeros((ncut+1,MAXNOD))
+    
+    tmp = np.zeros(MAXORD) 
+    sstrat = 0 # search data and nodes by default, turned off if unconditional
+    sang1 = 0 # using isotropic search now
+    sanis1 = 1.0
+# No covariance lookup table
+    mxctx = int(radius/xsiz)*2+1; mxcty = int(radius/xsiz)*2+1
+#    print('cov table / spiral search nx, ny '); print(mxctx); print(mxcty)
+    MAXCTX = mxctx
+    MAXCTY = mxcty
+    MAXCXY = MAXCTX * MAXCTY
+
+# Grid extents
+    MAXX = nx
+    MAXY = ny
+    MXY = MAXX * MAXY    
+   
+# Kriging system
+    MAXKR1 = 2 * MAXNOD + 2 * MAXSAM + 1
+    MAXKR2 = MAXKR1 * MAXKR1
+    MAXSBX = 1
+    if nx > 1:
+        MAXSBX = int(nx/2)
+    if MAXSBX > 50:
+        MAXSBX=50
+    MAXSBY = 1
+    if ny > 1:
+        MAXSBY = int(ny/2)
+    if MAXSBY > 50: 
+        MAXSBY=50
+#    print('ncut'); print(ncut)
+    
+# load the variogram
+    MAXNST = 2
+    nst = np.zeros(ncut,dtype=int); c0 = np.zeros(ncut); cc = np.zeros((ncut,MAXNST)) 
+    aa = np.zeros((ncut,MAXNST),dtype=int); it = np.zeros((ncut,MAXNST),dtype=int) 
+    ang = np.zeros((ncut,MAXNST)); anis = np.zeros((ncut,MAXNST))
+
+#    print('varios - 1 vario'); print(vario[1])
+    
+    for icut in range(0,ncut):
+#        print('icut'); print(icut)
+        nst[icut] = int(vario[icut]['nst'])
+        c0[icut] = vario[icut]['nug']; cc[icut,0] = vario[icut]['cc1']; it[icut,0] = vario[icut]['it1']; 
+        ang[icut,0] = vario[icut]['azi1']; 
+        aa[icut,0] = vario[icut]['hmaj1']; anis[icut,0] = vario[icut]['hmin1']/vario[icut]['hmaj1'];
+        if nst[icut] == 2:
+            cc[icut,1] = vario[icut]['cc2']; it[icut,1] = vario[icut]['it2']; ang[icut,1] = vario[icut]['azi2']; 
+            aa[icut,1] = vario[icut]['hmaj2']; anis[icut,1] = vario[icut]['hmin2']/vario[icut]['hmaj2'];
+                
+#        print('check loaded cov model- icut '); print(icut)
+#        print(cc[icut],aa[icut],it[icut],ang[icut],anis[icut])
+    
+    
+    
+# Load the data
+    df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]    # trim values outside tmin and tmax
+    MAXDAT = len(df_extract)
+    nd = MAXDAT
+    MAXCUT = ncut
+    MAXNST = 2
+    MAXROT = MAXNST*MAXCUT+ 1
+    ikout = np.zeros((nx,ny,ncut))
+    maxcov = np.zeros(ncut)
+            
+    # Allocate the needed memory:   
+    xa = np.zeros(MAXSAM)
+    ya = np.zeros(MAXSAM)
+    vra = np.zeros(MAXSAM)
+    dist = np.zeros(MAXSAM)
+    nums = np.zeros(MAXSAM)
+    r = np.zeros(MAXEQ)
+    rr = np.zeros(MAXEQ)
+    s = np.zeros(MAXEQ)
+    a = np.zeros(MAXEQ*MAXEQ)
+    ikmap = np.zeros((nx,ny,ncut))
+    vr = np.zeros((MAXDAT,MAXCUT+1))
+    
+    nviol = np.zeros(MAXCUT)
+    aviol = np.zeros(MAXCUT)
+    xviol = np.zeros(MAXCUT)
+    
+    ccdf = np.zeros(ncut)
+    ccdfo = np.zeros(ncut)
+    ikout = np.zeros((nx,ny,ncut))
+    
+    x = df_extract[xcol].values
+    y = df_extract[ycol].values
+    v = df_extract[vcol].values
+    
+    MAXTAB = MAXDAT + MAXCUT # tabulated probabilities not used 
+    gcut = np.zeros(MAXTAB)
+    
+# The indicator data are constructed knowing the thresholds and the
+# data value.
+    
+#    print('ncut'); print(ncut)
+    if ivtype == 0:
+        for icut in range(0,ncut): 
+            vr[:,icut] = np.where((v <= thresh[icut] + 0.5) & (v > thresh[icut] - 0.5), '1', '0')
+    else:
+        for icut in range(0,ncut): 
+            vr[:,icut] = np.where(v <= thresh[icut], '1', '0')
+    vr[:,ncut] = v
+
+#    print('loaded data '); print(vr)
+# Make a KDTree for fast search of nearest neighbours   
+    dp = list((y[i], x[i]) for i in range(0,MAXDAT))
+    data_locs = np.column_stack((y,x))
+    tree = sp.cKDTree(data_locs, leafsize=16, compact_nodes=True, copy_data=False, balanced_tree=True)
+    
+# Summary statistics of the input data
+    
+    avg = vr[:,ncut].mean()
+    stdev = vr[:,ncut].std()
+    ss = stdev**2.0
+    vrmin = vr[:,ncut].min()
+    vrmax = vr[:,ncut].max()
+    print('Data for IK3D: Variable column ' + str(vcol))
+    print('  Number   = ' + str(MAXDAT))
+    ndh = MAXDAT
+    
+    actloc = np.zeros(MAXDAT, dtype = int) # need to set up data at node locations
+    for i in range(1,MAXDAT):
+        actloc[i] = i
+    
+# Set up the rotation/anisotropy matrices that are needed for the
+# variogram and search:
+
+    print('Setting up rotation matrices for variogram and search')
+    radsqd = radius * radius
+    rotmat = []
+    for ic in range(0,ncut):  
+        rotmat_temp, maxcov[ic] = setup_rotmat(c0[ic],int(nst[ic]),it[ic],cc[ic],ang[ic],9999.9)
+        rotmat.append(rotmat_temp) 
+    
+    #return rotmat
+# Set up the covariance table and the spiral search based just on the first variogram
+# This is ok as we are not using the covariance look up table, just spiral search for previous nodes
+    isrot = MAXNST*MAXCUT + 1 # note I removed anisotropic search here
+    
+#    print('ang[0]'); print(ang[0])
+    
+    if nst[0] == 1:
+        global_rotmat = setrot(ang[0,0],ang[0,0],sang1,anis[0,0],anis[0,0],sanis1,nst[0],MAXROT=2)
+    else:
+        global_rotmat = setrot(ang[0,0],ang[1,0],sang1,anis[0,0],anis[1,0],sanis1,nst[0],MAXROT=2)
+    
+    cov_table,tmp2,order,ixnode,iynode,nlooku,nctx,ncty = ctable(MAXNOD,MAXCXY,MAXCTX,MAXCTY,MXY,
+                                xsiz,ysiz,isrot,nx,ny,nst[0],c0[0],cc[0],aa[0],it[0],ang[0],anis[0],global_rotmat,radsqd)        
+   
+   
+#    print('spiral search number nodes '); print(nlooku)
+#    print('ixnode,iynode'); print(ixnode,iynode)
+# Initialize accumulators:  # not setup yet
+    nk = 0
+    xk = 0.0
+    vk = 0.0
+    for icut in range (0,ncut):
+        nviol[icut] =  0
+        aviol[icut] =  0.0
+        xviol[icut] = -1.0
+
+#    print('Working on the kriging')
+
+# Report on progress from time to time:
+    if koption == 0: 
+        nxy   = nx*ny
+        nloop = nxy
+        irepo = max(1,min((nxy/10),10000))
+    else:
+        nloop = 10000000
+        irepo = max(1,min((nd/10),10000))
+    ddh = 0.0
+ 
+# MAIN LOOP OVER ALL THE SIMULAUTIONS:
+#    for isim in range(0,nsim): # will add multiple realizations soon
+          
+# Work out a random path for this realization:
+    sim = np.random.rand(nx*ny)
+    order = np.zeros(nxy)
+    ind = 0
+    for ixy in range(0,nxy): 
+        order[ixy] = ind  
+        ind = ind + 1
+        
+# Multiple grid search works with multiples of 4 (yes, that is
+# soat arbitrary):
+
+    if mults == 1:
+        for imult in range(0,nmult): 
+            nny = int(max(1,ny/((imult+1)*4)))
+            nnx = int(max(1,nx/((imult+1)*4)))
+#            print('multi grid - nnx, nny'); print(nnx,nny)
+            jy  = 1
+            jx  = 1
+            for iy in range(0,nny): 
+                if nny > 0: jy = iy*(imult+1)*4
+                for ix in range(0,nnx):
+                    if nnx > 0: jx = ix*(imult+1)*4
+                    index = jx + (jy-1)*nx
+                    sim[index] = sim[index] - (imult+1)
+
+    
+# Inlize the simulation:
+    sim, order = dsortem(0,nxy,sim,2,b=order)
+    sim.fill(UNEST)
+    tmp.fill(0.0)
+    print('Working on a single realization, seed ' + str(seed))
+#    print('Random Path'); print(order)
+    
+# As the data to the closest grid node:
+
+    TINY = 0.0001
+    for idd in range(0,nd):
+#        print('data'); print(x[idd],y[idd])
+        ix = getindex(nx,xmn,xsiz,x[idd])
+        iy = getindex(ny,ymn,ysiz,y[idd])
+        ind = ix + (iy-1)*nx 
+        xx  = xmn + (ix)*xsiz
+        yy  = ymn + (iy)*ysiz
+#        print('xx, yy' + str(xx) + ',' + str(yy))
+        test = abs(xx-x[idd]) + abs(yy-y[idd])
+
+# As this data to the node (unless there is a closer data):
+        if sstrat == 1 or (sstrat == 0 and test <= TINY): 
+            if sim[ind] > UNEST:
+                id2 = int(sim[ind]+0.5)
+                test2 = abs(xx-x[id2]) + abs(yy-y[id2])
+                if test <= test2: 
+                    sim[ind] = idd
+            else:
+                sim[ind] = idd
+
+# As a flag so that this node does not get simulated:
+        
+
+# Another data values into the simulated grid:
+    for ind in range(0,nxy):              
+        idd = int(sim[ind]+0.5)
+        if idd > 0: 
+            sim[ind] = vr[idd]
+        else: 
+            tmp[ind] = sim[ind]
+            sim[ind] = UNEST
+    irepo = max(1,min((nxy/10),10000))          
+
+# LOOP OVER ALL THE NODES:
+    for ind in range(0,nxy):  
+        if (int(ind/irepo)*irepo) == ind:
+            print('   currently on node ' + str(ind))
+          
+# Find the index on the random path, check if assigned data and get location
+
+        index = int(order[ind]+0.5)
+        if (sim[index] > (UNEST+EPSLON)) or (sim[index] < (UNEST*2.0)): continue
+        iy   = int((index)/nx) 
+        ix   = index - (iy)*nx
+        xx = xmn + (ix)*xsiz
+        yy = ymn + (iy)*ysiz   
+        current_node = (yy,xx)
+#        print('Current_node'); print(current_node)
+
+# Now we'll simulate the point ix,iy,iz.  First, get the close data
+# and make sure that there are enough to actually simulate a value,
+# we'll only keep the closest "ndmax" data, and look for previously
+# simulated grid nodes:
+
+        if sstrat == 0:
+#            print('searching for nearest data')
+            na = -1   # accounting for 0 as first index
+            if ndmax == 1:
+                dist = np.zeros(1); nums = np.zeros(1)
+                dist[0], nums[0] = tree.query(current_node,ndmax) # use kd tree for fast nearest data search
+            else:
+                dist, nums = tree.query(current_node,ndmax)
+            # remove any data outside search radius
+            
+#            print('nums'); print(nums)
+#            print('dist'); print(dist)
+            na = len(dist)
+            nums = nums[dist<radius]
+            dist = dist[dist<radius] 
+            na = len(dist) 
+            if na < ndmin: continue     # bail if not enough data
+#            print('Found ' + str(na) + 'neighbouring data')            
+                
+#        print('node search inputs')
+#        print('nodmax ' + str(nodmax))
+#        print('ixnode'); print(ixnode)
+    
+# Indicator transform the nearest node data
+#        print('start node search')
+        ncnode, icnode, cnodev, cnodex, cnodey = srchnd(ix,iy,nx,ny,xmn,ymn,xsiz,ysiz,sim,noct,nodmax,ixnode,iynode,nlooku,nctx,ncty,UNEST)
+  
+        if ncnode > 0:
+            for icut in range(0,ncut): 
+                cnodeiv[icut,:] = np.where((cnodev <= thresh[icut] + 0.5) & (cnodev > thresh[icut] - 0.5), '1', '0')
+        else:
+            for icut in range(0,ncut): 
+                cnodeiv[icut,:] = np.where(cnodev <= thresh[icut], '1', '0')
+        cnodeiv[ncut,:] = cnodev
+
+#        print('indicator transformed nearest nodes'); print(cnodeiv)
+    
+#       print('srchnd'); print(ncnode,icnode,cnodev,cnodex,cnodey)
+#       print('Result of srchnd, cnodex = '); print(cnodex)
+        nclose = na
+#        print('*****srch node, nclose ' + str(nclose) + ', ncnode ' + str(ncnode))
+#        print('near data'); print(nums)
+#        print('near data distance'); print(dist)
+ #       print('nums'); print(nums)
+
+# What cdf value are we looking for?
+        zval   = UNEST
+        cdfval = np.random.rand()
+
+# Use the global distribution?
+# check inputs
+ #       print('nst'); print(nst)
+
+    
+    
+        if nclose + ncnode <= 0:
+#            print('nclose & ncnode'); print(nclose, ncnode)
+            zval = beyond(ivtype,ncut,thresh,gcdf,ng,gcut,gcdf,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,zval,cdfval)
+        else:
+#            print('kriging')
+# Estimate the local distribution by indicator kriging:
+#            print('maxcov'); print(maxcov)
+            for ic in range(0,ncut):
+#                print('check kriging cov model- icut '); print(ic)
+#                print('node data values for kriging'); print(cnodev)
+#                print(cc[ic],aa[ic],it[ic],ang[ic],anis[ic],rotmat[ic],maxcov[ic])
+                #ccdf([ic] = krige(ix,iy,iz,xx,yy,zz,ic,cdf(ic),MAXCTX,MAXCTY,MAXCTZ,MAXKR1,ccdf(ic),MAXROT)                             
+                if ktype == 0:
+                    gmean = gcdf[ic]  
+                elif ktype == 2:
+                    gmean = trend1d[index,ic]
+                else:
+                    gmean = 0 # if locally variable mean it is set from trend in ikrige, otherwise not used
+#                    print('gmean'); print(gmean)
+                ccdf[ic], cstdev = ikrige(ix,iy,nx,ny,xx,yy,ktype,x,y,vr[:,ic],sec,colocorr,gmean,trend[:,ic],nums,cov_table,nctx,ncty,
+                                      icnode,ixnode,iynode,cnodeiv[ic],cnodex,cnodey,nst[ic],c0[ic],9999.9,cc[ic],aa[ic],it[ic],ang[ic],anis[ic],
+                                      rotmat[ic],maxcov[ic],MAXCTX,MAXCTY,MAXKR1,MAXKR2)   
+ #           print('ccdf'); print(ccdf)
+                    
+# Correct order relations:
+            ccdfo = ordrel(ivtype,ncut,ccdf)
+# Draw from the local distribution:
+            zval = beyond(ivtype,ncut,thresh,ccdfo,ng,gcut,gcdf,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,zval,cdfval)
+        sim[index] = zval
+ #       print('zval'); print(zval)
+    
+
+# END MAIN LOOP OVER SIMULATIONS:
+    sim_out = np.zeros((ny,nx))
+    for ind in range(0,nxy):
+        iy   = int((ind)/nx) 
+        ix   = ind - (iy)*nx
+        sim_out[ny-iy-1,ix] = sim[ind]
+
+    return sim_out  
