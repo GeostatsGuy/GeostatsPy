@@ -10,7 +10,7 @@ install:
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
   - conda info -a
-  - conda install numpy pandas numba scipy
+  - conda install numpy pandas numba scipy statsmodels
 
 script:
   - python -m unittest discover
