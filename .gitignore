@@ -1,0 +1,9 @@
+# Unit test output and cache
+__pycache__/
+*.pyc
+
+# Temporary files
+*.*~
+*.swp
+*.swo
+

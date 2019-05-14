@@ -3,7 +3,7 @@
     <img src="https://github.com/GeostatsGuy/GeostatsPy/blob/master/geostatspy_logo.png?raw=true" width="220" height="240" />
 </p>
 
-## GeostatsPy Package 
+## GeostatsPy Package [![Build Status](https://travis-ci.org/GeostatsGuy/GeostatsPy.svg?branch=master)](https://travis-ci.org/GeostatsGuy/GeostatsPy)
 
 The GeostatsPy Package brings GSLIB: Geostatistical Library (Deutsch and Journel, 1998) functions to Python. GSLIB is extremely robust and practical set of code for building spatial modeling workflows. I need it in Python to support my students in my **Data Analytics**, **Geostatistics** and **Machine Learning** courses. 
 
