@@ -18,7 +18,7 @@ This package includes 2 parts:
 2. geostatspy.GSLIB includes reimplimentation of the GSLIB visualizations and low tech wrappers of the numerical methods  (note: the low-tech wrapper require access to GSLIB executables).
 
 <p>
-    <img src="https://github.com/GeostatsGuy/GeostatsPy/blob/master/TCG_color_logo.png?raw=true" width="220" height="240" />
+    <img src="https://github.com/GeostatsGuy/GeostatsPy/blob/master/TCG_color_logo.png" width="220" height="240" />
 </p>
 
 ### The Authors
