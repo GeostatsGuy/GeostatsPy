@@ -1,6 +1,6 @@
 
 <p>
-    <img src="https://github.com/GeostatsGuy/GeostatsPy/blob/master/geostatspy_logo.png?raw=true" width="220" height="240" />
+    <img src="https://github.com/GeostatsGuy/GeostatsPy/blob/master/geostatspy_logo.png?raw=true" width="220" height="200" />
 </p>
 
 ## GeostatsPy Package 
