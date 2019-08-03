@@ -31,7 +31,7 @@ This package is being developed at the University of Texas in the Texas Center f
 
 * **Anton Kupenko** - bug fixes, added docstrings, code refractory for PEP8, removed duplicated functions and variables.  Thank you Anton!
 
-* **Wendi Liu** - Ph.D. student working with Michael Pyrcz at the University of Texas at Austin. GSLIB compiles in Mac OSX, 3D variogram calculation low-tech wrapper.
+* **Wendi Liu** - Ph.D. student working with Michael Pyrcz at the University of Texas at Austin. Author of 3D subroutines and gammabar method.  Also, GSLIB compiles in Mac OSX, and 3D variogram calculation wrapper.
 
 * **Alex E. Gigliotti** - undergraduate student working with Michael Pyrcz at the University of Texas at Austin. Established unit testing.
 
