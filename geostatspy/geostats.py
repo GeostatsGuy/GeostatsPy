@@ -3972,3 +3972,214 @@ def semipartial_corr(C): # Michael Pyrcz modified the function above by Fabian P
             P_corr[i, j] = corr
             P_corr[j, i] = corr
     return P_corr
+
+def sqdist3(x1,y1,z1,x2,y2,z2,ind,rotmat):
+    """Squared Anisotropic Distance Calculation Given Matrix Indicator - 3D
+    
+    This routine calculates the anisotropic distance between two points 
+    given the coordinates of each point and a definition of the
+    anisotropy.
+    
+    Converted from original fortran GSLIB (Deutsch and Journel, 1998) to Python by Wendi Liu, University of Texas at Austin
+    
+    INPUT VARIABLES:
+ 
+    x1,y1,z1         Coordinates of first point
+    x2,y2,z2         Coordinates of second point
+    ind              The rotation matrix to use
+    rotmat           The rotation matrices"""
+    
+    dx = x1 - x2
+    dy = y1 - y2
+    dz = z1 - z2
+    sqdist = 0.0
+    for i in range(3):
+        cont = rotmat[ind, i, 0] * dx + rotmat[ind, i, 1] * dy + rotmat[ind, i, 2] * dz
+        sqdist += cont**2
+    return sqdist
+
+def setrot3(ang1,ang2,ang3,anis1,anis2,ind,rotmat):
+    """Sets up an Anisotropic Rotation Matrix - 3D
+    
+    Sets up the matrix to transform cartesian coordinates to coordinates
+    accounting for angles and anisotropy
+    
+    Converted from original fortran GSLIB (Deutsch and Journel, 1998) to Python by Wendi Liu, University of Texas at Austin
+    
+    INPUT PARAMETERS:
+
+    ang1             Azimuth angle for principal direction
+    ang2             Dip angle for principal direction
+    ang3             Third rotation angle
+    anis1            First anisotropy ratio
+    anis2            Second anisotropy ratio
+    ind              matrix indicator to initialize
+    rotmat           rotation matrices
+    
+    Converts the input angles to three angles which make more mathematical sense:
+
+          alpha   angle between the major axis of anisotropy and the
+                  E-W axis. Note: Counter clockwise is positive.
+          beta    angle between major axis and the horizontal plane.
+                  (The dip of the ellipsoid measured positive down)
+          theta   Angle of rotation of minor axis about the major axis
+                  of the ellipsoid."""
+    
+    DEG2RAD=np.pi/180.0; EPSLON=1e-20
+    if (ang1 >= 0.0)&(ang1<270.0):
+        alpha = (90.0 - ang1) * DEG2RAD
+    else:
+        alpha = (450.0 - ang1) * DEG2RAD
+    beta = -1.0 * ang2 *DEG2RAD
+    theta = ang3 * DEG2RAD
+    
+    sina = np.sin(alpha)
+    sinb = np.sin(beta)
+    sint = np.sin(theta)
+    cosa = np.cos(alpha)
+    cosb = np.cos(beta)
+    cost = np.cos(theta)
+    ### Construct the rotation matrix in the required memory
+    
+    afac1 = 1.0/max(anis1, EPSLON)
+    afac2 = 1.0/max(anis2, EPSLON)
+    rotmat[ind,0,0] = cosb * cosa
+    rotmat[ind,0,1] = cosb * sina
+    rotmat[ind,0,2] = -sinb
+    rotmat[ind,1,0] = afac1*(-cost*sina + sint*sinb*cosa)
+    rotmat[ind,1,1] = afac1*(cost*cosa + sint*sinb*sina)
+    rotmat[ind,1,2] = afac1*( sint * cosb)
+    rotmat[ind,2,0] = afac2*(sint*sina + cost*sinb*cosa)
+    rotmat[ind,2,1] = afac2*(-sint*cosa + cost*sinb*sina)
+    rotmat[ind,2,2] = afac2*(cost * cosb)
+    
+    return rotmat
+
+def cova3(x1,y1,z1,x2,y2,z2,nst,c0,it,cc,aa,rotmat,cmax,ivarg=1,irot=0, MAXNST=4):
+    """Covariance Between Two Points - 3D
+    This function calculated the covariance associated with a variogram
+  model specified by a nugget effect and nested varigoram structures.
+  The anisotropy definition can be different for each nested structure."""
+    
+    """
+    Converted from original fortran GSLIB (Deutsch and Journel, 1998) to Python by Wendi Liu, University of Texas at Austin
+    
+    INPUT VARIABLES:
+
+    x1,y1,z1         coordinates of first point
+    x2,y2,z2         coordinates of second point
+    nst             number of nested structures (maximum of 4)
+    ivarg            variogram number (set to 1 unless doing cokriging
+                        or indicator kriging)
+    MAXNST           size of variogram parameter arrays
+    c0              isotropic nugget constant
+    it               type of each nested structure:
+                       1. spherical model of range a;
+                       2. exponential model of parameter a;
+                            i.e. practical range is 3a
+                       3. gaussian model of parameter a;
+                            i.e. practical range is a*sqrt(3)
+                       4. power model of power a (a must be greater than 0  and
+                            less than 2).  if linear model, a=1,c=slope.
+    cc               multiplicative factor of each nested structure.
+                       (sill-c0) for spherical, exponential,and gaussian
+                       slope for linear model.
+    aa               parameter "a" of each nested structure.
+    irot             index of the rotation matrix for the first nested 
+                     structure (irot starts from 0; the second nested structure will use
+                     irot+1, the third irot+2, and so on)
+    rotmat           rotation matrices"""
+    
+    EPSLON = 1e-10
+    PMX=1e10
+    ### Calculate the maximum covariance value (used for zero distances and for power model covariance):
+    istart = 1+ (ivarg-1) * MAXNST
+    
+    for ii in range(nst):##nst[ivarg-1] if ivarg>1
+        ist = istart+ ii-1
+        if it[ist] == 4:
+            cmax = cmax+PMX
+        else:
+            cmax = cmax+cc[ist]
+        
+    # Check for very small distance
+    hsqd = sqdist3(x1,y1,z1,x2,y2,z2,irot,rotmat)
+    if hsqd < EPSLON:
+        cova = cmax
+        return cmax,cova
+    
+    # Non-zero distance, loop over all the structures
+    cova = 0.0
+    for js in range(nst):##nst[ivarg-1] if ivarg>1
+        ist = istart+js-1
+        # Compute the appropriate structural distance
+#         if ist!=0:
+#             ir = min((irot+js),MAXROT)
+#             hsqd = sqdist(x1,y1,z1,x2,y2,z2,ir,MAXROT,rotmat)
+        h = np.sqrt(hsqd)
+        if it[ist] == 1: ##Spherical
+            hr = h/aa[ist]
+            if hr<1:
+                cova+=cc[ist]*(1.0-hr*(1.5-0.5*hr*hr))
+        elif it[ist] == 2: ##Exponential
+            cova += cc[ist]*np.exp(-3.0*h/aa[ist])
+        elif it[ist] == 3: ##Gaussian
+            cova += cc[ist]*np.exp(-(3.0*h/aa[ist])*(3.0*h/aa[ist]))
+        elif it[ist] == 4: ##Power
+            cova += cmax-cc[ist]*h**aa[ist]
+            
+    return cmax, cova
+
+def gammabar(xsiz, ysiz, zsiz,nst,c0,it,cc,hmaj,hmin,hvert):
+    """This program calculates the gammabar value from a 3D semivariogram model"""
+    """Converted from original fortran GSLIB (Deutsch and Journel, 1998) to Python by Wendi Liu, University of Texas at Austin"""
+    
+    ###Initialization
+    rotmat = np.zeros((5, 3, 3))
+    EPSLON = 1.0e-20
+    MAXNST=4
+    maxcov=1.0
+    cmax = c0
+    nx = 3
+    ny = 3
+    nz = 6
+    ang1 = np.zeros((MAXNST,)) #azimuth
+    ang2 = np.ones((MAXNST,))*90.0 #dip
+    ang3 = np.zeros((MAXNST,)) #plenge
+    anis1 = np.zeros((MAXNST,))
+    anis2 = np.zeros((MAXNST,))
+    
+    for i in range(nst):
+        anis1[i] = hmin[i]/max(hmaj[i],EPSLON)
+        anis2[i] = hvert[i]/max(hmaj[i],EPSLON)
+        rotmat = setrot3(ang1[i],ang2[i],ang3[i],anis1[i],anis2[i],i,rotmat)
+    cmax,cov = cova3(0.0,0.0,0.0,0.0,0.0,0.0,nst,c0,it,cc,hmaj,rotmat,cmax)
+    ##Discretization parameters
+    xsz = xsiz/nx
+    xmn = xsz/2.0
+    xzero = xsz * 0.0001
+    ysz = ysiz/ny
+    ymn = ysz/2.0
+    yzero = ysz * 0.0001
+    zsz = zsiz/nz
+    zmn = zsz/2.0
+    zzero = zsz * 0.0001
+    ##Calculate Gammabar
+    gb = 0.0
+    for ix in range(nx):
+        xxi = xmn +(ix-1)*xsz+xzero
+        for jx in range(nx):
+            xxj = xmn +(jx-1)*xsz
+            for iy in range(ny):
+                yyi = ymn +(iy-1)*ysz+yzero
+                for jy in range(ny):
+                    yyj = ymn +(jy-1)*ysz
+                    for iz in range(nz):
+                        zzi = zmn +(iz-1)*zsz+zzero
+                        for jz in range(nz):
+                            zzj = zmn +(jz-1)*zsz
+                            cmax,cov = cova3(xxi,yyi,zzi,xxj,yyj,zzj,nst,c0,it,cc,hmaj,rotmat,cmax)
+                            gb += maxcov-cov
+    gb = gb/((nx*ny*nz)**2)
+    return gb
+
