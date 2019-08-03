@@ -3973,7 +3973,6 @@ def semipartial_corr(C): # Michael Pyrcz modified the function above by Fabian P
             P_corr[j, i] = corr
     return P_corr
 
-
 def sqdist3(x1,y1,z1,x2,y2,z2,ind,rotmat):
     """Squared Anisotropic Distance Calculation Given Matrix Indicator - 3D
     
@@ -4055,7 +4054,6 @@ def setrot3(ang1,ang2,ang3,anis1,anis2,ind,rotmat):
     rotmat[ind,2,2] = afac2*(cost * cosb)
     
     return rotmat
-
 
 def cova3(x1,y1,z1,x2,y2,z2,nst,c0,it,cc,aa,rotmat,cmax,ivarg=1,irot=0, MAXNST=4):
     """Covariance Between Two Points - 3D
@@ -4184,3 +4182,4 @@ def gammabar(xsiz, ysiz, zsiz,nst,c0,it,cc,hmaj,hmin,hvert):
                             gb += maxcov-cov
     gb = gb/((nx*ny*nz)**2)
     return gb
+
