@@ -1068,7 +1068,7 @@ def varmapv_2d(
     :return: TODO
     """
     df_ext = pd.DataFrame(
-        {"X": df[xcol], "Y": df[ycol], "Z": rand_sample[vcol]} # TODO unknown function
+        {"X": df[xcol], "Y": df[ycol], "Z": df[vcol]} # TODO unknown function
     )
     Dataframe2GSLIB("varmap_out.dat", df_ext)
 

@@ -1,9 +1,12 @@
-
+  
 <p>
-    <img src="https://github.com/GeostatsGuy/GeostatsPy/blob/master/geostatspy_logo.png?raw=true" width="220" height="240" />
+    <img src="https://github.com/GeostatsGuy/GeostatsPy/blob/master/geostatspy_logo.png?raw=true" width="200" height="200" />
 </p>
 
+
 ## GeostatsPy Package [![Build Status](https://travis-ci.org/GeostatsGuy/GeostatsPy.svg?branch=master)](https://travis-ci.org/GeostatsGuy/GeostatsPy)
+=======
+[![Documentation Status](https://readthedocs.org/projects/geostatspy/badge/?version=latest)](https://geostatspy.readthedocs.io/en/latest/?badge=latest)
 
 The GeostatsPy Package brings GSLIB: Geostatistical Library (Deutsch and Journel, 1998) functions to Python. GSLIB is extremely robust and practical set of code for building spatial modeling workflows. I need it in Python to support my students in my **Data Analytics**, **Geostatistics** and **Machine Learning** courses. 
 
@@ -18,7 +21,7 @@ This package includes 2 parts:
 2. geostatspy.GSLIB includes reimplimentation of the GSLIB visualizations and low tech wrappers of the numerical methods  (note: the low-tech wrapper require access to GSLIB executables).
 
 <p>
-    <img src="https://github.com/GeostatsGuy/GeostatsPy/blob/master/TCG_color_logo.png?raw=true" width="220" height="240" />
+    <img src="https://github.com/GeostatsGuy/GeostatsPy/blob/master/TCG_color_logo.png" width="220" height="200" />
 </p>
 
 ### The Authors
@@ -29,7 +32,7 @@ This package is being developed at the University of Texas in the Texas Center f
 
 * **Anton Kupenko** - bug fixes, added docstrings, code refractory for PEP8, removed duplicated functions and variables.  Thank you Anton!
 
-* **Wendi Liu** - Ph.D. student working with Michael Pyrcz at the University of Texas at Austin. GSLIB compiles in Mac OSX, 3D variogram calculation low-tech wrapper.
+* **Wendi Liu** - Ph.D. student working with Michael Pyrcz at the University of Texas at Austin. Author of 3D subroutines and gammabar method.  Also, GSLIB compiles in Mac OSX, and 3D variogram calculation wrapper.
 
 * **Alex E. Gigliotti** - undergraduate student working with Michael Pyrcz at the University of Texas at Austin. Established unit testing.
 
