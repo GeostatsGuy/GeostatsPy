@@ -1879,7 +1879,7 @@ def gamv(df, xcol, ycol, vcol, tmin, tmax, xlag, xltol, nlag, azm, atol, bandwh,
                  isill)
 
 
-@jit(**JITKW, parallel=True)
+@jit(**JITKW, parallel=False)
 def _gamv(nd, x, y, vr, xcol, ycol, vcol, tmin, tmax, xlag, xltol, nlag, azm, atol, bandwh, isill):
 
     # Summary statistics for the data after trimming
@@ -1910,7 +1910,7 @@ def _gamv(nd, x, y, vr, xcol, ycol, vcol, tmin, tmax, xlag, xltol, nlag, azm, at
     return dis, vario, npp
 
 
-@jit(**JITKW, parallel=True)
+@jit(**JITKW, parallel=False)
 def variogram_loop(x, y, vr, xlag, xltol, nlag, azm, atol, bandwh):
     """Calculate the variogram by looping over combinatorial of data pairs.
     :param x: x values
@@ -2676,7 +2676,7 @@ _dists = None
 _weights = None
 
 
-@jit(**JITKW, parallel=False)  # numba crashed on parallel=True
+@jit(**JITKW, parallel=False)  # numba crashed on parallel=False
 def _kb2d_jit(
         tree, nd, x, y, vr,
         xcol, ycol, vcol, tmin, tmax, nx, xmn, xsiz, ny, ymn, ysiz, nxdis, nydis, ndmin,
