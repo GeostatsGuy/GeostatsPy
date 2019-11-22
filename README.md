@@ -37,6 +37,7 @@ This package is being developed at the University of Texas in the Texas Center f
 
 * **Alex E. Gigliotti** - undergraduate student working with Michael Pyrcz at the University of Texas at Austin. Established unit testing.
 
+* **Travis Salomaki** - undergraduate student working with Michael Pyrcz at the University of Texas at Austin. Improving package docs.
 
 ## Package Inventory
 
