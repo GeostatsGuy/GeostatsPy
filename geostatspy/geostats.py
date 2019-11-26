@@ -4108,9 +4108,6 @@ def gammabar(xsiz, ysiz, zsiz,nst,c0,it,cc,hmaj,hmin,hvert):
     gb = gb/((nx*ny*nz)**2)
     return gb
 
-
-
-
 def gam_3D(array, tmin, tmax, xsiz, ysiz, zsiz, ixd, iyd, izd, nlag, isill):
     """GSLIB's GAM program (Deutsch and Journel, 1998) converted from the
     original Fortran to Python by Michael Pyrcz, the University of Texas at
@@ -4726,4 +4723,4 @@ def cova(x, y, z, vr, xlag, xltol, nlag, azm, dip, atol, dtol, bandwh):
             tm[i] = tm[i] / rnum
 
     return dis, vario, npp
-	
+

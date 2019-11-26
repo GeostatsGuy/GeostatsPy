@@ -1770,7 +1770,6 @@ def DataFrame2ndarray(df, xcol, ycol, vcol, xmin, xmax, ymin, ymax, step):
     return array
 
 
-
 def make_variogram_3D(
     nug,
     nst,
