@@ -4723,4 +4723,3 @@ def cova(x, y, z, vr, xlag, xltol, nlag, azm, dip, atol, dtol, bandwh):
             tm[i] = tm[i] / rnum
 
     return dis, vario, npp
-

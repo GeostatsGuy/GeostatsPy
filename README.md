@@ -1,31 +1,57 @@
-
+  
 <p>
-    <img src="https://github.com/GeostatsGuy/GeostatsPy/blob/master/geostatspy_logo.png?raw=true" width="220" height="240" />
+    <img src="https://github.com/GeostatsGuy/GeostatsPy/blob/master/geostatspy_logo.png?raw=true" width="200" height="200" />
 </p>
 
-## GeostatsPy Package 
+[![Documentation Status](https://readthedocs.org/projects/geostatspy/badge/?version=latest)](https://geostatspy.readthedocs.io/en/latest/?badge=latest)
 
-The GeostatsPy Package brings GSLIB: Geostatistical Library (Deutsch and Journel, 1998) functions to Python. GSLIB is extrememly robust and practical code for building spatial modeling workflows. I specifically wanted it in Python to support my students in my **Data Analytics**, **Geostatistics** and **Machine Learning** courses. I find my students benefit from hands-on opportunities, infact it is hard to imagine teaching these topics without providing the opportunity to handle the numerical methods and build workflows. 
+# GeostatsPy Package 
 
-This package includes 2 parts:
+The GeostatsPy Package brings GSLIB: Geostatistical Library (Deutsch and Journel, 1998) functions to Python. GSLIB is a practical and extremely robust set of code for building spatial modeling workflows. 
 
-1. geostatspy.gslib includes low tech wrappers of GSLIB functionality (note: some functions require access to GSLIB executables) 
+I created the GeostatsPy Package to support my students in my **Data Analytics**, **Geostatistics** and **Machine Learning** courses. I find my students benefit from hands-on opportunities, in fact it is hard to imagine teaching these topics without providing the opportunity to handle the numerical methods and build workflows. Last year, I tried to have them use the original FORTRAN executables and even with support and worked out examples, it was an uphill battle. In addition, all my students and I are now working in Python for our research. Thus, having access to geostatistical methods in Python directly impacts and facilitates the research of my group. 
 
-2. geostatspy.geostats includes GSLIB functions rewritten in Python.  
+Finally, I like to code. I have over 25 years of experience in FORTRAN, C++ and Visual Basic programing. This includes frontend (Qt interfaces in C++) and backend development with small and at times very large engineering and geoscience projects. 
 
-### Package Inventory
+### What's Included
+
+This package contains 2 parts:
+
+1. **geostatspy.geostats** includes GSLIB functions rewritten in Python. This currently includes all the variogram, distribution transformations, and spatial estimation and simulation (SGSIM soon) methods. I will continue adding functions to support modeling operations for practical subsurface model cosntruction. 
+
+2. **geostatspy.GSLIB** includes reimplimentation of the GSLIB visualizations and low tech wrappers of the numerical methods  (note: the low-tech wrapper require access to GSLIB executables).
+
+<p>
+    <img src="https://github.com/GeostatsGuy/GeostatsPy/blob/master/TCG_color_logo.png" width="220" height="200" />
+</p>
+
+### The Authors
+
+This package is being developed at the University of Texas in the Texas Center for Geostatistics.
+
+* **Michael J. Pyrcz, Ph.D., P.Eng.** - associate professor with the University of Texas at Austin. Primary author of the package.
+
+* **Anton Kupenko** - bug fixes, added docstrings, code refractory for PEP8, removed duplicated functions and variables.  Thank you Anton!
+
+* **Wendi Liu** - Ph.D. student working with Michael Pyrcz at the University of Texas at Austin. Author of 3D subroutines and gammabar method.  Also, GSLIB compiles in Mac OSX, and 3D variogram calculation wrapper.
+
+* **Alex E. Gigliotti** - undergraduate student working with Michael Pyrcz at the University of Texas at Austin. Established unit testing.
+
+* **Travis Salomaki** - undergraduate student working with Michael Pyrcz at the University of Texas at Austin. Improving package docs.
+
+## Package Inventory
 
 Here's a list and some details on each of the functions available.
 
-#### geostatspy.gslib Functions
+### geostatspy.GSLIB Functions
 
-Utilities to support moving between Python DataFrames and ndarrays, and Data Tables, Gridded Data and Models in Geo-EAS file format (standard to GSLIB):
+Utilities to support moving between Python DataFrames and ndarrays, Data Tables, Gridded Data and Models in Geo-EAS file format (standard to GSLIB):
 
 1. **ndarray2GSLIB** - utility to convert 1D or 2D numpy ndarray to a GSLIB Geo-EAS file for use with GSLIB methods 
 2. **GSLIB2ndarray** - utility to convert GSLIB Geo-EAS files to a 1D or 2D numpy ndarray for use with Python methods
 3. **Dataframe2GSLIB(data_file,df)** - utility to convert pandas DataFrame to a GSLIB Geo-EAS file for use with GSLIB methods
 4. **GSLIB2Dataframe** - utility to convert GSLIB Geo-EAS files to a pandas DataFrame for use with Python methods
-5. **DataFrame2ndarray** - take spatial data from a DataFrame and make a sparse 2D ndarray(NaN where no data in cell)
+5. **DataFrame2ndarray** - take spatial data from a DataFrame and make a sparse 2D ndarray (NaN where no data in cell)
 
 Visualization functions with the same parameterization as GSLIB using matplotlib:
 
@@ -65,18 +91,24 @@ Spatial Model Resampling
 27. **gkern** - make a Gaussian kernel for convolution, moving window averaging (from Teddy Hartano, Stack Overflow)
 28. **regular_sample** - extract regular spaced samples from a 2D spatial model 
 29. **random_sample** - extract random samples from a 2D spatial model  
+30. **DataFrame2ndarray** - convent spatial point data in a DataFrame to a sparse ndarray grid
 
-#### geostatspy.geostats Functions
+### geostatspy.geostats Functions
 
-Numerical methods in GSLIB translated to Python:
+Numerical methods in GSLIB (Deutsch and Journel, 1998) translated to Python:
 
-30. **declus** - GSLIB's DECLUS program (Deutsch and Journel, 1998) converted from the original Fortran to Python  
-31. **gam** - GSLIB's GAM program (Deutsch and Journel, 1998) converted from the original Fortran to Python 
-32. **gamv** - GSLIB's GAMV program (Deutsch and Journel, 1998) converted from the original Fortran to Python 
-33. **nscore** - GSLIB's NSCORE program (Deutsch and Journel, 1998) converted from the original Fortran to Python 
-34. **kb2d** - GSLIB's KB2D program (Deutsch and Journel, 1998) converted from the original Fortran to Python 
+31. **correct_trend** - correct the order relations of an indicator-based trend model
+32. **backtr** - GSLIB's backtr function  to transform a distribution
+33. **declus** - GSLIB's DECLUS program reimplimented for cell-based declustering in 2D
+34. **gam** - GSLIB's GAM program reimplimented for variogram calculation with regular data in 2D
+35. **gamv** - GSLIB's GAMV program reimplimented for variogram calculation with iregular data in 2D 
+36. **varmapv** - GSLIB's VARMAP program reimplimented for irregularly spaced spatial data in 2D 
+37. **vmodel** - GSLIB's VMODEL program reimplimented for visualization of nested variogram models in 2D
+38. **nscore** - GSLIB's NSCORE program reimplimented for normal score distribution transformation
+39. **kb2d** - GSLIB's KB2D program reimplimented for 2D spaitial estimation
+40. **ik2d** - GSLIB's IK3D program reimplimented for 2D indicator-based kriging estimation
 
-More are functionality will be added soon.
+More functionality will be added soon.
 
 ### Package Dependencies
 
@@ -84,29 +116,26 @@ The functions rely on the following packages:
 
 1. **numpy** - for ndarrays
 2. **pandas** - for DataFrames
-3. **math** - for trig functions etc.
-4. **numpy.linalg** - for linear algebra
-5. **numba** - for numerical speed up
-6. **scipy** - for fast nearest nearbour search
-7. **os** - for setting working directory and running fortran executables (for some geostatspy.GSLIB functions)
-8. **matplotlib.pyplot** - for plotting	                          
-9. **random** - for random numbers
+3. **numpy.linalg** - for linear algebra
+4. **numba** - for numerical speed up
+5. **scipy** - for fast nearest neighbor search
+6. **matplotlib.pyplot** - for plotting	                          
 
-By design these packages are all standard and should be available with standard Python installs (e.g. https://www.anaconda.com/download/).
+These packages should be available with any modern Python distribution (e.g. https://www.anaconda.com/download/).
 
 If you get a package import error, you may have to first install some of these packages. This can usually be accomplished by opening up a command window on Windows and then typing 'python -m pip install [package-name]'. More assistance is available with the respective package docs.  
 
 ### Explanation of GeostatsPy
 
-GeostatsPy includes functions that run 2D workflows in GSLIB from Python (i.e. low tech wrappers), Python translations and in some cases reimplementations of GSLIB methods, along with utilities to move between GSLIB's Geo-EAS data sets and Pandas DataFrames, and grids and 2D NumPy ndarrays respectively and other useful operations such as resampling from regular datasets and rescaling distributions.  
+GeostatsPy includes functions that run 2D workflows from GSLIB in Python (i.e. low tech wrappers), Python translations and reimplementations of GSLIB methods, along with utilities to move between GSLIB's Geo-EAS data sets and Pandas DataFrames, and grids and 2D NumPy ndarrays respectively and other useful operations such as resampling from regular datasets and rescaling distributions.  
 
-The reimplimentations as of now include NSCORE, GAM, GAMV, DECLUS and most of the visualizations using the standard GSLIB parametric inputs and matplotlib back end. The low tech wrappers simply write the GSLIB parameters, run the GSLIB executables and then read in the GSLIB output. This allows for construction of Python workflows with the very robust GSLIB programs.
+The reimplementations as of now include NSCORE, GAM, GAMV, VMODEL, DECLUS, KB2D, IK2D and SGSIM etc. and most of the visualizations using the standard GSLIB parametric inputs and matplotlib back end. The low tech wrappers simply write the GSLIB parameters, run the GSLIB executables and then read in the GSLIB output. This allows for construction of Python workflows with the very robust GSLIB programs.
 
 #### Why make this package? 
 
-I wanted a set of functions for working with the very robust and numerically efficient GSLIB: Geostatistical Library (Deutsch and Journel, 1998) in Python.  While there are other current solutions in Python.  I found that these solutions are either proprietary (not open source), not maintained or missing vital functionality; therefore, I have not been able to use these other solutions to teach modeling workflows to students with little or no programming experience.  Imagine getting 55 undergraduate students to role back to a previous version on Python because a single dependency of an available package is not available in a current Python version.  Image a student about to submit an assignment, and the code won't run immediately before submission because of an update to a dependency. I need methods for my students that just work, are reliable and do not require students to complete a more complicated environment setup.
+I wanted a set of functions to utilize the very robust and numerically efficient GSLIB: Geostatistical Library (Deutsch and Journel, 1998) in Python. While there are other current solutions in Python, I found that these solutions are either proprietary (not open source), not maintained or missing vital functionality; therefore, I have not been able to use these other solutions to teach modeling workflows to students with little or no programming experience. Imagine getting 55 undergraduate students to resort back to a previous version of Python because a single dependency of an available package is not available in a current Python version. Image a student about to submit an assignment, and the code won't run immediately before submission because of an update to a dependency. I need methods for my students that just work, are reliable and do not require students to complete a more complicated environment setup.
 
-Deutsch and Journel (1998) gave the community GSLIB, an extremely robust and flexible set of tools to build spatial modeling workflows.  I have spent almost 20 years working with GSLIB along with a wide variety of subsurface modeling software. The powerful flexibility of GSLIB may be lost in methods that attempt to 'can' the inputs and parameters into complicated and hard to work with objects or attempt to combine the programs into a single program.  I love open source for teaching the theory, because students must see under the hood!  The concept of basic building blocks and simple, common inputs is essential to GSLIB.  I tried to preserve this by putting together functions with the same conventions as GSLIB, the result is a set of functions that (1) are practical for my students to use and (2) will move the GSLIB veterans into Python workflow construction. Honestly, I did nothing original, but that was my intention.  
+Deutsch and Journel (1998) gave the community GSLIB, an extremely robust and flexible set of tools to build spatial modeling workflows. I have spent almost 20 years working with GSLIB along with a wide variety of subsurface modeling software. The powerful flexibility of GSLIB may be lost in methods that attempt to 'can' the inputs and parameters into complicated and hard to work with objects or attempt to combine the programs into a single program. I love open source for teaching the theory because students must see under the hood! The concept of basic building blocks and simple, common inputs is essential to GSLIB. I tried to preserve this by putting together functions with the same conventions as GSLIB, the result is a set of functions that (1) are practical for my students to use and (2) will move the GSLIB veterans into Python workflow construction. Honestly, I did nothing original, but that was my intention.  
 
 I'm a very busy new professor, I'll keep adding more functionality as I have time.
 
@@ -120,7 +149,7 @@ The graphical / visualization methods have 2 variants. '_ST' specifies that func
 
 #### Assistance Welcome
 
-Found an issue (I'm sure there are issues!)? Got a new idea? Want to work on this? Let me know, submit revisions, I'm happy to collaborate,
+Found an issue (I'm sure there are issues!)? Got a new idea? Want to work on this? Let me know, submit revisions, I'm happy to collaborate.
 
 ### Package Examples
 
@@ -132,14 +161,11 @@ There are many example workflow examples available on my GitHub account at https
 
 Over the next month I will update all workflows to use the geostatspy package instead of pasting code into the workflows. 
 
-Here's a simple exaple of declustering with the geostatspy package.  It looks long because we include making a synthetic dataset, dropping samples to impose a sampling bias, declustering and all the visualization and diagnostics.
+Here's a simple exaple of declustering with the geostatspy package. It looks long because we include making a synthetic dataset, dropping samples to impose a sampling bias, declustering and all the visualization and diagnostics.
 
 ```python
 import geostatspy.GSLIB as GSLIB                          # GSLIB utilities, viz and wrapped functions
 import geostatspy.geostats as geostats                    # GSLIB converted to Python
-import os                                                 # to set current working directory 
-import numpy as np                                        # arrays and matrix math
-import pandas as pd                                       # DataFrames
 import matplotlib.pyplot as plt                           # plotting
 import scipy.stats                                        # summary stats of ndarrays
 

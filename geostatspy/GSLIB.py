@@ -1996,4 +1996,3 @@ def GSLIB2ndarray_3D(data_file, kcol,nreal, nx, ny, nz):
                     head = next(f)
                     array[ineal][ix] = head.split()[kcol]
     return array, col_name
-

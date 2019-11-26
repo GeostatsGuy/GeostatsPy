@@ -1,1 +1,1 @@
-name = "geostatspy"
+__version__ = "0.0.6"
