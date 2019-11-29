@@ -3656,3 +3656,530 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
         sim_out[ny-iy-1,ix] = sim[ind]
 
     return sim_out  
+    
+    
+def kb2d_locations(
+    df,
+    xcol,
+    ycol,
+    vcol,
+    tmin,
+    tmax,
+    df_loc,
+    xcol_loc,
+    ycol_loc,
+    ndmin,
+    ndmax,
+    radius,
+    ktype,
+    skmean,
+    vario,
+):
+    """GSLIB's KB2D program (Deutsch and Journel, 1998) converted from the
+    original Fortran to Python by Michael Pyrcz, the University of Texas at
+    Austin (Jan, 2019).  Version for kriging at a set of spatial locations.
+    :param df: pandas DataFrame with the spatial data
+    :param xcol: name of the x coordinate column
+    :param ycol: name of the y coordinate column
+    :param vcol: name of the property column
+    :param tmin: property trimming limit
+    :param tmax: property trimming limit
+    :param df_loc: pandas DataFrame with the locations to krige
+    :param xcol: name of the x coordinate column for locations to krige
+    :param ycol: name of the y coordinate column for locations to krige
+    :param ndmin: minimum number of data points to use for kriging a block
+    :param ndmax: maximum number of data points to use for kriging a block
+    :param radius: maximum isotropic search radius
+    :param ktype:
+    :param skmean:
+    :param vario:
+    :return:
+    """
+    
+# Constants
+    UNEST = -999.
+    EPSLON = 1.0e-10
+    VERSION = 2.907
+    first = True
+    PMX = 9999.0    
+    MAXSAM = ndmax + 1
+    MAXKD = MAXSAM + 1
+    MAXKRG = MAXKD * MAXKD
+    
+# load the variogram
+    nst = vario['nst']
+    cc = np.zeros(nst); aa = np.zeros(nst); it = np.zeros(nst)
+    ang = np.zeros(nst); anis = np.zeros(nst)
+    
+    c0 = vario['nug']; 
+    cc[0] = vario['cc1']; it[0] = vario['it1']; ang[0] = vario['azi1']; 
+    aa[0] = vario['hmaj1']; anis[0] = vario['hmin1']/vario['hmaj1'];
+    if nst == 2:
+        cc[1] = vario['cc2']; it[1] = vario['it2']; ang[1] = vario['azi2']; 
+        aa[1] = vario['hmaj2']; anis[1] = vario['hmin2']/vario['hmaj2'];
+    
+# Allocate the needed memory:   
+    xa = np.zeros(MAXSAM)
+    ya = np.zeros(MAXSAM)
+    vra = np.zeros(MAXSAM)
+    dist = np.zeros(MAXSAM)
+    nums = np.zeros(MAXSAM)
+    r = np.zeros(MAXKD)
+    rr = np.zeros(MAXKD)
+    s = np.zeros(MAXKD)
+    a = np.zeros(MAXKRG)
+    klist = np.zeros(len(df_loc))       # list of kriged estimates
+    vlist = np.zeros(len(df_loc))
+
+# Load the data
+    df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]    # trim values outside tmin and tmax
+    nd = len(df_extract)
+    ndmax = min(ndmax,nd)
+    x = df_extract[xcol].values
+    y = df_extract[ycol].values
+    vr = df_extract[vcol].values
+    
+# Load the estimation loactions
+    nd_loc = len(df_loc)
+    x_loc = df_loc[xcol].values
+    y_loc = df_loc[ycol].values
+    vr_loc = df_loc[vcol].values
+    
+# Make a KDTree for fast search of nearest neighbours   
+    dp = list((y[i], x[i]) for i in range(0,nd))
+    data_locs = np.column_stack((y,x))
+    tree = sp.cKDTree(data_locs, leafsize=16, compact_nodes=True, copy_data=False, balanced_tree=True)
+
+# Summary statistics for the data after trimming
+    avg = vr.mean()
+    stdev = vr.std()
+    ss = stdev**2.0
+    vrmin = vr.min()
+    vrmax = vr.max()
+
+# Initialize accumulators:
+    cbb  = 0.0
+    rad2 = radius*radius
+
+# Calculate Block Covariance. Check for point kriging.
+    rotmat, maxcov = setup_rotmat(c0,nst,it,cc,ang,PMX)
+    cov = cova2(0.0,0.0,0.0,0.0,nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
+# Keep this value to use for the unbiasedness constraint:
+    unbias = cov
+    cbb = cov
+    first  = False
+
+# MAIN LOOP OVER ALL THE BLOCKS IN THE GRID:
+    nk = 0
+    ak = 0.0
+    vk = 0.0
+    
+    for idata in range(len(df_loc)):
+        print('Working on location ' + str(idata))
+        xloc = x_loc[idata]
+        yloc = y_loc[idata] 
+        current_node = (yloc,xloc)
+        
+# Find the nearest samples within each octant: First initialize
+# the counter arrays:
+        na = -1   # accounting for 0 as first index
+        dist.fill(1.0e+20)
+        nums.fill(-1)
+        dist, nums = tree.query(current_node,ndmax) # use kd tree for fast nearest data search
+        # remove any data outside search radius
+        na = len(dist)
+        nums = nums[dist<radius]
+        dist = dist[dist<radius] 
+        na = len(dist)        
+
+# Is there enough samples?
+        if na + 1 < ndmin:   # accounting for min index of 0
+            est  = UNEST
+            estv = UNEST
+            print('UNEST for Data ' + str(idata) + ', at ' + str(xloc) + ',' + str(yloc))
+        else:
+
+# Put coordinates and values of neighborhood samples into xa,ya,vra:
+            for ia in range(0,na):
+                jj = int(nums[ia])
+                xa[ia]  = x[jj]
+                ya[ia]  = y[jj]
+                vra[ia] = vr[jj]
+                    
+# Handle the situation of only one sample:
+            if na == 0:  # accounting for min index of 0 - one sample case na = 0
+                cb1 = cova2(xa[0],ya[0],xa[0],ya[0],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
+                xx  = xa[0] - xloc
+                yy  = ya[0] - yloc
+
+# Establish Right Hand Side Covariance:
+                cb = cova2(xx,yy,0.0,0.0,nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
+
+                if ktype == 0:
+                    s[0] = cb/cbb
+                    est  = s[0]*vra[0] + (1.0-s[0])*skmean
+                    estv = cbb - s[0] * cb
+                else:
+                    est  = vra[0]
+                    estv = cbb - 2.0*cb + cb1
+            else:
+
+# Solve the Kriging System with more than one sample:
+                neq = na + ktype # accounting for first index of 0
+#                print('NEQ' + str(neq))
+                nn  = (neq + 1)*neq/2
+
+# Set up kriging matrices:
+                iin=-1 # accounting for first index of 0
+                for j in range(0,na):
+
+# Establish Left Hand Side Covariance Matrix:
+                    for i in range(0,na):  # was j - want full matrix                    
+                        iin = iin + 1
+                        a[iin] = cova2(xa[i],ya[i],xa[j],ya[j],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov) 
+                    if ktype == 1:
+                        iin = iin + 1
+                        a[iin] = unbias
+                    xx = xa[j] - xloc
+                    yy = ya[j] - yloc
+
+# Establish Right Hand Side Covariance:
+                    cb = cova2(xx,yy,0.0,0.0,nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
+                    r[j]  = cb
+                    rr[j] = r[j]
+
+# Set the unbiasedness constraint:
+                if ktype == 1:
+                    for i in range(0,na):
+                        iin = iin + 1
+                        a[iin] = unbias
+                    iin      = iin + 1
+                    a[iin]   = 0.0
+                    r[neq-1]  = unbias
+                    rr[neq-1] = r[neq]
+
+# Solve the Kriging System:
+#                print('NDB' + str(ndb))
+#                print('NEQ' + str(neq) + ' Left' + str(a) + ' Right' + str(r))
+#                stop
+                s = ksol_numpy(neq,a,r)
+                ising = 0 # need to figure this out
+#                print('weights' + str(s))
+#                stop
+                
+            
+# Write a warning if the matrix is singular:
+                if ising != 0:
+                    print('WARNING KB2D: singular matrix')
+                    print('              for block' + str(ix) + ',' + str(iy)+ ' ')
+                    est  = UNEST
+                    estv = UNEST
+                else:
+
+# Compute the estimate and the kriging variance:
+                    est  = 0.0
+                    estv = cbb
+                    sumw = 0.0
+                    if ktype == 1: 
+                        estv = estv - (s[na])*unbias
+                    for i in range(0,na):                          
+                        sumw = sumw + s[i]
+                        est  = est  + s[i]*vra[i]
+                        estv = estv - s[i]*rr[i]
+                    if ktype == 0: 
+                        est = est + (1.0-sumw)*skmean
+        klist[idata] = est
+        vlist[idata] = estv
+        if est > UNEST:
+            nk = nk + 1
+            ak = ak + est
+            vk = vk + est*est
+
+# END OF MAIN LOOP OVER ALL THE BLOCKS:
+
+    if nk >= 1:
+        ak = ak / float(nk)
+        vk = vk/float(nk) - ak*ak
+        print('  Estimated   ' + str(nk) + ' blocks ')
+        print('      average   ' + str(ak) + '  variance  ' + str(vk))
+
+    return klist, vlist
+    
+#Partial Correlation in Python (clone of Matlab's partialcorr)
+
+#This uses the linear regression approach to compute the partial correlation 
+#(might be slow for a huge number of variables). The algorithm is detailed here:
+
+# http://en.wikipedia.org/wiki/Partial_correlation#Using_linear_regression
+
+#Taking X and Y two variables of interest and Z the matrix with all the variable minus {X, Y},
+#the algorithm can be summarized as
+#    1) perform a normal linear least-squares regression with X as the target and Z as the predictor
+#    2) calculate the residuals in Step #1
+#    3) perform a normal linear least-squares regression with Y as the target and Z as the predictor
+#    4) calculate the residuals in Step #3
+#    5) calculate the correlation coefficient between the residuals from Steps #2 and #4; 
+#    The result is the partial correlation between X and Y while controlling for the effect of Z
+
+#Date: Nov 2014
+#Author: Fabian Pedregosa-Izquierdo, f@bianp.net
+#Testing: Valentina Borghesani, valentinaborghesani@gmail.com
+
+def partial_corr(C):
+#    Returns the sample linear partial correlation coefficients between pairs of variables in C, controlling 
+#    for the remaining variables in C.
+
+#    Parameters
+#    C : array-like, shape (n, p)
+#        Array with the different variables. Each column of C is taken as a variable
+#    Returns
+#    P : array-like, shape (p, p)
+#        P[i, j] contains the partial correlation of C[:, i] and C[:, j] controlling
+#        for the remaining variables in C.
+
+    C = np.asarray(C)
+    p = C.shape[1]
+    P_corr = np.zeros((p, p), dtype=np.float)
+    for i in range(p):
+        P_corr[i, i] = 1
+        for j in range(i+1, p):
+            idx = np.ones(p, dtype=np.bool)
+            idx[i] = False
+            idx[j] = False
+            beta_i = linalg.lstsq(C[:, idx], C[:, j])[0]
+            beta_j = linalg.lstsq(C[:, idx], C[:, i])[0]
+            res_j = C[:, j] - C[:, idx].dot( beta_i)
+            res_i = C[:, i] - C[:, idx].dot(beta_j)
+            corr = stats.pearsonr(res_i, res_j)[0]
+            P_corr[i, j] = corr
+            P_corr[j, i] = corr
+    return P_corr
+
+def semipartial_corr(C): # Michael Pyrcz modified the function above by Fabian Pedregosa-Izquierdo, f@bianp.net for semipartial correlation
+    C = np.asarray(C)
+    p = C.shape[1]
+    P_corr = np.zeros((p, p), dtype=np.float)
+    for i in range(p):
+        P_corr[i, i] = 1
+        for j in range(i+1, p):
+            idx = np.ones(p, dtype=np.bool)
+            idx[i] = False
+            idx[j] = False
+            beta_i = linalg.lstsq(C[:, idx], C[:, j])[0]
+            res_j = C[:, j] - C[:, idx].dot( beta_i)
+            res_i = C[:, i] # just use the value, not a residual
+            corr = stats.pearsonr(res_i, res_j)[0]
+            P_corr[i, j] = corr
+            P_corr[j, i] = corr
+    return P_corr
+
+def sqdist3(x1,y1,z1,x2,y2,z2,ind,rotmat):
+    """Squared Anisotropic Distance Calculation Given Matrix Indicator - 3D
+    
+    This routine calculates the anisotropic distance between two points 
+    given the coordinates of each point and a definition of the
+    anisotropy.
+    
+    Converted from original fortran GSLIB (Deutsch and Journel, 1998) to Python by Wendi Liu, University of Texas at Austin
+    
+    INPUT VARIABLES:
+ 
+    x1,y1,z1         Coordinates of first point
+    x2,y2,z2         Coordinates of second point
+    ind              The rotation matrix to use
+    rotmat           The rotation matrices"""
+    
+    dx = x1 - x2
+    dy = y1 - y2
+    dz = z1 - z2
+    sqdist = 0.0
+    for i in range(3):
+        cont = rotmat[ind, i, 0] * dx + rotmat[ind, i, 1] * dy + rotmat[ind, i, 2] * dz
+        sqdist += cont**2
+    return sqdist
+
+def setrot3(ang1,ang2,ang3,anis1,anis2,ind,rotmat):
+    """Sets up an Anisotropic Rotation Matrix - 3D
+    
+    Sets up the matrix to transform cartesian coordinates to coordinates
+    accounting for angles and anisotropy
+    
+    Converted from original fortran GSLIB (Deutsch and Journel, 1998) to Python by Wendi Liu, University of Texas at Austin
+    
+    INPUT PARAMETERS:
+
+    ang1             Azimuth angle for principal direction
+    ang2             Dip angle for principal direction
+    ang3             Third rotation angle
+    anis1            First anisotropy ratio
+    anis2            Second anisotropy ratio
+    ind              matrix indicator to initialize
+    rotmat           rotation matrices
+    
+    Converts the input angles to three angles which make more mathematical sense:
+
+          alpha   angle between the major axis of anisotropy and the
+                  E-W axis. Note: Counter clockwise is positive.
+          beta    angle between major axis and the horizontal plane.
+                  (The dip of the ellipsoid measured positive down)
+          theta   Angle of rotation of minor axis about the major axis
+                  of the ellipsoid."""
+    
+    DEG2RAD=np.pi/180.0; EPSLON=1e-20
+    if (ang1 >= 0.0)&(ang1<270.0):
+        alpha = (90.0 - ang1) * DEG2RAD
+    else:
+        alpha = (450.0 - ang1) * DEG2RAD
+    beta = -1.0 * ang2 *DEG2RAD
+    theta = ang3 * DEG2RAD
+    
+    sina = np.sin(alpha)
+    sinb = np.sin(beta)
+    sint = np.sin(theta)
+    cosa = np.cos(alpha)
+    cosb = np.cos(beta)
+    cost = np.cos(theta)
+    ### Construct the rotation matrix in the required memory
+    
+    afac1 = 1.0/max(anis1, EPSLON)
+    afac2 = 1.0/max(anis2, EPSLON)
+    rotmat[ind,0,0] = cosb * cosa
+    rotmat[ind,0,1] = cosb * sina
+    rotmat[ind,0,2] = -sinb
+    rotmat[ind,1,0] = afac1*(-cost*sina + sint*sinb*cosa)
+    rotmat[ind,1,1] = afac1*(cost*cosa + sint*sinb*sina)
+    rotmat[ind,1,2] = afac1*( sint * cosb)
+    rotmat[ind,2,0] = afac2*(sint*sina + cost*sinb*cosa)
+    rotmat[ind,2,1] = afac2*(-sint*cosa + cost*sinb*sina)
+    rotmat[ind,2,2] = afac2*(cost * cosb)
+    
+    return rotmat
+
+def cova3(x1,y1,z1,x2,y2,z2,nst,c0,it,cc,aa,rotmat,cmax,ivarg=1,irot=0, MAXNST=4):
+    """Covariance Between Two Points - 3D
+    This function calculated the covariance associated with a variogram
+  model specified by a nugget effect and nested varigoram structures.
+  The anisotropy definition can be different for each nested structure."""
+    
+    """
+    Converted from original fortran GSLIB (Deutsch and Journel, 1998) to Python by Wendi Liu, University of Texas at Austin
+    
+    INPUT VARIABLES:
+
+    x1,y1,z1         coordinates of first point
+    x2,y2,z2         coordinates of second point
+    nst             number of nested structures (maximum of 4)
+    ivarg            variogram number (set to 1 unless doing cokriging
+                        or indicator kriging)
+    MAXNST           size of variogram parameter arrays
+    c0              isotropic nugget constant
+    it               type of each nested structure:
+                       1. spherical model of range a;
+                       2. exponential model of parameter a;
+                            i.e. practical range is 3a
+                       3. gaussian model of parameter a;
+                            i.e. practical range is a*sqrt(3)
+                       4. power model of power a (a must be greater than 0  and
+                            less than 2).  if linear model, a=1,c=slope.
+    cc               multiplicative factor of each nested structure.
+                       (sill-c0) for spherical, exponential,and gaussian
+                       slope for linear model.
+    aa               parameter "a" of each nested structure.
+    irot             index of the rotation matrix for the first nested 
+                     structure (irot starts from 0; the second nested structure will use
+                     irot+1, the third irot+2, and so on)
+    rotmat           rotation matrices"""
+    
+    EPSLON = 1e-10
+    PMX=1e10
+    ### Calculate the maximum covariance value (used for zero distances and for power model covariance):
+    istart = 1+ (ivarg-1) * MAXNST
+    
+    for ii in range(nst):##nst[ivarg-1] if ivarg>1
+        ist = istart+ ii-1
+        if it[ist] == 4:
+            cmax = cmax+PMX
+        else:
+            cmax = cmax+cc[ist]
+        
+    # Check for very small distance
+    hsqd = sqdist3(x1,y1,z1,x2,y2,z2,irot,rotmat)
+    if hsqd < EPSLON:
+        cova = cmax
+        return cmax,cova
+    
+    # Non-zero distance, loop over all the structures
+    cova = 0.0
+    for js in range(nst):##nst[ivarg-1] if ivarg>1
+        ist = istart+js-1
+        # Compute the appropriate structural distance
+#         if ist!=0:
+#             ir = min((irot+js),MAXROT)
+#             hsqd = sqdist(x1,y1,z1,x2,y2,z2,ir,MAXROT,rotmat)
+        h = np.sqrt(hsqd)
+        if it[ist] == 1: ##Spherical
+            hr = h/aa[ist]
+            if hr<1:
+                cova+=cc[ist]*(1.0-hr*(1.5-0.5*hr*hr))
+        elif it[ist] == 2: ##Exponential
+            cova += cc[ist]*np.exp(-3.0*h/aa[ist])
+        elif it[ist] == 3: ##Gaussian
+            cova += cc[ist]*np.exp(-(3.0*h/aa[ist])*(3.0*h/aa[ist]))
+        elif it[ist] == 4: ##Power
+            cova += cmax-cc[ist]*h**aa[ist]
+            
+    return cmax, cova
+
+def gammabar(xsiz, ysiz, zsiz,nst,c0,it,cc,hmaj,hmin,hvert):
+    """This program calculates the gammabar value from a 3D semivariogram model"""
+    """Converted from original fortran GSLIB (Deutsch and Journel, 1998) to Python by Wendi Liu, University of Texas at Austin"""
+    
+    ###Initialization
+    rotmat = np.zeros((5, 3, 3))
+    EPSLON = 1.0e-20
+    MAXNST=4
+    maxcov=1.0
+    cmax = c0
+    nx = 3
+    ny = 3
+    nz = 6
+    ang1 = np.zeros((MAXNST,)) #azimuth
+    ang2 = np.ones((MAXNST,))*90.0 #dip
+    ang3 = np.zeros((MAXNST,)) #plenge
+    anis1 = np.zeros((MAXNST,))
+    anis2 = np.zeros((MAXNST,))
+    
+    for i in range(nst):
+        anis1[i] = hmin[i]/max(hmaj[i],EPSLON)
+        anis2[i] = hvert[i]/max(hmaj[i],EPSLON)
+        rotmat = setrot3(ang1[i],ang2[i],ang3[i],anis1[i],anis2[i],i,rotmat)
+    cmax,cov = cova3(0.0,0.0,0.0,0.0,0.0,0.0,nst,c0,it,cc,hmaj,rotmat,cmax)
+    ##Discretization parameters
+    xsz = xsiz/nx
+    xmn = xsz/2.0
+    xzero = xsz * 0.0001
+    ysz = ysiz/ny
+    ymn = ysz/2.0
+    yzero = ysz * 0.0001
+    zsz = zsiz/nz
+    zmn = zsz/2.0
+    zzero = zsz * 0.0001
+    ##Calculate Gammabar
+    gb = 0.0
+    for ix in range(nx):
+        xxi = xmn +(ix-1)*xsz+xzero
+        for jx in range(nx):
+            xxj = xmn +(jx-1)*xsz
+            for iy in range(ny):
+                yyi = ymn +(iy-1)*ysz+yzero
+                for jy in range(ny):
+                    yyj = ymn +(jy-1)*ysz
+                    for iz in range(nz):
+                        zzi = zmn +(iz-1)*zsz+zzero
+                        for jz in range(nz):
+                            zzj = zmn +(jz-1)*zsz
+                            cmax,cov = cova3(xxi,yyi,zzi,xxj,yyj,zzj,nst,c0,it,cc,hmaj,rotmat,cmax)
+                            gb += maxcov-cov
+    gb = gb/((nx*ny*nz)**2)
+    return gb
+
