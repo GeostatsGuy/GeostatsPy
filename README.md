@@ -29,17 +29,19 @@ This package contains 2 parts:
 
 This package is being developed at the University of Texas in the Texas Center for Geostatistics.
 
-* **Michael J. Pyrcz, Ph.D., P.Eng.** - associate professor with the University of Texas at Austin. Primary author of the package.
+* **Michael J. Pyrcz, Ph.D., P.Eng.** - associate professor with The University of Texas at Austin. Primary author of the package.
+
+* **Honggeun Jo** - Ph.D. student working with Michael Pyrcz at The University of Texas at Austin. Author of 3D subroutines, 3D variogram calculation and modeling and wrapper for sgsim for 3D modeling.  Thank you Honggeun!
 
 * **Anton Kupenko** - bug fixes, added docstrings, code refractory for PEP8, removed duplicated functions and variables.  Thank you Anton!
 
-* **Wendi Liu** - Ph.D. student working with Michael Pyrcz at the University of Texas at Austin. Author of 3D subroutines and gammabar method.  Also, GSLIB compiles in Mac OSX, and 3D variogram calculation wrapper.
+* **Wendi Liu** - Ph.D. student working with Michael Pyrcz at The University of Texas at Austin. Author of 3D subroutines and gammabar method.  Also, GSLIB compiles in Mac OSX, and 3D variogram calculation wrapper.  Thank you Wendi!
 
-* **Alex E. Gigliotti** - undergraduate student working with Michael Pyrcz at the University of Texas at Austin. Established unit testing.
+* **Alex E. Gigliotti** - undergraduate student working with Michael Pyrcz at The University of Texas at Austin. Established unit testing.  Thank you Alex!
 
-* **Travis Salomaki** - undergraduate student working with Michael Pyrcz at the University of Texas at Austin. Improving package docs.
+* **Travis Salomaki** - Ph.D. student working with Michael Pyrcz at The University of Texas at Austin. Improving package docs.  Thank you Travis!
 
-* **Javier Santos** - one of Michael Pyrcz's graduate students contributed the post processing algorithm for summarizing over multiple realizations.
+* **Javier Santos** - one of Michael Pyrcz's graduate students contributed the post processing algorithm for summarizing over multiple realizations.  Thank you Javier!
 
 ## Package Inventory
 
@@ -84,7 +86,7 @@ Spatial Modeling
 
 22. **kb2d** - kriging estimation, 2D wrapper for kb2d from GSLIB (GSLIB's kb2d.exe must be in working directory)
 23. **sgsim_uncond** - sequential Gaussian simulation, 2D unconditional wrapper for sgsim from GSLIB (GSLIB's sgsim.exe must be in working directory)
-24. **sgsim** - sequential Gaussian simulation, 2D wrapper for sgsim from GSLIB (GSLIB's sgsim.exe must be in working directory)
+24. **sgsim** - sequential Gaussian simulation, 2D and 3D wrapper for sgsim from GSLIB (GSLIB's sgsim.exe must be in working directory)
 25. **cosgsim_uncond** - sequential Gaussian simulation, 2D unconditional wrapper for sgsim from GSLIB (GSLIB's sgsim.exe must be in working directory)
 
 Spatial Model Resampling
