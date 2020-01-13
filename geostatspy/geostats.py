@@ -4055,81 +4055,6 @@ def setrot3(ang1,ang2,ang3,anis1,anis2,ind,rotmat):
     
     return rotmat
 
-def cova3(x1,y1,z1,x2,y2,z2,nst,c0,it,cc,aa,rotmat,cmax,ivarg=1,irot=0, MAXNST=4):
-    """Covariance Between Two Points - 3D
-    This function calculated the covariance associated with a variogram
-  model specified by a nugget effect and nested varigoram structures.
-  The anisotropy definition can be different for each nested structure."""
-    
-    """
-    Converted from original fortran GSLIB (Deutsch and Journel, 1998) to Python by Wendi Liu, University of Texas at Austin
-    
-    INPUT VARIABLES:
-
-    x1,y1,z1         coordinates of first point
-    x2,y2,z2         coordinates of second point
-    nst             number of nested structures (maximum of 4)
-    ivarg            variogram number (set to 1 unless doing cokriging
-                        or indicator kriging)
-    MAXNST           size of variogram parameter arrays
-    c0              isotropic nugget constant
-    it               type of each nested structure:
-                       1. spherical model of range a;
-                       2. exponential model of parameter a;
-                            i.e. practical range is 3a
-                       3. gaussian model of parameter a;
-                            i.e. practical range is a*sqrt(3)
-                       4. power model of power a (a must be greater than 0  and
-                            less than 2).  if linear model, a=1,c=slope.
-    cc               multiplicative factor of each nested structure.
-                       (sill-c0) for spherical, exponential,and gaussian
-                       slope for linear model.
-    aa               parameter "a" of each nested structure.
-    irot             index of the rotation matrix for the first nested 
-                     structure (irot starts from 0; the second nested structure will use
-                     irot+1, the third irot+2, and so on)
-    rotmat           rotation matrices"""
-    
-    EPSLON = 1e-10
-    PMX=1e10
-    ### Calculate the maximum covariance value (used for zero distances and for power model covariance):
-    istart = 1+ (ivarg-1) * MAXNST
-    
-    for ii in range(nst):##nst[ivarg-1] if ivarg>1
-        ist = istart+ ii-1
-        if it[ist] == 4:
-            cmax = cmax+PMX
-        else:
-            cmax = cmax+cc[ist]
-        
-    # Check for very small distance
-    hsqd = sqdist3(x1,y1,z1,x2,y2,z2,irot,rotmat)
-    if hsqd < EPSLON:
-        cova = cmax
-        return cmax,cova
-    
-    # Non-zero distance, loop over all the structures
-    cova = 0.0
-    for js in range(nst):##nst[ivarg-1] if ivarg>1
-        ist = istart+js-1
-        # Compute the appropriate structural distance
-#         if ist!=0:
-#             ir = min((irot+js),MAXROT)
-#             hsqd = sqdist(x1,y1,z1,x2,y2,z2,ir,MAXROT,rotmat)
-        h = np.sqrt(hsqd)
-        if it[ist] == 1: ##Spherical
-            hr = h/aa[ist]
-            if hr<1:
-                cova+=cc[ist]*(1.0-hr*(1.5-0.5*hr*hr))
-        elif it[ist] == 2: ##Exponential
-            cova += cc[ist]*np.exp(-3.0*h/aa[ist])
-        elif it[ist] == 3: ##Gaussian
-            cova += cc[ist]*np.exp(-(3.0*h/aa[ist])*(3.0*h/aa[ist]))
-        elif it[ist] == 4: ##Power
-            cova += cmax-cc[ist]*h**aa[ist]
-            
-    return cmax, cova
-
 def gammabar(xsiz, ysiz, zsiz,nst,c0,it,cc,hmaj,hmin,hvert):
     """This program calculates the gammabar value from a 3D semivariogram model"""
     """Converted from original fortran GSLIB (Deutsch and Journel, 1998) to Python by Wendi Liu, University of Texas at Austin"""
@@ -4183,3 +4108,618 @@ def gammabar(xsiz, ysiz, zsiz,nst,c0,it,cc,hmaj,hmin,hvert):
     gb = gb/((nx*ny*nz)**2)
     return gb
 
+def gam_3D(array, tmin, tmax, xsiz, ysiz, zsiz, ixd, iyd, izd, nlag, isill):
+    """GSLIB's GAM program (Deutsch and Journel, 1998) converted from the
+    original Fortran to Python by Michael Pyrcz, the University of Texas at
+    Austin (Nov, 2019).
+    :param array: 2D gridded data / model
+    :param tmin: property trimming limit
+    :param tmax: property trimming limit
+    :param xsiz: grid cell extents in x direction
+    :param ysiz: grid cell extents in y direction
+    :param zsiz: grid cell extents in z direction
+    :param ixd: lag offset in grid cells
+    :param iyd: lag offset in grid cells
+    :param izd: lag offset in grid cells
+    :param nlag: number of lags to calculate
+    :param isill: 1 for standardize sill
+    :return: TODO
+    """
+    if array.ndim ==3:
+        nz, ny, nx = array.shape
+    elif array.ndim == 2:
+        ny, nx = array.shape
+    elif array.ndim == 1:
+        ny, nx = 1, len(array)
+
+    nvarg = 1  # for multiple variograms repeat the program
+    nxyz = nx * ny * nz  # TODO: not used
+    mxdlv = nlag
+
+    # Allocate the needed memory
+    lag = np.zeros(mxdlv)
+    vario = np.zeros(mxdlv)
+    hm = np.zeros(mxdlv)
+    tm = np.zeros(mxdlv)
+    hv = np.zeros(mxdlv)  # TODO: not used
+    npp = np.zeros(mxdlv)
+    ivtail = np.zeros(nvarg + 2)
+    ivhead = np.zeros(nvarg + 2)
+    ivtype = np.zeros(nvarg + 2)
+    ivtail[0] = 0
+    ivhead[0] = 0
+    ivtype[0] = 0
+
+    # Summary statistics for the data after trimming
+    inside = (array > tmin) & (array < tmax)
+    avg = array[(array > tmin) & (array < tmax)].mean()  # TODO: not used
+    stdev = array[(array > tmin) & (array < tmax)].std()
+    var = stdev ** 2.0
+    vrmin = array[(array > tmin) & (array < tmax)].min()  # TODO: not used
+    vrmax = array[(array > tmin) & (array < tmax)].max()  # TODO: not used
+    num = ((array > tmin) & (array < tmax)).sum()  # TODO: not used
+
+    # For the fixed seed point, loop through all directions
+    for iz in range(0, nz):
+        for iy in range(0, ny):
+            for ix in range(0, nx):
+                if inside[iz, iy, ix]:
+                    vrt = array[iz, iy, ix]
+                    ixinc = ixd
+                    iyinc = iyd
+                    izinc = izd
+                    ix1 = ix
+                    iy1 = iy
+                    iz1 = iz
+                    for il in range(0, nlag):
+                        ix1 = ix1 + ixinc
+                        if 0 <= ix1 < nx:
+                            iy1 = iy1 + iyinc
+                            if 1 <= iy1 < ny:
+                                if 1 <= iz1 < nz:
+                                    if inside[iz1, iy1, ix1]:
+                                        vrh = array[iz1, iy1, ix1]
+                                        npp[il] = npp[il] + 1
+                                        tm[il] = tm[il] + vrt
+                                        hm[il] = hm[il] + vrh
+                                        vario[il] = vario[il] + ((vrh - vrt) ** 2.0)
+                                  
+    # Get average values for gam, hm, tm, hv, and tv, then compute the correct
+    # "variogram" measure
+    for il in range(0, nlag):
+        if npp[il] > 0:
+            rnum = npp[il]
+            lag[il] = np.sqrt((ixd * xsiz * il) ** 2 + (iyd * ysiz * il) ** 2 + (izd * zsiz * il) ** 2)
+            vario[il] = vario[il] / float(rnum)
+            hm[il] = hm[il] / float(rnum)
+            tm[il] = tm[il] / float(rnum)
+
+            # Standardize by the sill
+            if isill == 1:
+                vario[il] = vario[il] / var
+
+            # Semivariogram
+            vario[il] = 0.5 * vario[il]
+    return lag, vario, npp
+
+
+def make_variogram_3D(
+    nug,
+    nst,
+    it1,
+    cc1,
+    azi1,
+    dip1,
+    hmax1,
+    hmed1,
+    hmin1,
+    it2=1,
+    cc2=0,
+    azi2=0,
+    dip2=0,
+    hmax2=0,
+    hmed2=0,
+    hmin2=0,
+):
+    """Make a dictionary of variogram parameters for application with spatial
+    estimation and simulation.
+
+    :param nug: Nugget constant (isotropic)
+    :param nst: Number of structures (up to 2)
+    :param it1: Structure of 1st variogram (1: Spherical, 2: Exponential, 3: Gaussian)
+    :param cc1: Contribution of 2nd variogram
+    :param azi1: Azimuth of 1st variogram
+    :param dip1: Dip of 1st variogram
+    :param hmax1: Range in major direction (Horizontal)
+    :param hmed1: Range in minor direction (Horizontal)
+    :param hmin1: Range in vertical direction
+    :param it2: Structure of 2nd variogram (1: Spherical, 2: Exponential, 3: Gaussian)
+    :param cc2: Contribution of 2nd variogram
+    :param azi2: Azimuth of 2nd variogram
+    :param dip1: Dip of 2nd variogram
+    :param hmax2: Range in major direction (Horizontal)
+    :param hmed2: Range in minor direction (Horizontal)
+    :param hmin2: Range in vertical direction
+    :return: TODO
+    """
+    if cc2 == 0:
+        nst = 1
+    var = dict(
+        [
+            ("nug", nug),
+            ("nst", nst),
+            ("it1", it1),
+            ("cc1", cc1),
+            ("azi1", azi1),
+            ("dip1", dip1),
+            ("hmax1", hmax1),
+            ("hmed1", hmed1),
+            ("hmin1", hmin1),
+            ("it2", it2),
+            ("cc2", cc2),
+            ("azi2", azi2),
+            ("dip2", dip2),
+            ("hmax2", hmax2),
+            ("hmed2", hmed2),
+            ("hmin2", hmin2),
+        ]
+    )
+    if nug + cc1 + cc2 != 1:
+        print(
+            "\x1b[0;30;41m make_variogram Warning: "
+            "sill does not sum to 1.0, do not use in simulation \x1b[0m"
+        )
+    if (
+        cc1 < 0
+        or cc2 < 0
+        or nug < 0
+        or hmax1 < 0
+        or hmax2 < 0
+        or hmin1 < 0
+        or hmin2 < 0
+    ):
+        print(
+            "\x1b[0;30;41m make_variogram Warning: "
+            "contributions and ranges must be all positive \x1b[0m"
+        )
+    if hmax1 < hmed1 or hmax2 < hmed2:
+        print(
+            "\x1b[0;30;41m make_variogram Warning: "
+            "major range should be greater than minor range \x1b[0m"
+        )
+    return var
+
+def vmodel_3D(
+    nlag,
+    xlag,
+    azm,
+	dip,
+    vario
+):
+    """GSLIB's VMODEL program (Deutsch and Journel, 1998) converted from the
+    original Fortran to Python by Michael Pyrcz, the University of Texas at
+    Austin (Nov, 2019).
+    :param nlag: number of variogram lags 
+    :param xlag: size of the lags
+    :param axm: direction by 3D azimuth, 000 is y positive, 090 is x positive
+    :param dip: direction by 3D dip, 000 is horizontal to x-y plane, 090 is perpendicular to x-y plane   
+    :param vario: dictionary with the variogram parameters
+    :return:
+    """
+    
+# Parameters
+    MAXNST=4
+    DEG2RAD=3.14159265/180.0 
+    MAXROT=MAXNST+1
+    EPSLON = 1.0e-20
+    VERSION= 1.01
+  
+# Declare arrays
+    index = np.zeros(nlag+1)
+    h = np.zeros(nlag+1)
+    gam = np.zeros(nlag+1)
+    cov = np.zeros(nlag+1)
+    ro = np.zeros(nlag+1)
+    
+# Load the variogram
+    nst = vario["nst"]
+    cc = np.zeros(nst)
+    aa = np.zeros(nst)
+    it = np.zeros(nst)
+    ang_azi = np.zeros(nst)
+    ang_dip = np.zeros(nst)
+    anis = np.zeros(nst)
+    anis_v = np.zeros(nst)
+    
+    c0 = vario["nug"]
+    cc[0] = vario["cc1"]
+    it[0] = vario["it1"]
+    ang_azi[0] = vario["azi1"]
+    ang_dip[0] = vario["dip1"]
+    aa[0] = vario["hmax1"]
+    anis[0] = vario["hmed1"] / vario["hmax1"]
+    anis_v[0] = vario["hmin1"] / vario["hmax1"]
+    if nst == 2:
+        cc[1] = vario["cc2"]	 
+        it[1] = vario["it2"]
+        ang_azi[1] = vario["azi2"]
+        ang_dip[1] = vario["dip2"]
+        aa[1] = vario["hmax2"]
+        anis[1] = vario["hmed2"] / vario["hmax2"]
+        anis_v[1] = vario["hmin2"] / vario["hmax2"]
+                    
+    xoff = math.sin(DEG2RAD*azm)*math.cos(DEG2RAD*dip)*xlag
+    yoff = math.cos(DEG2RAD*azm)*math.cos(DEG2RAD*dip)*xlag
+    zoff = math.sin(DEG2RAD*dip)*xlag
+	
+    print(' x,y,z offsets = ' + str(xoff) + ',' + str(yoff) + ',' + str(zoff))
+    rotmat, maxcov = setup_rotmat_3D(c0, nst, it, cc, ang_azi, ang_dip, 99999.9)   
+    
+    xx = 0.0; yy = 0.0; zz = 0.0;
+	
+    for il in range(0,nlag+1):
+        index[il] = il
+        cov[il] = cova3(0.0,0.0,0.0,xx,yy,zz,nst,c0,9999.9,cc,aa,it,anis, anis_v, rotmat, maxcov)
+        gam[il] = maxcov - cov[il]
+        ro[il]  = cov[il]/maxcov
+        h[il]   = math.sqrt(max((xx*xx + yy*yy + zz*zz),0.0))
+        xx = xx + xoff
+        yy = yy + yoff
+        zz = zz + zoff
+
+# finished
+    return index,h,gam,cov,ro
+
+@jit(nopython=True)
+def setup_rotmat_3D(c0, nst, it, cc, ang_azi, ang_dip, pmx):
+    """Setup rotation matrix.
+    :param c0: nugget constant (isotropic)
+    :param nst: number of nested structures (max. 4)
+    :param it: Variogram shapes (i.e., Gaussian, Exponential, Spherical) of each nested structure
+    :param cc: multiplicative factor of each nested structure
+    :param ang_azi: azimuths of each nested structure
+    :param ang_dip: dips of each nested structure
+    :param pmx: TODO
+    :return: TODO
+    """
+    PI = 3.141_592_65
+    DTOR = PI / 180.0
+	
+    # The first time around, re-initialize the cosine matrix for the variogram
+    # structures
+    rotmat = np.zeros((9, nst))
+    maxcov = c0
+    for js in range(0, nst):
+        azmuth = (90.0 + ang_azi[js]) * DTOR
+        dip = (ang_dip[js]) * DTOR
+        rotmat[0, js] = math.cos(azmuth)
+        rotmat[1, js] = -1 * math.sin(azmuth)
+        rotmat[2, js] = 0
+        rotmat[3, js] = math.cos(dip) * math.sin(azmuth)
+        rotmat[4, js] = math.cos(dip) * math.cos(azmuth)
+        rotmat[5, js] = -1 * math.sin(dip)
+        rotmat[6, js] = math.sin(dip) * math.sin(azmuth)
+        rotmat[7, js] = math.sin(dip) * math.cos(azmuth)
+        rotmat[8, js] = math.cos(dip)
+        if it[js] == 4:
+            maxcov = maxcov + pmx
+        else:
+            maxcov = maxcov + cc[js]
+    return rotmat, maxcov
+
+@jit(nopython=True)
+def cova3(x1, y1, z1, x2, y2, z2, nst, c0, pmx, cc, aa, it, anis, anis_v, rotmat, maxcov):
+    """Calculate the covariance associated with a variogram model specified by a
+    nugget effect and nested variogram structures.
+    :param x1: x coordinate of first point
+    :param y1: y coordinate of first point
+    :param z1: z coordinate of first point
+    :param x2: x coordinate of second point
+    :param y2: y coordinate of second point
+    :param z2: z coordinate of second point
+    :param nst: number of nested structures (maximum of 4)
+    :param c0: isotropic nugget constant (TODO: not used)
+    :param pmx: TODO
+    :param cc: multiplicative factor of each nested structure
+    :param aa: parameter `a` of each nested structure
+    :param it: TODO
+    :param ang: TODO: not used
+    :param anis: Horizontal aspect ratio
+	:param anis_v: Vertical aspect ratio
+    :param rotmat: rotation matrices
+    :param maxcov: TODO
+    :return: TODO
+    """
+    """ Revised from Wendi Liu's code """
+
+    EPSLON = 0.000001
+
+    # Check for very small distance
+    dx = x2 - x1
+    dy = y2 - y1
+    dz = z2 - z1
+    if (dx * dx + dy * dy + dz * dz) < EPSLON:
+        cova3_ = maxcov
+        return cova3_
+
+    # Non-zero distance, loop over all the structures
+    cova3_ = 0.0
+    for js in range(0, nst):
+        # Compute the appropriate structural distance
+        dx1 = dx * rotmat[0, js] + dy * rotmat[1, js] + dz * rotmat[2, js]
+        dy1 = (dx * rotmat[3, js] + dy * rotmat[4, js] + dz * rotmat[5, js] ) / anis[js]
+        dz1 = (dx * rotmat[6, js] + dy * rotmat[7, js] + dz * rotmat[8, js] ) / anis_v[js]
+		
+		
+        h = math.sqrt(max((dx1 * dx1 + dy1 * dy1 + dz1 * dz1 ), 0.0))
+        if it[js] == 1:
+            # Spherical model
+            hr = h / aa[js]
+            if hr < 1.0:
+                cova3_ = cova3_ + cc[js] * (1.0 - hr * (1.5 - 0.5 * hr * hr))
+        elif it[js] == 2:
+            # Exponential model
+            cova3_ = cova3_ + cc[js] * np.exp(-3.0 * h / aa[js])
+        elif it[js] == 3:
+            # Gaussian model
+            hh = -3.0 * (h * h) / (aa[js] * aa[js])
+            cova3_ = cova3_ + cc[js] * np.exp(hh)
+        elif it[js] == 4:
+            # Power model
+            cov1 = pmx - cc[js] * (h ** aa[js])
+            cova3_ = cova3_ + cov1
+    return cova3_	
+	
+
+
+	
+	
+def gamv_3D(
+    df,
+    xcol,
+    ycol,
+    zcol,
+    vcol,
+    tmin,
+    tmax,
+    xlag,
+    xltol,
+    nlag,
+    azm,
+    dip,
+    atol,
+	dtol,
+    bandwh,
+    isill,
+):
+    """GSLIB's GAMV program (Deutsch and Journel, 1998) converted from the
+    original Fortran to Python by Michael Pyrcz, the University of Texas at
+    Austin (Nov, 2019).
+    Note simplified for 2D, semivariogram only and one direction at a time.
+    :param df: pandas DataFrame with the spatial data
+    :param xcol: name of the x coordinate column
+    :param ycol: name of the y coordinate column
+    :param zcol: name of the z coordinate column
+    :param vcol: name of the property column
+    :param tmin: property trimming limit
+    :param tmax: property trimming limit
+    :param xlag: lag distance
+    :param xltol: lag distance tolerance
+    :param nlag: number of lags to calculate
+    :param azm: azimuth
+    :param dip: dip
+    :param atol: azimuth tolerance
+    :param dtol: dip tolerance
+    :param bandwh: horizontal bandwidth / maximum distance offset orthogonal to
+                   azimuth
+    :param isill: 1 for standardize sill
+    :return: TODO
+    """
+    # Load the data
+    # Trim values outside tmin and tmax
+    df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]
+    nd = len(df_extract)  # TODO: not used
+    x = df_extract[xcol].values
+    y = df_extract[ycol].values
+    z = df_extract[zcol].values
+    vr = df_extract[vcol].values
+
+    # Summary statistics for the data after trimming
+    avg = vr.mean()  # TODO: not used
+    stdev = vr.std()
+    sills = stdev ** 2.0
+    ssq = sills  # TODO: not used
+    vrmin = vr.min()  # TODO: not used
+    vrmax = vr.max()  # TODO: not used
+
+    # Define the distance tolerance if it isn't already
+    if xltol < 0.0:
+        xltol = 0.5 * xlag
+
+    # Loop over combinatorial of data pairs to calculate the variogram
+    dis, vario, npp = variogram_loop_3D(
+        x, y, z, vr, xlag, xltol, nlag, azm, dip, atol, dtol, bandwh
+    )
+
+    # Standardize sill to one by dividing all variogram values by the variance
+    for il in range(0, nlag + 2):
+        if isill == 1:
+            vario[il] = vario[il] / sills
+
+        # Apply 1/2 factor to go from variogram to semivariogram
+        vario[il] = 0.5 * vario[il]
+
+    return dis, vario, npp
+	
+def cova(x, y, z, vr, xlag, xltol, nlag, azm, dip, atol, dtol, bandwh):
+    """Calculate the variogram by looping over combinatorial of data pairs.
+    :param x: x values
+    :param y: y values
+    :param z: z values
+    :param vr: property values
+    :param xlag: lag distance
+    :param xltol: lag distance tolerance
+    :param nlag: number of lags to calculate
+    :param azm: azimuth
+    :param dip: dip
+    :param atol: azimuth tolerance
+    :param dtol: dip tolerance
+    :param bandwh: horizontal bandwidth / maximum distance offset orthogonal to
+                   azimuth
+    :return: TODO
+    """
+    # Allocate the needed memory
+    nvarg = 1
+    mxdlv = nlag + 2  # in gamv the npp etc. arrays go to nlag + 2
+    dis = np.zeros(mxdlv)
+    lag = np.zeros(mxdlv)  # TODO: not used
+    vario = np.zeros(mxdlv)
+    hm = np.zeros(mxdlv)
+    tm = np.zeros(mxdlv)
+    hv = np.zeros(mxdlv)  # TODO: not used
+    npp = np.zeros(mxdlv)
+    #ivtail = np.zeros(nvarg + 2)
+    #ivhead = np.zeros(nvarg + 2)
+    #ivtype = np.ones(nvarg + 2)
+    #ivtail[0] = 0
+    #ivhead[0] = 0
+    #ivtype[0] = 0
+
+    EPSLON = 1.0e-20
+    nd = len(x)
+    # The mathematical azimuth is measured counterclockwise from EW and
+    # not clockwise from NS as the conventional azimuth is
+    azmuth = (90.0 - azm) * math.pi / 180.0
+    dip = (dip) * math.pi / 180.0
+    uvxazm = math.cos(azmuth) * math.cos(dip)
+    uvyazm = math.sin(azmuth) * math.cos(dip)
+    uvzdip = math.sin(dip)
+    if atol <= 0.0:
+        csatol = math.cos(45.0 * math.pi / 180.0)
+    else:
+        csatol = math.cos(atol * math.pi / 180.0)
+    
+    if dtol <= 0.0:
+        csdtol = math.cos(30.0 * math.pi / 180.0)
+    else:
+        csdtol = math.cos(dtol * math.pi / 180.0)
+		
+    # Initialize the arrays for each direction, variogram, and lag
+    nsiz = nlag + 2  # TODO: not used
+    dismxs = ((float(nlag) + 0.5 - EPSLON) * xlag) ** 2
+
+    # Main loop over all pairs
+    for i in range(0, nd):
+        for j in range(0, nd):
+            
+            # Definition of the lag corresponding to the current pair
+            dx = x[j] - x[i]
+            dy = y[j] - y[i]
+            dz = z[j] - z[i]
+            dxs = dx * dx
+            dys = dy * dy
+            dzs = dz * dz
+            hs = dxs + dys + dzs
+            if hs <= dismxs:
+                if hs < 0.0:
+                    hs = 0.0
+                h = np.sqrt(hs)
+
+                # Determine which lag this is and skip if outside the defined
+                # distance tolerance
+                if h <= EPSLON:
+                    lagbeg = 0
+                    lagend = 0
+                else:
+                    lagbeg = -1
+                    lagend = -1
+                    for ilag in range(1, nlag + 1):
+                        # reduced to -1
+                        if (
+                            (xlag * float(ilag - 1) - xltol)
+                            <= h
+                            <= (xlag * float(ilag - 1) + xltol)
+                        ):
+                            if lagbeg < 0:
+                                lagbeg = ilag
+                            lagend = ilag
+                if lagend >= 0:
+                    # Definition of the direction corresponding to the current
+                    # pair. All directions are considered (overlapping of
+                    # direction tolerance cones is allowed)
+
+                    # Check for an acceptable azimuth angle
+                    dxy = np.sqrt(max((dxs + dys), 0.0))
+                    dxyz = np.sqrt(max((dxs + dys + dzs), 0.0))
+                    if dxy < EPSLON:
+                        dcazm = 1.0
+                    else:
+                        dcazm = (dx * uvxazm + dy * uvyazm) / dxy
+                    if dxyz < EPSLON:
+                        dcdip = 1.0
+                    else:
+                        dcdip = (dx * uvxazm + dy * uvyazm + dz * uvzdip) / dxyz                    
+                    
+                    # Check the horizontal bandwidth criteria (maximum deviation
+                    # perpendicular to the specified direction azimuth)
+                    band = np.cross([dx,dy,dz], [uvxazm, uvyazm, uvzdip])
+                    band = np.sqrt(band.dot(band))
+                    # Apply all the previous checks at once to avoid a lot of
+                    # nested if statements
+                    if (abs(dcazm) >= csatol) and (abs(dcdip) >= csdtol) and (abs(band) <= bandwh):
+                        # Check whether or not an omni-directional variogram is
+                        # being computed
+                        omni = False
+                        if atol >= 90.0:
+                            omni = True
+
+                        # For this variogram, sort out which is the tail and
+                        # the head value
+                        # iv = 0  # hardcoded just one variogram
+                        # it = ivtype[iv]  # TODO: not used
+                        if dcazm >= 0.0:
+                            vrh = vr[i]
+                            vrt = vr[j]
+                            if omni:
+                                vrtpr = vr[i]
+                                vrhpr = vr[j]
+                        else:
+                            vrh = vr[j]
+                            vrt = vr[i]
+                            if omni:
+                                vrtpr = vr[j]
+                                vrhpr = vr[i]
+
+                        # Reject this pair on the basis of missing values
+
+                        # Data was trimmed at the beginning
+
+                        # The Semivariogram (all other types of measures are
+                        # removed for now)
+                        for il in range(lagbeg, lagend + 1):
+                            npp[il] = npp[il] + 1
+                            dis[il] = dis[il] + h
+                            tm[il] = tm[il] + vrt
+                            hm[il] = hm[il] + vrh
+                            vario[il] = vario[il] + ((vrh - vrt) * (vrh - vrt))
+                            if omni:
+                                npp[il] = npp[il] + 1.0
+                                dis[il] = dis[il] + h
+                                tm[il] = tm[il] + vrtpr
+                                hm[il] = hm[il] + vrhpr
+                                vario[il] = vario[il] + (
+                                    (vrhpr - vrtpr) * (vrhpr - vrtpr)
+                                )
+
+    # Get average values for gam, hm, tm, hv, and tv, then compute the correct
+    # "variogram" measure
+    for il in range(0, nlag + 2):
+        i = il
+        if npp[i] > 0:
+            rnum = npp[i]
+            dis[i] = dis[i] / rnum
+            vario[i] = vario[i] / rnum
+            hm[i] = hm[i] / rnum
+            tm[i] = tm[i] / rnum
+
+    return dis, vario, npp
