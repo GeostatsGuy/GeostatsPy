@@ -2887,7 +2887,6 @@ def _kb2d_jit(
             # dist, nums = tree.query(current_node,ndmax, distance_upper_bound=radius) # use kd tree for fast nearest data search
             dist, nums = tree[current_node]
             # remove any data outside search radius
-            na = len(dist)
             nums = nums[dist < radius]
             dist = dist[dist < radius]
             na = len(dist)
