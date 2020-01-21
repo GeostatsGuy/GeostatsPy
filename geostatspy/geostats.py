@@ -2326,11 +2326,6 @@ def nscore(
     return ns, vr, wt_ns
 
 
-_nums = []
-_dists = []
-_weights = []
-
-
 def kb2d(
     df,
     xcol,
@@ -2448,12 +2443,6 @@ def kb2d(
     vrmin = vr.min()
     vrmax = vr.max()
 
-    global _nums
-    global _dists
-    global _weights
-    _nums = []
-    _dists = []
-    _weights = []
 
 # Set up the discretization points per block.  Figure out how many
 # are needed, the spacing, and fill the xdb and ydb arrays with the
@@ -2655,10 +2644,6 @@ def kb2d(
                 ak = ak + est
                 vk = vk + est*est
 
-            if xloc == 21 and yloc == 102:
-                _nums.append(nums.copy())
-                _dists.append(dist.copy())
-                _weights.append(s)
 
 # END OF MAIN LOOP OVER ALL THE BLOCKS:
 
@@ -2671,9 +2656,106 @@ def kb2d(
     return kmap, vmap
 
 
-_nums = None
-_dists = None
-_weights = None
+def kb2d_jit(
+    df,
+    xcol,
+    ycol,
+    vcol,
+    tmin,
+    tmax,
+    nx,
+    xmn,
+    xsiz,
+    ny,
+    ymn,
+    ysiz,
+    nxdis,
+    nydis,
+    ndmin,
+    ndmax,
+    radius,
+    ktype,
+    skmean,
+    vario,
+):
+    """GSLIB's KB2D program (Deutsch and Journel, 1998) converted from the
+    original Fortran to Python by Michael Pyrcz, the University of Texas at
+    Austin (Jan, 2019).
+    :param df: pandas DataFrame with the spatial data
+    :param xcol: name of the x coordinate column
+    :param ycol: name of the y coordinate column
+    :param vcol: name of the property column
+    :param tmin: property trimming limit
+    :param tmax: property trimming limit
+    :param nx: definition of the grid system (x axis)
+    :param xmn: definition of the grid system (x axis)
+    :param xsiz: definition of the grid system (x axis)
+    :param ny: definition of the grid system (y axis)
+    :param ymn: definition of the grid system (y axis)
+    :param ysiz: definition of the grid system (y axis)
+    :param nxdis: number of discretization points for a block
+    :param nydis: number of discretization points for a block
+    :param ndmin: minimum number of data points to use for kriging a block
+    :param ndmax: maximum number of data points to use for kriging a block
+    :param radius: maximum isotropic search radius
+    :param ktype:
+    :param skmean:
+    :param vario:
+    :return:
+    """
+# Load the data
+    # trim values outside tmin and tmax
+    df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]
+    nd = len(df_extract)
+    x = df_extract[xcol].values
+    y = df_extract[ycol].values
+    vr = df_extract[vcol].values
+
+# Make a KDTree for fast search of nearest neighbours
+    # dp = list((y[i], x[i]) for i in range(0,nd))
+    data_locs = np.column_stack((y, x))
+    import scipy.spatial as sp
+    _tree = sp.cKDTree(data_locs, leafsize=16, compact_nodes=True,
+                       copy_data=False, balanced_tree=True)
+
+    vario_int = Dict.empty(
+        key_type=nb.types.unicode_type,
+        value_type=nb.types.i8
+    )
+
+    vario_float = Dict.empty(
+        key_type=nb.types.unicode_type,
+        value_type=nb.f8
+    )
+
+    vario = copy(vario)
+
+    vario_float['nug'] = vario.pop('nug')
+    vario_float['cc1'] = vario.pop('cc1')
+    vario_float['cc2'] = vario.pop('cc2')
+
+    for key in vario.keys():
+        vario_int[key] = vario[key]
+
+    tree = Dict.empty(
+        key_type=nb.types.Tuple((nb.f8, nb.f8)),
+        value_type=nb.types.Tuple((nb.f8[:], nb.i4[:]))
+    )
+
+    for iy in range(0, ny):
+        yloc = ymn + (iy-0)*ysiz
+        for ix in range(0, nx):
+            xloc = xmn + (ix-0)*xsiz
+            current_node = (yloc, xloc)
+            tree[current_node] = _tree.query(
+                current_node, ndmax, distance_upper_bound=radius)
+
+    kmap, vmap = _kb2d_jit(
+        tree, nd, x, y, vr,
+        xcol, ycol, vcol, tmin, tmax, nx, xmn, xsiz, ny, ymn, ysiz, nxdis, nydis, ndmin,
+        ndmax, radius, ktype, skmean, vario_int, vario_float)
+
+    return kmap, vmap
 
 
 @jit(**JITKW, parallel=False)  # numba crashed on parallel=False
@@ -2945,108 +3027,6 @@ def _kb2d_jit(
         vk = vk/float(nk) - ak*ak
 #         print('  Estimated   ' + str(nk) + ' blocks ')
 #         print('      average   ' + str(ak) + '  variance  ' + str(vk))
-
-    return kmap, vmap
-
-
-def kb2d_jit(
-    df,
-    xcol,
-    ycol,
-    vcol,
-    tmin,
-    tmax,
-    nx,
-    xmn,
-    xsiz,
-    ny,
-    ymn,
-    ysiz,
-    nxdis,
-    nydis,
-    ndmin,
-    ndmax,
-    radius,
-    ktype,
-    skmean,
-    vario,
-):
-    """GSLIB's KB2D program (Deutsch and Journel, 1998) converted from the
-    original Fortran to Python by Michael Pyrcz, the University of Texas at
-    Austin (Jan, 2019).
-    :param df: pandas DataFrame with the spatial data
-    :param xcol: name of the x coordinate column
-    :param ycol: name of the y coordinate column
-    :param vcol: name of the property column
-    :param tmin: property trimming limit
-    :param tmax: property trimming limit
-    :param nx: definition of the grid system (x axis)
-    :param xmn: definition of the grid system (x axis)
-    :param xsiz: definition of the grid system (x axis)
-    :param ny: definition of the grid system (y axis)
-    :param ymn: definition of the grid system (y axis)
-    :param ysiz: definition of the grid system (y axis)
-    :param nxdis: number of discretization points for a block
-    :param nydis: number of discretization points for a block
-    :param ndmin: minimum number of data points to use for kriging a block
-    :param ndmax: maximum number of data points to use for kriging a block
-    :param radius: maximum isotropic search radius
-    :param ktype:
-    :param skmean:
-    :param vario:
-    :return:
-    """
-# Load the data
-    # trim values outside tmin and tmax
-    df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]
-    nd = len(df_extract)
-    x = df_extract[xcol].values
-    y = df_extract[ycol].values
-    vr = df_extract[vcol].values
-
-# Make a KDTree for fast search of nearest neighbours
-    # dp = list((y[i], x[i]) for i in range(0,nd))
-    data_locs = np.column_stack((y, x))
-    import scipy.spatial as sp
-    _tree = sp.cKDTree(data_locs, leafsize=16, compact_nodes=True,
-                       copy_data=False, balanced_tree=True)
-
-    vario_int = Dict.empty(
-        key_type=nb.types.unicode_type,
-        value_type=nb.types.i8
-    )
-
-    vario_float = Dict.empty(
-        key_type=nb.types.unicode_type,
-        value_type=nb.f8
-    )
-
-    vario = copy(vario)
-
-    vario_float['nug'] = vario.pop('nug')
-    vario_float['cc1'] = vario.pop('cc1')
-    vario_float['cc2'] = vario.pop('cc2')
-
-    for key in vario.keys():
-        vario_int[key] = vario[key]
-
-    tree = Dict.empty(
-        key_type=nb.types.Tuple((nb.f8, nb.f8)),
-        value_type=nb.types.Tuple((nb.f8[:], nb.i4[:]))
-    )
-
-    for iy in range(0, ny):
-        yloc = ymn + (iy-0)*ysiz
-        for ix in range(0, nx):
-            xloc = xmn + (ix-0)*xsiz
-            current_node = (yloc, xloc)
-            tree[current_node] = _tree.query(
-                current_node, ndmax, distance_upper_bound=radius)
-
-    kmap, vmap = _kb2d_jit(
-        tree, nd, x, y, vr,
-        xcol, ycol, vcol, tmin, tmax, nx, xmn, xsiz, ny, ymn, ysiz, nxdis, nydis, ndmin,
-        ndmax, radius, ktype, skmean, vario_int, vario_float)
 
     return kmap, vmap
 
