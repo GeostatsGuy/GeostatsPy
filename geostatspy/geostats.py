@@ -28,6 +28,7 @@ from numba.typed import Dict  # typing of dictionaries
 from statsmodels.stats.weightstats import DescrStatsW
 
 JITKW = dict(nopython=True, cache=True, fastmath=True)
+JITPL = dict(parallel=False)
 
 
 def backtr(df, vcol, vr, vrg, zmin, zmax, ltail, ltpar, utail, utpar):
@@ -1879,7 +1880,7 @@ def gamv(df, xcol, ycol, vcol, tmin, tmax, xlag, xltol, nlag, azm, atol, bandwh,
                  isill)
 
 
-@jit(**JITKW, parallel=False)
+@jit(**JITKW, **JITPL)
 def _gamv(nd, x, y, vr, xcol, ycol, vcol, tmin, tmax, xlag, xltol, nlag, azm, atol, bandwh, isill):
 
     # Summary statistics for the data after trimming
@@ -1910,7 +1911,7 @@ def _gamv(nd, x, y, vr, xcol, ycol, vcol, tmin, tmax, xlag, xltol, nlag, azm, at
     return dis, vario, npp
 
 
-@jit(**JITKW, parallel=False)
+@jit(**JITKW, **JITPL)
 def variogram_loop(x, y, vr, xlag, xltol, nlag, azm, atol, bandwh):
     """Calculate the variogram by looping over combinatorial of data pairs.
     :param x: x values
@@ -2096,7 +2097,7 @@ def varmapv(df, xcol, ycol, vcol, tmin, tmax, nxlag, nylag, dxlag, dylag, minnp,
                     isill)
 
 
-@jit(**JITKW, parallel=False)  # runs faster not in parallel
+@jit(**JITKW, **JITPL)  # runs faster not in parallel
 def _varmapv(nd, x, y, vr, xcol, ycol, vcol, tmin, tmax, nxlag, nylag, dxlag, dylag, minnp, isill):
     """Calculate the variogram map from irregularly spaced data.
     :param df: DataFrame with the spatial data, xcol, ycol, vcol coordinates and property columns
@@ -2758,7 +2759,7 @@ def kb2d_jit(
     return kmap, vmap
 
 
-@jit(**JITKW, parallel=False)  # numba crashed on parallel=False
+@jit(**JITKW)  # numba crashed on parallel=True
 def _kb2d_jit(
         tree, nd, x, y, vr,
         xcol, ycol, vcol, tmin, tmax, nx, xmn, xsiz, ny, ymn, ysiz, nxdis, nydis, ndmin,
