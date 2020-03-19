@@ -345,15 +345,21 @@ def gcum(x):
 
 
 def dpowint(xlow, xhigh, ylow, yhigh, xval, pwr):
-    """Power interpolate the value of `y` between (`xlow`, `ylow`) and
+        """Power interpolate the value of `y` between (`xlow`, `ylow`) and
     (`xhigh`, `yhigh`) for a value of `x` and a power `pwr`.
-    :param xlow: TODO
-    :param xhigh: TODO
-    :param ylow: TODO
-    :param yhigh: TODO
-    :param xval: TODO
-    :param pwr: power
-    :return: TODO
+    :param xlow: minimum x-value for the interpolation
+    :type xlow: float
+    :param xhigh: int: maximum x-value for the interpolation
+    :type xhigh: float
+    :param ylow: minimum y-value for the interpolation
+    :type ylow: float
+    :param yhigh: maximum y-value for the interpolation
+    :type yhigh: float
+    :param xval: x-values used to calculate the interpolation value
+    :type xval: float or array
+    :param pwr: power value used in the interpolation calculation
+    :type pwr: float
+    :return: interpolated y-values
     """
     EPSLON = 1.0e-20
     if (xhigh - xlow) < EPSLON:
