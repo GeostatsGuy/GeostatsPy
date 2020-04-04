@@ -419,20 +419,33 @@ def cova2(x1, y1, x2, y2, nst, c0, pmx, cc, aa, it, ang, anis, rotmat, maxcov):
     """Calculate the covariance associated with a variogram model specified by a
     nugget effect and nested variogram structures.
     :param x1: x coordinate of first point
+    :type x1: float
     :param y1: y coordinate of first point
+    :type y1: float
     :param x2: x coordinate of second point
+    :type x2: float
     :param y2: y coordinate of second point
+    :type y2: float
     :param nst: number of nested structures (maximum of 4)
+    :type nst: int
     :param c0: isotropic nugget constant (TODO: not used)
     :param pmx: TODO
     :param cc: multiplicative factor of each nested structure
+    :type cc: array or float
     :param aa: parameter `a` of each nested structure
-    :param it: TODO
-    :param ang: TODO: not used
-    :param anis: TODO
+    :type aa: array or float
+    :param it: Integer value indicating type of variogram model
+              it[value] == 1: Spherical model (`a` is the range)
+              it[value] == 2: Exponential model (`a` is the practical range)
+              it[value] == 3: Gaussian model (`a` is the practical range)
+              it[value] == 4: Power model (`a` is the power)
+    :type it: array or int
+    :param ang: azimuth angle measured in degrees clockwise from positive y-diretion: not used
+    :param anis: Anistropy factors that apply after rotations
     :param rotmat: rotation matrices
     :param maxcov: TODO
-    :return: TODO
+    :return: covariance of nested variogram model
+    :type return: float
     """
     EPSLON = 0.000001
 
