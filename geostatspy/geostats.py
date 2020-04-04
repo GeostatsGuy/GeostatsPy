@@ -416,8 +416,8 @@ def setup_rotmat(c0, nst, it, cc, ang, pmx):
 
 @jit(nopython=True)
 def cova2(x1, y1, x2, y2, nst, c0, pmx, cc, aa, it, ang, anis, rotmat, maxcov):
-    """Calculate the covariance associated with a variogram model specified by a
-    nugget effect and nested variogram structures.
+    """Calculate the covariance associated with a variogram model specified by
+    a nugget effect and nested variogram structures.
     :param x1: x coordinate of first point
     :type x1: float
     :param y1: y coordinate of first point
@@ -429,22 +429,41 @@ def cova2(x1, y1, x2, y2, nst, c0, pmx, cc, aa, it, ang, anis, rotmat, maxcov):
     :param nst: number of nested structures (maximum of 4)
     :type nst: int
     :param c0: isotropic nugget constant (TODO: not used)
-    :param pmx: TODO
+    :type c0: float
+    :param pmx: Maximum variogram value needed for kriging when using power
+                model. pmx is a unique value used for all nested structures
+                that use the power model, so pmx should be chosen to account
+                for the largest structure that uses the power model.
+    :type pmx: float
     :param cc: multiplicative factor of each nested structure
-    :type cc: array or float
+    :type cc: array
     :param aa: parameter `a` of each nested structure
-    :type aa: array or float
+    :type aa: array
     :param it: Integer value indicating type of variogram model
-              it[value] == 1: Spherical model (`a` is the range)
-              it[value] == 2: Exponential model (`a` is the practical range)
-              it[value] == 3: Gaussian model (`a` is the practical range)
-              it[value] == 4: Power model (`a` is the power)
-    :type it: array or int
-    :param ang: azimuth angle measured in degrees clockwise from positive y-diretion: not used
+             for values 0,1,2,..., nst
+             it[value] == 1: Spherical model 
+                 (aa[value] == `a` is the range, cc[value] is the contribution)
+             it[value] == 2: Exponential model 
+                 (aa[value] == `a`, 3a is the practical range, 
+                 cc[value] is the contribution)
+             it[value] == 3: Gaussian model 
+                 (aa[value] == `a`, a*sqrt(3)  is the practical range), 
+                 cc[value] is the contribution)
+             it[value] == 4: Power model 
+                 (aa[value] == `a` is the power such that 0 < a < 2,
+                 if linear, then a == 1, and cc[value] is the slope)
+    :type it: array
+    :param ang: azimuth angle measured in degrees clockwise from positive 
+                y-diretion for each variogram structure: not used
+                (accounted for in anis)
+    :type ang: array
     :param anis: Anistropy factors that apply after rotations
+    :type anis: array
     :param rotmat: rotation matrices
-    :param maxcov: TODO
-    :return: covariance of nested variogram model
+    :type rotmat: array
+    :param maxcov: maximum covariance value
+    :type maxcov: float
+    :return: covariance of a nested variogram model described by the inputs
     :type return: float
     """
     EPSLON = 0.000001
