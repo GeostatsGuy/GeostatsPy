@@ -1670,18 +1670,29 @@ def gkern(kernlen=21, std=3):
 def regular_sample(array, xmin, xmax, ymin, ymax, step, mx, my, nx, ny, name):
     """Extract regular spaced samples from a 2D spatial model.
 
-    :param array: ndarray
-    :param xmin: TODO
-    :param xmax: TODO
-    :param ymin: TODO
-    :param ymax: TODO
-    :param step: TODO
-    :param mx: TODO
-    :param my: TODO
-    :param nx: TODO
-    :param ny: TODO
-    :param name: TODO
-    :return: dataframe
+    :param array: array containing data that is to be fit to a coordinate system
+    :type array:  nparray
+    :param xmin:  lowest x coordinate (inclusive) for the new coordinate system
+    :type xmin:   float
+    :param xmax:  largest x coordinate (noninclusive) for the new coordinate system
+    :type xmax:   float
+    :param ymin:  lowest y coordinate (noninclusive) for the new coordinate system
+    :type ymin:   float
+    :param ymax:  largest y coordinate (inclusive) for the new coordinate system
+    :type ymax:   float
+    :param step:  spacing between coordinates in the new coordinate system
+    :type step:   float
+    :param mx:    x coordinate for where to start extracting data from array
+    :type mx:     float
+    :param my:    y coordinate for where to start extracting data from array
+    :type my:     float
+    :param nx:    x coordinate for where to stop extracting data from array
+    :type nx:     float
+    :param ny:    y coordinate for where to stop extracting data from array
+    :type ny:     float
+    :param name:  name of the new column containing the data extracted from array
+    :type name:   string
+    :return:      dataframe
     """
     x = []
     y = []
@@ -1710,15 +1721,23 @@ def regular_sample(array, xmin, xmax, ymin, ymax, step, mx, my, nx, ny, name):
 def random_sample(array, xmin, xmax, ymin, ymax, step, nsamp, name):
     """Extract random samples from a 2D spatial model.
 
-    :param array: ndarray
-    :param xmin: TODO
-    :param xmax: TODO
-    :param ymin: TODO
-    :param ymax: TODO
-    :param step: TODO
-    :param nsamp: TODO
-    :param name: TODO
-    :return: dataframe
+    :param array: array where the data is to be extracted from
+    :type array:  nparray
+    :param xmin:  lowest x coordinate in the new coordinate system
+    :type xmin:   float
+    :param xmax:  largest x coordinate in the new coordinate system
+    :type xmax:   float
+    :param ymin:  lowest y coordinate in the new coordinate system
+    :type ymin:   float
+    :param ymax:  largest y coordinate in the new coordinate system
+    :type ymax:   float
+    :param step:  spacing between coordinates in the new coordinate system
+    :type step:   float
+    :param nsamp: number of elements to extract from array
+    :type nsamp:  float
+    :param name:  name of the new column containing the data extracted from array
+    :type name:   float
+    :return:      dataframe
     """
     x = []
     y = []
@@ -1768,5 +1787,3 @@ def DataFrame2ndarray(df, xcol, ycol, vcol, xmin, xmax, ymin, ymax, step):
         ix = min(nx - 1, int((df.iloc[isamp][xcol] - xmin) / step))
         array[iy, ix] = df.iloc[isamp][vcol]
     return array
-
-
