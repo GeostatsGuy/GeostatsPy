@@ -4401,7 +4401,7 @@ def setup_rotmat_3D(c0, nst, it, cc, ang_azi, ang_dip, pmx):
     """
     PI = 3.141_592_65
     DTOR = PI / 180.0
-	
+
     # The first time around, re-initialize the cosine matrix for the variogram
     # structures
     rotmat = np.zeros((9, nst))
