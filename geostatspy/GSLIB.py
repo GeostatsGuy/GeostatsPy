@@ -248,7 +248,7 @@ def locmap(
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: TODO
+    :param vlabel: label for colorbar
     :param cmap: colormap
     :param fig_name: figure name
     :return: PathCollection
@@ -316,7 +316,7 @@ def locmap_st(
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: TODO
+    :param vlabel: label for colorbar
     :param cmap: colormap
     :return: PathCollection
     """
@@ -372,12 +372,12 @@ def pixelplt(
     :param ymin: y axis minimum
     :param ymax: y axis maximum
     :param step: step
-    :param vmin: TODO
-    :param vmax: TODO
+    :param vmin: normalize luminance data
+    :param vmax: normalize luminance data
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: TODO
+    :param vlabel: label for colorbar
     :param cmap: colormap
     :param fig_name: figure name
     :return: QuadContourSet
@@ -431,12 +431,12 @@ def pixelplt_st(
     :param ymin: y axis minimum
     :param ymax: y axis maximum
     :param step: step
-    :param vmin: TODO
-    :param vmax: TODO
+    :param vmin: normalize luminance data
+    :param vmax: normalize luminance data
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: TODO
+    :param vlabel: label for colorbar
     :param cmap: colormap
     :return: QuadContourSet
     """
@@ -506,12 +506,12 @@ def pixelplt_log_st(
     :param ymin: y axis minimum
     :param ymax: y axis maximum
     :param step: step
-    :param vmin: TODO
-    :param vmax: TODO
+    :param vmin: normalize luminance data
+    :param vmax: normalize luminance data
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: TODO
+    :param vlabel: label for colorbar
     :param cmap: colormap
     :return: QuadContourSet
     """
@@ -589,8 +589,8 @@ def locpix(
     :param ymin: y axis minimum
     :param ymax: y axis maximum
     :param step: step
-    :param vmin: TODO
-    :param vmax: TODO
+    :param vmin: normalize luminance data
+    :param vmax: normalize luminance data
     :param df: dataframe
     :param xcol: data for x axis
     :param ycol: data for y axis
@@ -598,7 +598,7 @@ def locpix(
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: TODO
+    :param vlabel: label for colorbar
     :param cmap: colormap
     :param fig_name: figure name
     :return: QuadContourSet
@@ -671,8 +671,8 @@ def locpix_st(
     :param ymin: y axis minimum
     :param ymax: y axis maximum
     :param step: step
-    :param vmin: TODO
-    :param vmax: TODO
+    :param vmin: normalize luminance data
+    :param vmax: normalize luminance data
     :param df: dataframe
     :param xcol: data for x axis
     :param ycol: data for y axis
@@ -680,7 +680,7 @@ def locpix_st(
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: TODO
+    :param vlabel: label for colorbar
     :param cmap: colormap
     :return: QuadContourSet
     """
@@ -749,8 +749,8 @@ def locpix_log_st(
     :param ymin: y axis minimum
     :param ymax: y axis maximum
     :param step: step
-    :param vmin: TODO
-    :param vmax: TODO
+    :param vmin: normalize luminance data
+    :param vmax: normalize luminance data
     :param df: dataframe
     :param xcol: data for x axis
     :param ycol: data for y axis
@@ -758,7 +758,7 @@ def locpix_log_st(
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: TODO
+    :param vlabel: label for colorbar
     :param cmap: colormap
     :return: QuadContourSet
     """
@@ -808,8 +808,8 @@ def affine(array, tmean, tstdev):
     methods.
 
     :param array: ndarray
-    :param tmean: TODO
-    :param tstdev: TODO
+    :param tmean: adjusted standared deviation 
+    :param tstdev: adjusted mean
     :return: ndarray
     """
     mean = np.average(array)
