@@ -1692,7 +1692,8 @@ def regular_sample(array, xmin, xmax, ymin, ymax, step, mx, my, nx, ny, name):
     :type ny:     float
     :param name:  name of the new column containing the data extracted from array
     :type name:   string
-    :return:      dataframe
+    :return:      new coordinate system with corresponding data from Array
+    :type return: dataframe
     """
     x = []
     y = []
@@ -1737,7 +1738,8 @@ def random_sample(array, xmin, xmax, ymin, ymax, step, nsamp, name):
     :type nsamp:  float
     :param name:  name of the new column containing the data extracted from array
     :type name:   float
-    :return:      dataframe
+    :return:      new coordinate system with corresponding data from Array
+    :type return: dataframe
     """
     x = []
     y = []
