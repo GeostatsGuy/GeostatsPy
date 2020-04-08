@@ -36,7 +36,7 @@ def backtr(df,vcol,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):
     :param ltpar: lower tail extrapolation parameter
     :param utail: upper tail value
     :param utpar: upper tail extrapolation parameter
-    :return: TODO
+    :return: float or array
     """    
     
     EPSLON=1.0e-20
@@ -85,7 +85,7 @@ def backtr_value(vrgs,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):
     :param ltpar: lower tail extrapolation parameter
     :param utail: upper tail value
     :param utpar: upper tail extrapolation parameter
-    :return: TODO
+    :return: float or array
     """  
     EPSLON=1.0e-20
     nt = len(vr) # number of data to transform 
@@ -122,7 +122,7 @@ def backtr_value(vrgs,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):
 def gcum(x):
     """Calculate the cumulative probability of the standard normal distribution.
     :param x: the value from the standard normal distribution 
-    :return: TODO
+    :return: float
     """    
     
     z = x
@@ -148,7 +148,7 @@ def locate(xx,iis,iie,x):
     :param iis: start point
     :param iie: end point
     :param x: given value
-    :return: TODO
+    :return: array
     """
     
     n = len(xx)
