@@ -865,19 +865,19 @@ def make_variogram(
     """Make a dictionary of variogram parameters for application with spatial
     estimation and simulation.
 
-    :param nug: TODO
-    :param nst: TODO
-    :param it1: TODO
-    :param cc1: TODO
-    :param azi1: TODO
-    :param hmaj1: TODO
-    :param hmin1: TODO
-    :param it2: TODO
-    :param cc2: TODO
-    :param azi2: TODO
-    :param hmaj2: TODO
-    :param hmin2: TODO
-    :return: TODO
+    :param nug: the nugget value for this particular variogram 
+    :param nst: whether a normal score transformation is used on this variogram
+    :param it1: internal trend of the variogram 
+    :param cc1: covariance contribution of the variable  
+    :param azi1: azimuth, in degrees, used in this particular variogram
+    :param hmaj1: maximum lag distance measured in this variogram
+    :param hmin1: minimum lag distance measured in this variogram
+    :param it2: (optional, default = 0) internal trend of second variable of variogram
+    :param cc2: (optional, default = 0) covariance contribution of this variable
+    :param azi2: (optional, default = 0) azimuth, in degrees, used for this variable 
+    :param hmaj2: (optional, default = 0) maximum lag distance used for this variable
+    :param hmin2: (optional, default = 0) minimum lag distance used for this variable
+    :return: a dicitonary with all input values mapped to by variable name
     """
     if cc2 == 0:
         nst = 1
