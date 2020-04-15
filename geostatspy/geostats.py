@@ -2196,6 +2196,101 @@ def nscore(
 
     return ns, vr, wt_ns
 
+# *** all parameters have been copied over form kb2d with respective z parameter added if necessary
+# we can probably delete a couple of these if we don't do block kriging
+def kt3d (
+    df,
+    xcol,
+    ycol,
+    zcol,
+    vcol,
+    tmin,
+    tmax,
+    nx,
+    xmn,
+    xsiz,
+    ny,
+    ymn,
+    ysiz,
+    nz,
+    zmn,
+    zsiz,
+    nxdis,
+    nydis,
+    nzdis,
+    ndmin,
+    ndmax,
+    radius,
+    ktype,
+    skmean,
+    vario,
+):
+    UNEST = -999.
+    EPSLON = 1.0e-10
+    # VERSION = 2.907
+    # first = True
+    PMX = 9999.0    
+    # MAXSAM = ndmax + 1
+    # MAXDIS = nxdis * nydis
+    # MAXKD = MAXSAM + 1
+    # MAXKRG = MAXKD * MAXKD
+
+    # load the data
+    # trim values outside tmin and tmax
+    df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]   
+    nd = len(df_extract)
+    ndmax = min(ndmax,nd)
+    x = df_extract[xcol].values
+    y = df_extract[ycol].values
+    z = df_extract[zcol].values
+    vr = df_extract[vcol].values
+
+    # set up tree for nearest neighbor search
+    dp = list((z[i], y[i], x[i]) for i in range(0,nd))
+    data_locs = np.column_stack((z, y, x))
+    tree = sp.cKDTree(data_locs, leafsize=16, compact_nodes=True, copy_data=False, balanced_tree=True)
+
+    # Summary statistics for the data after trimming
+    avg = vr.mean()
+    stdev = vr.std()
+    ss = stdev**2.0 # variance
+    vrmin = vr.min()
+    vrmax = vr.max()
+
+    nst = vario['nst'] # num structures
+    cc = np.zeros(nst) # variance contribution
+    aa = np.zeros(nst) # major range
+    it = np.zeros(nst) # type vario structure
+    aa = np.zeros(nst) # major range
+    ang_azi = np.zeros(nst) # azimuth
+    ang_dip = np.zeros(nst) # dip
+    anis = np.zeros(nst) # anistropy ratio w/ minor range
+    anis_v = np.zeros(nst) # anistropy ratio w/ vertical range
+    
+    # only works w/ nst == 1 or nst == 2
+    c0 = vario['nug'] 
+    it[0] = vario['it1'] 
+    cc[0] = vario['cc1'] 
+    ang_azi[0] = vario['azi1']
+    ang_dip[0] = vario['dip1']
+    aa[0] = vario['hmax']
+    anis[0] = vario['hmed1']/vario['hmax1']
+    anis_v[0] = vario['hmin1']/vario['hmax1']
+    if nst == 2:
+        cc[1] = vario['cc2']
+        it[1] = vario['it2']
+        ang_azi[1] = vario['azi2']
+        ang_dip[1] = vario['dip1']
+        aa[1] = vario['hmax']
+        anis[1] = vario['hmed2']/vario['hmax2']
+        anis_v[1] = vario['hmin2']/vario['hmax2']
+
+    rotmat, maxcov = setup_rotmat_3D(c0, nst, it, cc, ang_azi, ang_dip, PMX)
+    cbb = maxcov
+
+    # need to set up numPy cube grid
+
+    # main loop over all points:
 
 def kb2d(
     df,
@@ -2258,8 +2353,11 @@ def kb2d(
     
 # load the variogram
     nst = vario['nst']
-    cc = np.zeros(nst); aa = np.zeros(nst); it = np.zeros(nst)
-    ang = np.zeros(nst); anis = np.zeros(nst)
+    cc = np.zeros(nst);
+    aa = np.zeros(nst); 
+    it = np.zeros(nst) 
+    ang = np.zeros(nst); 
+    anis = np.zeros(nst) 
     
     c0 = vario['nug']; 
     cc[0] = vario['cc1']; it[0] = vario['it1']; ang[0] = vario['azi1']; 
@@ -2267,6 +2365,7 @@ def kb2d(
     if nst == 2:
         cc[1] = vario['cc2']; it[1] = vario['it2']; ang[1] = vario['azi2']; 
         aa[1] = vario['hmaj2']; anis[1] = vario['hmin2']/vario['hmaj2'];
+
     
 # Allocate the needed memory:   
     xdb = np.zeros(MAXDIS)
@@ -2299,7 +2398,7 @@ def kb2d(
 # Summary statistics for the data after trimming
     avg = vr.mean()
     stdev = vr.std()
-    ss = stdev**2.0
+    ss = stdev**2.0 # variance
     vrmin = vr.min()
     vrmax = vr.max()
 
@@ -2323,6 +2422,7 @@ def kb2d(
             i = i+1
             xdb[i] = xloc
             ydb[i] = yloc
+
 
 # Initialize accumulators:
     cbb  = 0.0
@@ -2353,7 +2453,7 @@ def kb2d(
         yloc = ymn + (iy-0)*ysiz  
         for ix in range(0,nx):
             xloc = xmn + (ix-0)*xsiz
-            current_node = (yloc,xloc)
+            current_node = (yloc,xloc) # xloc, yloc centroid of cell
         
 # Find the nearest samples within each octant: First initialize
 # the counter arrays:
@@ -2429,6 +2529,7 @@ def kb2d(
 
 # Establish Right Hand Side Covariance:
                         if ndb <= 1:
+                            # ndb <= 1 -> use single value
                             cb = cova2(xx,yy,xdb[0],ydb[0],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
                         else:
                             cb  = 0.0
@@ -4469,9 +4570,6 @@ def cova3(x1, y1, z1, x2, y2, z2, nst, c0, pmx, cc, aa, it, anis, anis_v, rotmat
             cov1 = pmx - cc[js] * (h ** aa[js])
             cova3_ = cova3_ + cov1
     return cova3_	
-	
-
-
 	
 	
 def gamv_3D(
