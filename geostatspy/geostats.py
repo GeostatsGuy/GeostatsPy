@@ -2235,7 +2235,23 @@ def kt3d (
     MAXKD = MAXSAM + 1
     MAXKRG = MAXKD * MAXKD
 
-    # load the data
+# Allocate the needed memory:   
+    xdb = np.zeros(MAXDIS)
+    ydb = np.zeros(MAXDIS)
+    zdb = np.zeros(MAXDIS)
+    xa = np.zeros(MAXSAM)
+    ya = np.zeros(MAXSAM)
+    za = np.zeros(MAXSAM)
+    vra = np.zeros(MAXSAM)
+    dist = np.zeros(MAXSAM)
+    nums = np.zeros(MAXSAM)
+    r = np.zeros(MAXKD)
+    rr = np.zeros(MAXKD)
+    s = np.zeros(MAXKD)
+    a = np.zeros(MAXKRG)
+    kmap = np.zeros((nx,ny,nz))
+    vmap = np.zeros((nx,ny,nz))
+
     # trim values outside tmin and tmax
     df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]   
     nd = len(df_extract)
@@ -2263,17 +2279,19 @@ def kt3d (
     vmap = np.zeros((nx,ny,nz)) 
 
     # set up tree for nearest neighbor search
+# set up tree for nearest neighbor search
     dp = list((z[i], y[i], x[i]) for i in range(0,nd))
     data_locs = np.column_stack((z, y, x))
     tree = sp.cKDTree(data_locs, leafsize=16, compact_nodes=True, copy_data=False, balanced_tree=True) #why this error?
 
-    # Summary statistics for the data after trimming
+# Summary statistics for the data after trimming
     avg = vr.mean()
     stdev = vr.std()
     ss = stdev**2.0 # variance
     vrmin = vr.min()
     vrmax = vr.max()
 
+# load the variogram
     nst = vario['nst'] # num structures
     cc = np.zeros(nst) # variance contribution
     aa = np.zeros(nst) # major range
@@ -2305,9 +2323,9 @@ def kt3d (
     rotmat, maxcov = setup_rotmat_3D(c0, nst, it, cc, ang_azi, ang_dip, PMX)
     cbb = maxcov
 
+    # TODO Set up discretization points per block
     # need to set up numPy cube grid
     cubeGrid = np.ndarray(shape=(nx,ny,nz), dtype=float, order='C')               
-
     # main loop over all points:
     nk = 0
     ak = 0.0
@@ -2350,17 +2368,18 @@ def kt3d (
 # Handle the situation of only one sample:
                     if na == 0:  # accounting for min index of 0 - one sample case na = 0
                         cb1 = cova3(xa[0],ya[0],za[0],xa[0],ya[0],za[0],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
+
                         xx  = xa[0] - xloc
                         yy  = ya[0] - yloc
                         zz  = za[0] - zloc
 
 # Establish Right Hand Side Covariance:
                     if ndb <= 1:
-                        cb = cova3(xx,yy,zz,xdb[0],ydb[0],zdb[0],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
+                        cb = cova3(xx,yy,zz,xdb[0],ydb[0],zdb[i],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
                     else:
                         cb  = 0.0
                         for i in range(0,ndb):                  
-                            cb = cb + cova3(xx,yy,zz,xdb[i],ydb[i],zdb[ii],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
+                            cb = cb + cova3(xx,yy,zz,xdb[i],ydb[i],zdb[i],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
                             dx = xx - xdb(i)
                             dy = yy - ydb(i)
                             dz = zz - zdb(i)
@@ -2374,11 +2393,16 @@ def kt3d (
                     else:
                         est  = vra[0]
                         estv = cbb - 2.0*cb + cb1
+                else:
 
 # Solve the Kriging System with more than one sample:
                         neq = na + ktype # accounting for first index of 0
-#                    print('NEQ' + str(neq))
-                        nn  = (neq + 1)*neq/2
+                        # print('NEQ' + str(neq))
+                        nn  = (neq + 1)*neq/2   
+
+# TODO Set up kriging matrices:
+
+    return kmap, vmap   
 
 # Set up kriging matrices:
                         for j in range(0,na):
