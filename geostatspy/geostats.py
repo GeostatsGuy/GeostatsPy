@@ -2235,6 +2235,23 @@ def kt3d (
     # MAXKD = MAXSAM + 1
     # MAXKRG = MAXKD * MAXKD
 
+# Allocate the needed memory:   
+    xdb = np.zeros(MAXDIS)
+    ydb = np.zeros(MAXDIS)
+    zdb = np.zeros(MAXDIS)
+    xa = np.zeros(MAXSAM)
+    ya = np.zeros(MAXSAM)
+    za = np.zeros(MAXSAM)
+    vra = np.zeros(MAXSAM)
+    dist = np.zeros(MAXSAM)
+    nums = np.zeros(MAXSAM)
+    r = np.zeros(MAXKD)
+    rr = np.zeros(MAXKD)
+    s = np.zeros(MAXKD)
+    a = np.zeros(MAXKRG)
+    kmap = np.zeros((nx,ny,nz))
+    vmap = np.zeros((nx,ny,nz))
+
     # load the data
     # trim values outside tmin and tmax
     df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]   
@@ -2257,6 +2274,7 @@ def kt3d (
     vrmin = vr.min()
     vrmax = vr.max()
 
+    # load the variogram
     nst = vario['nst'] # num structures
     cc = np.zeros(nst) # variance contribution
     aa = np.zeros(nst) # major range
@@ -2288,9 +2306,39 @@ def kt3d (
     rotmat, maxcov = setup_rotmat_3D(c0, nst, it, cc, ang_azi, ang_dip, PMX)
     cbb = maxcov
 
+    # TODO Set up discretization points per block
     # need to set up numPy cube grid
 
-    # main loop over all points:
+    # MAIN LOOP OVER ALL THE BLOCKS IN THE GRID:
+    for iz in range(0,nz):
+        zloc = zmn + (iz-0)*zsiz
+        for iy in range(0,ny):
+            yloc = ymn + (iy-0)*ysiz
+            for ix in range(0,nx):
+                xloc = xmn + (ix-0)*xsiz
+                current_node = (zloc,yloc,xloc) # centroid
+
+                # Find the nearest samples within each octant: First initializethe counter arrays:
+                na = -1   # accounting for 0 as first index
+                dist.fill(1.0e+20)
+                nums.fill(-1)
+                dist, nums = tree.query(current_node,ndmax) # use kd tree for fast nearest data search
+                # remove any data outside search radius
+                na = len(dist)
+                nums = nums[dist<radius]
+                dist = dist[dist<radius] 
+                na = len(dist)
+
+                # Put coordinates and values of neighborhood samples into xa,ya,vra:
+                for ia in range(0,na):
+                    jj = int(nums[ia])
+                    xa[ia]  = x[jj]
+                    ya[ia]  = y[jj]
+                    vra[ia] = vr[jj]
+
+
+
+    return kmap, vmap        
 
 def kb2d(
     df,
