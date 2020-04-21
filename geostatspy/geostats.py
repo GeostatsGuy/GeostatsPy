@@ -2278,7 +2278,6 @@ def kt3d (
     kmap = np.zeros((nx,ny,nz))
     vmap = np.zeros((nx,ny,nz)) 
 
-    # set up tree for nearest neighbor search
 # set up tree for nearest neighbor search
     dp = list((z[i], y[i], x[i]) for i in range(0,nd))
     data_locs = np.column_stack((z, y, x))
@@ -2323,7 +2322,8 @@ def kt3d (
     rotmat, maxcov = setup_rotmat_3D(c0, nst, it, cc, ang_azi, ang_dip, PMX)
     cbb = maxcov
 
-    # TODO Set up discretization points per block
+    # TODO Set up discretization points per block (bock kriging)
+
     # need to set up numPy cube grid
     cubeGrid = np.ndarray(shape=(nx,ny,nz), dtype=float, order='C')               
     # main loop over all points:
@@ -2331,12 +2331,13 @@ def kt3d (
     ak = 0.0
     vk = 0.0
     for iz in range(0,nz):
-        zloc = zmn + (iz-0)*zsiz  #am I supposed to add these values in the numpy grid?
+        zloc = zmn + (iz-0)*zsiz 
         for iy in range(0,ny):
             yloc = ymn + (iy-0)*ysiz
-            for ix in range (0,nz):             #triple nested for loop that loops through points amd adds to matrices
+            for ix in range (0,nz):     #triple nested for loop that loops through points and adds to matrices
                 xloc = xmn + (ix-0)*xsiz
-                current_node = (zloc, yloc,xloc) # xloc, yloc centroid of cell
+                current_node = (zloc, yloc,xloc) # xloc, yloc, zloc centroid of current cell
+
 
     # Find the nearest samples within each octant: First initialize
 # the counter arrays:
@@ -2350,14 +2351,14 @@ def kt3d (
                 dist = dist[dist<radius] 
                 na = len(dist)        
 
-# Is there enough samples?
+                # Is there enough samples?
                 if na + 1 < ndmin:   # accounting for min index of 0
                     est  = UNEST
                     estv = UNEST
                     print('UNEST at ' + str(ix) + ',' + str(iy) + ','+str(iz)) 
                 else:
 
-# Put coordinates and values of neighborhood samples into xa,ya,za,vra:
+                    # Put coordinates and values of neighborhood samples into xa,ya,za,vra:
                     for ia in range(0,na):
                         jj = int(nums[ia])
                         xa[ia]  = x[jj] #why this error?
@@ -2365,7 +2366,7 @@ def kt3d (
                         za[ia]  = z[jj]
                         vra[ia] = vr[jj] #what is vra??
                     
-# Handle the situation of only one sample:
+                    # Handle the situation of only one sample:
                     if na == 0:  # accounting for min index of 0 - one sample case na = 0
                         cb1 = cova3(xa[0],ya[0],za[0],xa[0],ya[0],za[0],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
 
@@ -2373,48 +2374,48 @@ def kt3d (
                         yy  = ya[0] - yloc
                         zz  = za[0] - zloc
 
-# Establish Right Hand Side Covariance:
-                    if ndb <= 1:
-                        cb = cova3(xx,yy,zz,xdb[0],ydb[0],zdb[i],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
+                    # Establish Right Hand Side Covariance:
+                        if ndb <= 1:
+                            cb = cova3(xx,yy,zz,xdb[0],ydb[0],zdb[i],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
+                        else:
+                            
+                            cb  = 0.0
+                            for i in range(0,ndb):                  
+                                cb = cb + cova3(xx,yy,zz,xdb[i],ydb[i],zdb[i],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
+                                dx = xx - xdb(i)
+                                dy = yy - ydb(i)
+                                dz = zz - zdb(i)
+                                if (dx*dx+dy*dy+dz*dz) < EPSLON:
+                                    cb = cb - c0
+                                cb = cb / real(ndb)
+                        if ktype == 0:
+                            s[0] = cb/cbb
+                            est  = s[0]*vra[0] + (1.0-s[0])*skmean
+                            estv = cbb - s[0] * cb
+                        else:
+                            est  = vra[0]
+                            estv = cbb - 2.0*cb + cb1
                     else:
-                        cb  = 0.0
-                        for i in range(0,ndb):                  
-                            cb = cb + cova3(xx,yy,zz,xdb[i],ydb[i],zdb[i],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
-                            dx = xx - xdb(i)
-                            dy = yy - ydb(i)
-                            dz = zz - zdb(i)
-                            if (dx*dx+dy*dy+dz*dz) < EPSLON:
-                                cb = cb - c0
-                            cb = cb / real(ndb)
-                    if ktype == 0:
-                        s[0] = cb/cbb
-                        est  = s[0]*vra[0] + (1.0-s[0])*skmean
-                        estv = cbb - s[0] * cb
-                    else:
-                        est  = vra[0]
-                        estv = cbb - 2.0*cb + cb1
-                else:
-
-# Solve the Kriging System with more than one sample:
+                    # Solve the Kriging System with more than one sample:
                         neq = na + ktype # accounting for first index of 0
                         # print('NEQ' + str(neq))
                         nn  = (neq + 1)*neq/2   
+
+                        # Set up kriging matrices:
+                        a = np.zeroes((na,na))
+                        r = np.zeroes(na)
+
+                        # Establish Left Hand Side Covariance Matrix:
+
+                        for j in range(0,na):
+                            for i in range(0,na): #loops through and adds covariances into matrix
+                                a[j][i] = cova3(xa[i],ya[i],za[i],xa[j],ya[j],za[j],nst,c0,PMX,cc,aa,it,ang_azi,anis,rotmat,maxcov) 
+
 
 # TODO Set up kriging matrices:
 
     return kmap, vmap   
 
-# Set up kriging matrices:
-                        for j in range(0,na):
-
-# Establish Left Hand Side Covariance Matrix:
-                            for i in range(0,na): #loops through and adds covariances into matrix
-                                a[j][i] = cova3(xa[i],ya[i],za[i],xa[j],ya[j],za[j],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov) 
-
-# Establish Right Hand Side Covariance:
-                            if ndb <= 1:
-                                # ndb <= 1 -> use single value
-                                cb = cova3(xx,yy,zz,xdb[0],ydb[0],zdb[0],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
 def kb2d(
     df,
     xcol,
