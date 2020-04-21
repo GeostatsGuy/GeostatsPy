@@ -2252,7 +2252,7 @@ def kt3d (
     kmap = np.zeros((nx,ny,nz))
     vmap = np.zeros((nx,ny,nz))
 
-    # load the data
+# load the data
     # trim values outside tmin and tmax
     df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]   
     nd = len(df_extract)
@@ -2262,19 +2262,19 @@ def kt3d (
     z = df_extract[zcol].values
     vr = df_extract[vcol].values
 
-    # set up tree for nearest neighbor search
+# set up tree for nearest neighbor search
     dp = list((z[i], y[i], x[i]) for i in range(0,nd))
     data_locs = np.column_stack((z, y, x))
     tree = sp.cKDTree(data_locs, leafsize=16, compact_nodes=True, copy_data=False, balanced_tree=True)
 
-    # Summary statistics for the data after trimming
+# Summary statistics for the data after trimming
     avg = vr.mean()
     stdev = vr.std()
     ss = stdev**2.0 # variance
     vrmin = vr.min()
     vrmax = vr.max()
 
-    # load the variogram
+# load the variogram
     nst = vario['nst'] # num structures
     cc = np.zeros(nst) # variance contribution
     aa = np.zeros(nst) # major range
@@ -2309,7 +2309,7 @@ def kt3d (
     # TODO Set up discretization points per block
     # need to set up numPy cube grid
 
-    # MAIN LOOP OVER ALL THE BLOCKS IN THE GRID:
+# MAIN LOOP OVER ALL THE BLOCKS IN THE GRID:
     for iz in range(0,nz):
         zloc = zmn + (iz-0)*zsiz
         for iy in range(0,ny):
@@ -2318,7 +2318,7 @@ def kt3d (
                 xloc = xmn + (ix-0)*xsiz
                 current_node = (zloc,yloc,xloc) # centroid
 
-                # Find the nearest samples within each octant: First initializethe counter arrays:
+# Find the nearest samples within each octant: First initializethe counter arrays:
                 na = -1   # accounting for 0 as first index
                 dist.fill(1.0e+20)
                 nums.fill(-1)
@@ -2329,14 +2329,48 @@ def kt3d (
                 dist = dist[dist<radius] 
                 na = len(dist)
 
-                # Put coordinates and values of neighborhood samples into xa,ya,vra:
-                for ia in range(0,na):
-                    jj = int(nums[ia])
-                    xa[ia]  = x[jj]
-                    ya[ia]  = y[jj]
-                    vra[ia] = vr[jj]
+# Is there enough samples?
+                if na + 1 < ndmin:   # accounting for min index of 0
+                    est  = UNEST
+                    estv = UNEST
+                    print('UNEST at ' + str(ix) + ',' + str(iy) + ',' + str(iz))
+                else:
 
+# Put coordinates and values of neighborhood samples into xa,ya,vra:
+                    for ia in range(0,na):
+                        jj = int(nums[ia])
+                        xa[ia]  = x[jj]
+                        ya[ia]  = y[jj]
+                        za[ia]  = z[jj]
+                        vra[ia] = vr[jj]
 
+# Handle the situation of only one sample:
+                    if na == 0:  # accounting for min index of 0 - one sample case na = 0
+                        cb1 = cova2(xa[0],ya[0],xa[0],ya[0],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
+                        xx  = xa[0] - xloc
+                        yy  = ya[0] - yloc
+                        zz  = za[0] - zloc
+
+# Establish Right Hand Side Covariance:
+                        if ndb <= 1:
+                            cb = cova3(xx,yy,zz,xdb[0],ydb[0],zdb[0],nst,c0,PMX,cc,aa,it,ang,anis,anis_v,rotmat,maxcov)
+                        else:
+                            # TODO implement block kriging
+                        if ktype == 0:
+                            s[0] = cb/cbb
+                            est  = s[0]*vra[0] + (1.0-s[0])*skmean
+                            estv = cbb - s[0] * cb
+                        else:
+                            est  = vra[0]
+                            estv = cbb - 2.0*cb + cb1
+                    else:
+
+# Solve the Kriging System with more than one sample:
+                        neq = na + ktype # accounting for first index of 0
+                        # print('NEQ' + str(neq))
+                        nn  = (neq + 1)*neq/2   
+
+# TODO Set up kriging matrices:
 
     return kmap, vmap        
 
