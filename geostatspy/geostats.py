@@ -2336,7 +2336,7 @@ def kt3d (
                     print('UNEST at ' + str(ix) + ',' + str(iy) + ',' + str(iz))
                 else:
 
-# Put coordinates and values of neighborhood samples into xa,ya,vra:
+# Put coordinates and values of neighborhood samples into xa,ya,za,vra:
                     for ia in range(0,na):
                         jj = int(nums[ia])
                         xa[ia]  = x[jj]
