@@ -2339,8 +2339,7 @@ def kt3d (
                 current_node = (zloc, yloc,xloc) # xloc, yloc, zloc centroid of current cell
 
 
-    # Find the nearest samples within each octant: First initialize
-# the counter arrays:
+                 # Find the nearest samples within each octant: First initializ the counter arrays:
                 na = -1   # accounting for 0 as first index
                 dist.fill(1.0e+20)
                 nums.fill(-1)
@@ -2357,7 +2356,6 @@ def kt3d (
                     estv = UNEST
                     print('UNEST at ' + str(ix) + ',' + str(iy) + ','+str(iz)) 
                 else:
-
                     # Put coordinates and values of neighborhood samples into xa,ya,za,vra:
                     for ia in range(0,na):
                         jj = int(nums[ia])
@@ -2377,8 +2375,7 @@ def kt3d (
                     # Establish Right Hand Side Covariance:
                         if ndb <= 1:
                             cb = cova3(xx,yy,zz,xdb[0],ydb[0],zdb[i],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
-                        else:
-                            
+                        else:    
                             cb  = 0.0
                             for i in range(0,ndb):                  
                                 cb = cb + cova3(xx,yy,zz,xdb[i],ydb[i],zdb[i],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
@@ -2410,6 +2407,7 @@ def kt3d (
                         for j in range(0,na):
                             for i in range(0,na): #loops through and adds covariances into matrix
                                 a[j][i] = cova3(xa[i],ya[i],za[i],xa[j],ya[j],za[j],nst,c0,PMX,cc,aa,it,ang_azi,anis,rotmat,maxcov) 
+                            r[j] = cova3(xloc,yloc,zloc,xa[j],ya[j],za[j],nst,c0,PMX,cc,aa,it,ang_azi,anis,rotmat,maxcov) 
 
 
 # TODO Set up kriging matrices:
