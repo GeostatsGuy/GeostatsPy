@@ -1770,3 +1770,229 @@ def DataFrame2ndarray(df, xcol, ycol, vcol, xmin, xmax, ymin, ymax, step):
     return array
 
 
+def make_variogram_3D(
+    nug,
+    nst,
+    it1,
+    cc1,
+    azi1,
+    dip1,
+    hmax1,
+    hmed1,
+    hmin1,
+    it2=1,
+    cc2=0,
+    azi2=0,
+    dip2=0,
+    hmax2=0,
+    hmed2=0,
+    hmin2=0,
+):
+    """Make a dictionary of variogram parameters for application with spatial
+    estimation and simulation.
+
+    :param nug: Nugget constant (isotropic)
+    :param nst: Number of structures (up to 2)
+    :param it1: Structure of 1st variogram (1: Gaussian, 2: Exponential, 3: Spherical)
+    :param cc1: Contribution of 2nd variogram
+    :param azi1: Azimuth of 1st variogram
+    :param dip1: Dip of 1st variogram
+    :param hmax1: Range in major direction (Horizontal)
+    :param hmed1: Range in minor direction (Horizontal)
+    :param hmin1: Range in vertical direction
+    :param it2: Structure of 2nd variogram (1: Gaussian, 2: Exponential, 3: Spherical)
+    :param cc2: Contribution of 2nd variogram
+    :param azi2: Azimuth of 2nd variogram
+    :param dip1: Dip of 2nd variogram
+    :param hmax2: Range in major direction (Horizontal)
+    :param hmed2: Range in minor direction (Horizontal)
+    :param hmin2: Range in vertical direction
+    :return: TODO
+    """
+    if cc2 == 0:
+        nst = 1
+    var = dict(
+        [
+            ("nug", nug),
+            ("nst", nst),
+            ("it1", it1),
+            ("cc1", cc1),
+            ("azi1", azi1),
+            ("dip1", dip1),
+            ("hmax1", hmax1),
+            ("hmed1", hmed1),
+            ("hmin1", hmin1),
+            ("it2", it2),
+            ("cc2", cc2),
+            ("azi2", azi2),
+            ("dip2", dip2),
+            ("hmax2", hmax2),
+            ("hmed2", hmed2),
+            ("hmin2", hmin2),
+        ]
+    )
+    if nug + cc1 + cc2 != 1:
+        print(
+            "\x1b[0;30;41m make_variogram Warning: "
+            "sill does not sum to 1.0, do not use in simulation \x1b[0m"
+        )
+    if (
+        cc1 < 0
+        or cc2 < 0
+        or nug < 0
+        or hmax1 < 0
+        or hmax2 < 0
+        or hmin1 < 0
+        or hmin2 < 0
+    ):
+        print(
+            "\x1b[0;30;41m make_variogram Warning: "
+            "contributions and ranges must be all positive \x1b[0m"
+        )
+    if hmax1 < hmed1 or hmax2 < hmed2:
+        print(
+            "\x1b[0;30;41m make_variogram Warning: "
+            "major range should be greater than minor range \x1b[0m"
+        )
+    return var
+
+
+def sgsim_3D(nreal, df, xcol, ycol, zcol, vcol, nx, ny, nz, hsiz, vsiz, seed, var, output_file):
+    """Sequential Gaussian simulation, 2D wrapper for sgsim from GSLIB (.exe
+    must be available in PATH or working directory).
+
+    :param nreal: TODO
+    :param df: dataframe
+    :param xcol: TODO
+    :param ycol: TODO
+    :param vcol: TODO
+    :param nx: TODO
+    :param ny: TODO
+    :param hsiz: TODO
+    :param seed: TODO
+    :param var: TODO
+    :param output_file: output file
+    :return: TODO
+    """
+    x = df[xcol]
+    y = df[ycol]
+    z = df[zcol]
+    v = df[vcol]
+    var_min = v.values.min()
+    var_max = v.values.max()
+    df_temp = pd.DataFrame({"X": x, "Y": y, "Z": z, "Var": v})
+    Dataframe2GSLIB("data_temp.dat", df_temp)
+
+    nug = var["nug"]
+    nst = var["nst"]
+    it1 = var["it1"]
+    cc1 = var["cc1"]
+    azi1 = var["azi1"]
+    dip1 = var["dip1"] 
+    hmax1 = var["hmax1"]
+    hmed1 = var["hmed1"]
+    hmin1 = var["hmin1"]
+    it2 = var["it2"]
+    cc2 = var["cc2"]
+    azi2 = var["azi2"]
+    dip2 = var["dip2"] 
+    hmax2 = var["hmax2"]
+    hmed2 = var["hmed2"]
+    hmin2 = var["hmin2"]
+    max_range = max(hmax1, hmax2)
+    max_range_v = max(hmin1, hmin2) * 10
+    hmn = hsiz * 0.5
+    zmn = vsiz * 0.5
+    hctab = int(max_range / hsiz) * 2 + 1
+
+    with open("sgsim.par", "w") as f:
+        f.write("              Parameters for SGSIM                                         \n")
+        f.write("              ********************                                         \n")
+        f.write("                                                                           \n")
+        f.write("START OF PARAMETER:                                                        \n")
+        f.write("data_temp.dat                 -file with data                              \n")
+        f.write("1  2  3  4  0  0              -  columns for X,Y,Z,vr,wt,sec.var.          \n")
+        f.write("-1.0e21 1.0e21                -  trimming limits                           \n")
+        f.write("1                             -transform the data (0=no, 1=yes)            \n")
+        f.write("none.trn                      -  file for output trans table               \n")
+        f.write("0                             -  consider ref. dist (0=no, 1=yes)          \n")
+        f.write("none.dat                      -  file with ref. dist distribution          \n")
+        f.write("1  0                          -  columns for vr and wt                     \n")
+        f.write(str(var_min) + " " + str(var_max) + "   zmin,zmax(tail extrapolation)       \n")
+        f.write("1   " + str(var_min) + "      -  lower tail option, parameter              \n")
+        f.write("1   " + str(var_max) + "      -  upper tail option, parameter              \n")
+        f.write("0                             -debugging level: 0,1,2,3                    \n")
+        f.write("nonw.dbg                      -file for debugging output                   \n")
+        f.write(str(output_file) + "           -file for simulation output                  \n")
+        f.write(str(nreal) + "                 -number of realizations to generate          \n")
+        f.write(str(nx) + " " + str(hmn) + " " + str(hsiz) + "                              \n")
+        f.write(str(ny) + " " + str(hmn) + " " + str(hsiz) + "                              \n")
+        f.write(str(nz) + " " + str(zmn) + " " + str(vsiz) + "                              \n")
+        f.write(str(seed) + "                  -random number seed                          \n")
+        f.write("0     8                       -min and max original data for sim           \n")
+        f.write("12                            -number of simulated nodes to use            \n")
+        f.write("1                             -assign data to nodes (0=no, 1=yes)          \n")
+        f.write("1     3                       -multiple grid search (0=no, 1=yes),num      \n")
+        f.write("0                             -maximum data per octant (0=not used)        \n")
+        f.write(str(max_range) + " " + str(max_range) +" "+ str(max_range_v) + " -maximum search  (hmax,hmin,vert) \n")
+        f.write(str(azi1) + "   0.0   0.0       -angles for search ellipsoid                 \n")
+        f.write(str(hctab) + " " + str(hctab) + " 1 -size of covariance lookup table        \n")
+        f.write("1     0.60   1.0              - ktype: 0=SK,1=OK,2=LVM,3=EXDR,4=COLC        \n")
+        f.write("none.dat                      -  file with LVM, EXDR, or COLC variable     \n")
+        f.write("4                             -  column for secondary variable             \n")
+        f.write(str(nst) + " " + str(nug) + "  -nst, nugget effect                          \n")
+        f.write(str(it1) + " " + str(cc1) + " " + str(azi1) + "  " + str(dip1) +" 0.0 -it,cc,ang1,ang2,ang3\n")
+        f.write(" " + str(hmax1) + " 	" + str(hmed1) +  "		" + str(hmin1) + "  - a_hmax, a_hmin, a_vert        \n")
+        f.write(str(it2) + " " + str(cc2) + " 	" + str(azi2) + "		" + str(dip2) +" 0.0 -it,cc,ang1,ang2,ang3\n")
+        f.write(" " + str(hmax2) + " " + str(hmed2) +  " " +str(hmin2) + " - a_hmax, a_hmin, a_vert        \n")
+
+    os.system("sgsim.exe sgsim.par")
+    sim_array = GSLIB2ndarray_3D(output_file, 0, nreal, nx, ny, nz)
+    return sim_array[0]
+
+
+def GSLIB2ndarray_3D(data_file, kcol,nreal, nx, ny, nz):
+    """Convert GSLIB Geo-EAS file to a 1D or 2D numpy ndarray for use with
+    Python methods
+
+    :param data_file: file name
+    :param kcol: name of column which contains property
+    :param nreal: Number of realizations
+    :param nx: shape along x dimension
+    :param ny: shape along y dimension
+    :param nz: shape along z dimension
+    :return: ndarray, column name
+    """
+    if nz > 1 and ny > 1:
+        array = np.ndarray(shape = (nreal, ny, nx, nz), dtype=float, order="F")
+    elif ny > 1:
+        array = np.ndarray(shape=(nreal, ny, nx), dtype=float, order="F")
+    else:
+        array = np.zeros(nreal, nx)
+
+    with open(data_file) as f:
+        head = [next(f) for _ in range(2)]  # read first two lines
+        line2 = head[1].split()
+        ncol = int(line2[0])  # get the number of columns
+
+        for icol in range(ncol):  # read over the column names
+            head = next(f)
+            if icol == kcol:
+                col_name = head.split()[0]
+        for ineal in range(nreal):		
+            if nz > 1 and ny > 1:
+                for iz in range(nz):
+                    for iy in range(ny):
+                        for ix in range(nx):
+                            head = next(f)
+                            array[ineal][ny - 1 - iy][ix][iz] = head.split()[kcol]    					
+            elif ny > 1:
+                for iy in range(ny):
+                    for ix in range(0, nx):
+                        head = next(f)
+                        array[ineal][ny - 1 - iy][ix] = head.split()[kcol]
+            else:
+                for ix in range(nx):
+                    head = next(f)
+                    array[ineal][ix] = head.split()[kcol]
+    return array, col_name
