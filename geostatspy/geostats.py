@@ -36,8 +36,10 @@ def backtr(df,vcol,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):
     :param ltpar: lower tail extrapolation parameter
     :param utail: upper tail value
     :param utpar: upper tail extrapolation parameter
-    :return: TODO
-    """
+
+    :return: backtr: the DataFrame column, which has been back transformed using
+             the provided transformation table and tail extrapolation.
+    """    
 
     EPSLON=1.0e-20
     nd = len(df); nt = len(vr) # number of data to transform and number of data in table
