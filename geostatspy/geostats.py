@@ -38,8 +38,6 @@ def backtr(df,vcol,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):
     :param utpar: upper tail extrapolation parameter
     :return: backtr: the DataFrame column, which has been back transformed using
              the provided transformation table and tail extrapolation.
-    """    
-
 
     EPSLON=1.0e-20
     nd = len(df); nt = len(vr) # number of data to transform and number of data in table
@@ -89,7 +87,6 @@ def backtr_value(vrgs,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):
     :param utpar: upper tail extrapolation parameter
     :return: returns revised array
 
-    """
     EPSLON=1.0e-20
     nt = len(vr) # number of data to transform
 # Value in the lower tail?    1=linear, 2=power, (3 and 4 are invalid):
@@ -128,7 +125,6 @@ def gcum(x):
     :type x: float
     :return: probability selected x will be less than or equal to a specific value
     :type: float
-    """
 
     z = x
     if z < 0:
