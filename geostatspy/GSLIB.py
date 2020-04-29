@@ -68,7 +68,7 @@ def GSLIB2ndarray(data_file, kcol, nx, ny):
     Python methods
 
     :param data_file: file name
-    :param kcol: TODO
+    :param kcol: name of column which contains property
     :param nx: shape along x dimension
     :param ny: shape along y dimension
     :return: ndarray, column name
@@ -1061,7 +1061,7 @@ def varmapv_2d(
     :param minpairs: TODO
     :param vmax: TODO
     :param bstand: TODO
-    :param title: TODO
+    :param title: title
     :param vlabel: TODO
     :param cmap: colormap
     :param fig_name: figure name
@@ -1769,10 +1769,10 @@ def DataFrame2ndarray(df, xcol, ycol, vcol, xmin, xmax, ymin, ymax, step):
     :param xcol: TODO
     :param ycol: TODO
     :param vcol: TODO
-    :param xmin: TODO
-    :param xmax: TODO
-    :param ymin: TODO
-    :param ymax: TODO
+    :param xmin: axis min limit on x axis
+    :param xmax: axis max limit on x axis
+    :param ymin: axis min limit on y axis
+    :param ymax: axis maximum limit on y axis
     :param step: TODO
     :return: ndarray
     """
@@ -1908,14 +1908,14 @@ def sgsim_3D(nreal, df, xcol, ycol, zcol, vcol, nx, ny, nz, hsiz, vsiz, seed, va
     it1 = var["it1"]
     cc1 = var["cc1"]
     azi1 = var["azi1"]
-    dip1 = var["dip1"] 
+    dip1 = var["dip1"]
     hmax1 = var["hmax1"]
     hmed1 = var["hmed1"]
     hmin1 = var["hmin1"]
     it2 = var["it2"]
     cc2 = var["cc2"]
     azi2 = var["azi2"]
-    dip2 = var["dip2"] 
+    dip2 = var["dip2"]
     hmax2 = var["hmax2"]
     hmed2 = var["hmed2"]
     hmin2 = var["hmin2"]
@@ -1999,13 +1999,13 @@ def GSLIB2ndarray_3D(data_file, kcol,nreal, nx, ny, nz):
             head = next(f)
             if icol == kcol:
                 col_name = head.split()[0]
-        for ineal in range(nreal):		
+        for ineal in range(nreal):
             if nz > 1 and ny > 1:
                 for iz in range(nz):
                     for iy in range(ny):
                         for ix in range(nx):
                             head = next(f)
-                            array[ineal][ny - 1 - iy][ix][iz] = head.split()[kcol]    					
+                            array[ineal][ny - 1 - iy][ix][iz] = head.split()[kcol]
             elif ny > 1:
                 for iy in range(ny):
                     for ix in range(0, nx):

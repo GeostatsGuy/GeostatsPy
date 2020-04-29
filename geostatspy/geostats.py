@@ -36,10 +36,10 @@ def backtr(df,vcol,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):
     :param ltpar: lower tail extrapolation parameter
     :param utail: upper tail value
     :param utpar: upper tail extrapolation parameter
-
     :return: backtr: the DataFrame column, which has been back transformed using
              the provided transformation table and tail extrapolation.
     """    
+
 
     EPSLON=1.0e-20
     nd = len(df); nt = len(vr) # number of data to transform and number of data in table
@@ -87,7 +87,8 @@ def backtr_value(vrgs,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):
     :param ltpar: lower tail extrapolation parameter
     :param utail: upper tail value
     :param utpar: upper tail extrapolation parameter
-    :return: TODO
+    :return: returns revised array
+
     """
     EPSLON=1.0e-20
     nt = len(vr) # number of data to transform
@@ -4430,7 +4431,7 @@ def setup_rotmat_3D(c0, nst, it, cc, ang_azi, ang_dip, pmx):
     :param cc: multiplicative factor of each nested structure
     :param ang_azi: azimuths of each nested structure
     :param ang_dip: dips of each nested structure
-    :param pmx: TODO
+    :param pmx: constant 9999.0
     :return: TODO
     """
     PI = 3.141_592_65
@@ -4470,15 +4471,15 @@ def cova3(x1, y1, z1, x2, y2, z2, nst, c0, pmx, cc, aa, it, anis, anis_v, rotmat
     :param z2: z coordinate of second point
     :param nst: number of nested structures (maximum of 4)
     :param c0: isotropic nugget constant (TODO: not used)
-    :param pmx: TODO
+    :param pmx: constant 9999.0
     :param cc: multiplicative factor of each nested structure
     :param aa: parameter `a` of each nested structure
-    :param it: TODO
+    :param it: matrix
     :param ang: TODO: not used
     :param anis: Horizontal aspect ratio
 	:param anis_v: Vertical aspect ratio
     :param rotmat: rotation matrices
-    :param maxcov: TODO
+    :param maxcov:isotropic nugget constant
     :return: TODO
     """
     """ Revised from Wendi Liu's code """
