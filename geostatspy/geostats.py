@@ -24,7 +24,7 @@ import scipy.spatial as sp  # for fast nearest neighbor search
 from numba import jit  # for numerical speed up
 from statsmodels.stats.weightstats import DescrStatsW
 
-def backtr(df,vcol,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):   
+def backtr(df,vcol,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):
     """Back transform an entire DataFrame column with a provided transformation table and tail extrapolation.
     :param df: the source DataFrame
     :param vcol: the column with the variable to transfrom
@@ -36,9 +36,11 @@ def backtr(df,vcol,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):
     :param ltpar: lower tail extrapolation parameter
     :param utail: upper tail value
     :param utpar: upper tail extrapolation parameter
-    :return: TODO
+    :return: backtr: the DataFrame column, which has been back transformed using
+             the provided transformation table and tail extrapolation.
     """    
-    
+
+
     EPSLON=1.0e-20
     nd = len(df); nt = len(vr) # number of data to transform and number of data in table
     backtr = np.zeros(nd)
@@ -61,7 +63,7 @@ def backtr(df,vcol,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):
             cdfbt  = gcum(vrgs[id])
             if utail == 1:
                 backtr[id] = powint(cdfhi,1.0,vr[nt-1],zmax,cdfbt,1.0)
-            elif utail == 2: 
+            elif utail == 2:
                 cpow   = 1.0 / utpar
                 backtr[id] = powint(cdfhi,1.0,vr[nt-1],zmax,cdfbt,cpow)
             elif utail == 4:
@@ -74,7 +76,7 @@ def backtr(df,vcol,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):
             backtr[id] = powint(vrg[j],vrg[j+1],vr[j],vr[j+1],vrgs[id],1.0)
     return backtr
 
-def backtr_value(vrgs,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar): 
+def backtr_value(vrgs,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):
     """Back transform a single value with a provided transformation table and tail extrapolation.
     :param vrgs: value to transform
     :param vr: the transformation table, 1D ndarray with the original values
@@ -85,10 +87,11 @@ def backtr_value(vrgs,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):
     :param ltpar: lower tail extrapolation parameter
     :param utail: upper tail value
     :param utpar: upper tail extrapolation parameter
-    :return: TODO
-    """  
+    :return: returns revised array
+
+    """
     EPSLON=1.0e-20
-    nt = len(vr) # number of data to transform 
+    nt = len(vr) # number of data to transform
 # Value in the lower tail?    1=linear, 2=power, (3 and 4 are invalid):
     if vrgs <= vrg[0]:
         backtr = vr[0]
@@ -106,7 +109,7 @@ def backtr_value(vrgs,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):
         cdfbt  = gcum(vrgs)
         if utail == 1:
             backtr = dpowint(cdfhi,1.0,vr[nt-1],zmax,cdfbt,1.0)
-        elif utail == 2: 
+        elif utail == 2:
             cpow   = 1.0 / utpar
             backtr = dpowint(cdfhi,1.0,vr[nt-1],zmax,cdfbt,cpow)
         elif utail == 4:
@@ -121,18 +124,20 @@ def backtr_value(vrgs,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):
 
 def gcum(x):
     """Calculate the cumulative probability of the standard normal distribution.
-    :param x: the value from the standard normal distribution 
-    :return: TODO
-    """    
-    
+    :param x: the value from the standard normal distribution
+    :type x: float
+    :return: probability selected x will be less than or equal to a specific value
+    :type: float
+    """
+
     z = x
-    if z < 0: 
+    if z < 0:
         z = -z
     t  = 1./(1.+ 0.2316419*z)
     gcum = t*(0.31938153   + t*(-0.356563782 + t*(1.781477937 + t*(-1.821255978 + t*1.330274429))))
     e2   = 0.
     #  6 standard deviations out gets treated as infinity:
-    if z <= 6.: 
+    if z <= 6.:
         e2 = np.exp(-z*z/2.)*0.3989422803
     gcum = 1.0- e2 * gcum
     if x >= 0:
@@ -144,16 +149,21 @@ def locate(xx,iis,iie,x):
     """Return value `j` such that `x` is between `xx[j]` and `xx[j+1]`, where
     `xx` is an array of length `n`, and `x` is a given value. `xx` must be
     monotonic, either increasing or decreasing (GSLIB version).
-    :param xx: array
+    :param xx: monotonic array to be searched
+    :type: array
     :param iis: start point
+    :type: integer
     :param iie: end point
+    :type: integer
     :param x: given value
-    :return: TODO
+    :type: integer
+    :return: location (index) in array
+    :type: int
     """
-    
+
     n = len(xx)
 # Initialize lower and upper methods:
-    if iis <= 0: 
+    if iis <= 0:
         iis = 0
     if iie >= n:
         iie = n-1
@@ -163,7 +173,7 @@ def locate(xx,iis,iie,x):
         j = iie
         return j
 # If we are not done then compute a midpoint:
-    while (ju-jl) > 1: 
+    while (ju-jl) > 1:
         jm = int((ju+jl)/2)
 # Replace the lower or upper limit with the midpoint:
         if (xx[iie] > xx[iis]) == (x > xx[jm]):
@@ -193,7 +203,7 @@ def dlocate(xx, iis, iie, x):
     return j
 
 def powint(xlow,xhigh,ylow,yhigh,xval,power):
-    """Power-based interpolator 
+    """Power-based interpolator
     :param xlow: x lower interval
     :param xhigh: x upper interval
     :param ylow: y lower interval
@@ -201,7 +211,7 @@ def powint(xlow,xhigh,ylow,yhigh,xval,power):
     :param xval: value on x
     :param power: power for interpolation
     :return: TODO
-    """    
+    """
     EPSLON=1.0e-20
     if (xhigh-xlow) < EPSLON:
         powint = (yhigh+ylow)/2.0
@@ -272,7 +282,9 @@ def gauinv(p):
     """Compute the inverse of the standard normal cumulative distribution
     function.
     :param p: cumulative probability value
-    :return: TODO
+    :type: float
+    :return: inverse of the normal cdf, evaluated at probability p
+    :type: float
     """
     lim = 1.0e-10
     p0 = -0.322_232_431_088
@@ -318,8 +330,10 @@ def gcum(x):
     """Evaluate the standard normal cdf given a normal deviate `x`. `gcum` is
     the area under a unit normal curve to the left of `x`. The results are
     accurate only to about 5 decimal places.
-    :param x: TODO
-    :return: TODO
+    :param x: normal deviate
+    :type: float
+    :return: proportion of area left of x
+    :type: float
     """
     z = x
     if z < 0:
@@ -422,23 +436,55 @@ def setup_rotmat(c0, nst, it, cc, ang, pmx):
 
 @jit(nopython=True)
 def cova2(x1, y1, x2, y2, nst, c0, pmx, cc, aa, it, ang, anis, rotmat, maxcov):
-    """Calculate the covariance associated with a variogram model specified by a
-    nugget effect and nested variogram structures.
+    """Calculate the covariance associated with a variogram model specified by
+    a nugget effect and nested variogram structures.
     :param x1: x coordinate of first point
+    :type x1: float
     :param y1: y coordinate of first point
+    :type y1: float
     :param x2: x coordinate of second point
+    :type x2: float
     :param y2: y coordinate of second point
+    :type y2: float
     :param nst: number of nested structures (maximum of 4)
+    :type nst: int
     :param c0: isotropic nugget constant (TODO: not used)
-    :param pmx: TODO
+    :type c0: float
+    :param pmx: Maximum variogram value needed for kriging when using power
+                model. pmx is a unique value used for all nested structures
+                that use the power model, so pmx should be chosen to account
+                for the largest structure that uses the power model.
+    :type pmx: float
     :param cc: multiplicative factor of each nested structure
+    :type cc: array
     :param aa: parameter `a` of each nested structure
-    :param it: TODO
-    :param ang: TODO: not used
-    :param anis: TODO
+    :type aa: array
+    :param it: Integer value indicating type of variogram model
+             for values 0,1,2,..., nst
+             it[value] == 1: Spherical model 
+                 (aa[value] == `a` is the range, cc[value] is the contribution)
+             it[value] == 2: Exponential model 
+                 (aa[value] == `a`, 3a is the practical range, 
+                 cc[value] is the contribution)
+             it[value] == 3: Gaussian model 
+                 (aa[value] == `a`, a*sqrt(3)  is the practical range), 
+                 cc[value] is the contribution)
+             it[value] == 4: Power model 
+                 (aa[value] == `a` is the power such that 0 < a < 2,
+                 if linear, then a == 1, and cc[value] is the slope)
+    :type it: array
+    :param ang: azimuth angle measured in degrees clockwise from positive 
+                y-diretion for each variogram structure: not used
+                (accounted for in anis)
+    :type ang: array
+    :param anis: Anistropy factors that apply after rotations
+    :type anis: array
     :param rotmat: rotation matrices
-    :param maxcov: TODO
-    :return: TODO
+    :type rotmat: array
+    :param maxcov: maximum covariance value
+    :type maxcov: float
+    :return: covariance of a nested variogram model described by the inputs
+    :type return: float
     """
     EPSLON = 0.000001
 
@@ -461,7 +507,7 @@ def cova2(x1, y1, x2, y2, nst, c0, pmx, cc, aa, it, ang, anis, rotmat, maxcov):
             # Spherical model
             hr = h / aa[js]
             if hr < 1.0:
-                cova2_ = cova2_ + cc[js] * (1.0 - hr * (1.5 - 0.5 * hr * hr))
+                (cova2)_ = cova2_ + cc[js] * (1.0 - hr * (1.5 - 0.5 * hr * hr))
         elif it[js] == 2:
             # Exponential model
             cova2_ = cova2_ + cc[js] * np.exp(-3.0 * h / aa[js])
@@ -492,18 +538,18 @@ def sqdist2(x1,y1,x2,y2,ist,rotmat,anis):
     :param y1: y coordinate of first point
     :param x2: x coordinate of second point
     :param y2: y coordinate of second point
-    :param ist: structure index 
-    :param rotmat: 2d rotation matrix 
+    :param ist: structure index
+    :param rotmat: 2d rotation matrix
     :param anis: 2D anisotropy ratio
     :return: TODO
-    """    
-    
+    """
+
 # Compute component distance vectors and the squared distance:
     dx = x1 - x2
     dy = y1 - y2
     dx1 = (dx*rotmat[0,ist] + dy*rotmat[1,ist])
     dy1 = (dx*rotmat[2,ist] + dy*rotmat[3,ist])/anis[ist]
-    sqdist_ = (dx1*dx1+dy1*dy1)  
+    sqdist_ = (dx1*dx1+dy1*dy1)
     return sqdist_
 
 def setrot(ang1,ang2,sang1,anis1,anis2,sanis1,nst,MAXROT):
@@ -527,7 +573,7 @@ def setrot(ang1,ang2,sang1,anis1,anis2,sanis1,nst,MAXROT):
     rotmat[0,1,2] = sina
     rotmat[0,2,1] = afac1*(-sina)
     rotmat[0,2,2] = afac1*(cosa)
-# 2nd structure if present    
+# 2nd structure if present
     if nst > 1:
         if ang2 >= 0.0 and ang2 < 270.0:
             alpha = (90.0   - ang2) * DEG2RAD
@@ -586,16 +632,16 @@ def ctable(MAXNOD,MAXCXY,MAXCTX,MAXCTY,MAXXYZ,xsiz,ysiz,isrot,nx,ny,nst,c0,cc,aa
 # Size of the look-up table:
     tmp = np.zeros(MAXXYZ)
     MAXORD = MAXXYZ
-    if (nx*ny)  < MAXCXY: 
+    if (nx*ny)  < MAXCXY:
         MAXORD = MAXCXY
-     
+
     order = np.zeros(MAXORD)
     nctx = int(min(((MAXCTX-1)/2),(nx-1)))
     ncty = int(min(((MAXCTY-1)/2),(ny-1)))
-    
+
 #    print('CTable check')
 #    print('nctx ' + str(nctx) + ', ncty ' + str(ncty))
-    
+
     ixnode = np.zeros(MAXXYZ)
     iynode = np.zeros(MAXXYZ)
     covtab = np.zeros((MAXCTX,MAXCTY))
@@ -606,41 +652,41 @@ def ctable(MAXNOD,MAXCXY,MAXCTX,MAXCTY,MAXXYZ,xsiz,ysiz,isrot,nx,ny,nst,c0,cc,aa
 # Now, set up the table and keep track of the node offsets that are
 # within the search radius:
     nlooku = -1 # adjusted for 0 origin
-    for i in range(-nctx,nctx+1):   # cover entire range   
+    for i in range(-nctx,nctx+1):   # cover entire range
         xx = i * xsiz
         ic = nctx + i
-        for j in range(-ncty,ncty+1):   # cover entire range      
+        for j in range(-ncty,ncty+1):   # cover entire range
             yy = j * ysiz
             jc = ncty + j
 
             covtab[ic,jc] = cova2(0.0,0.0,xx,yy,nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
 #            print('cov table offset'); print(xx,yy); print(covtab[ic,jc])
             hsqd = sqdist(0.0,0.0,0.0,xx,yy,0.0,MAXROT,global_rotmat)
-            if hsqd <= radsqd: 
+            if hsqd <= radsqd:
                 nlooku = nlooku + 1
 
 # We want to search by closest variogram distance (and use the
 # anisotropic Euclidean distance to break ties:
                 tmp[nlooku]   = - (covtab[ic,jc] - TINY*hsqd)
                 order[nlooku] = (jc)*MAXCTX+ic
-#    print('populated presort'); print(tmp,order) 
+#    print('populated presort'); print(tmp,order)
 # Finished setting up the look-up table, now order the nodes such
 # that the closest ones, according to variogram distance, are searched
 # first. Note: the "loc" array is used because I didn't want to make
 # special allowance for 2 byte integers in the sorting subroutine:
-                              
+
     nlooku = nlooku + 1
 #    print('nlooku' + str(nlooku)); print('MAXCTX' + str(MAXCTX))
     tmp, order = dsortem(0,nlooku,tmp,2,b=order)
 #    print('populated postsort'); print(tmp,order)
-    for il in range(0,nlooku):                                    
+    for il in range(0,nlooku):
         loc = int(order[il])
         iy  = int((loc-0)/MAXCTX)
         ix  = loc - (iy-0)*MAXCTX
         iynode[il] = int(iy)
         ixnode[il] = int(ix)
 #    print('populated ix, iy node list'); print(ixnode, iynode)
-                                   
+
     return covtab,tmp,order,ixnode,iynode,nlooku,nctx,ncty
 
 def srchnd(ix,iy,nx,ny,xmn,ymn,xsiz,ysiz,sim,noct,nodmax,ixnode,iynode,nlooku,nctx,ncty,UNEST):
@@ -649,29 +695,29 @@ def srchnd(ix,iy,nx,ny,xmn,ymn,xsiz,ysiz,sim,noct,nodmax,ixnode,iynode,nlooku,nc
     Austin (March, 2019).
     Note this was simplified to 2D only.
     """
-    
+
 # Consider all the nearby nodes until enough have been found:
-    ncnode = 0; 
-    icnode = np.zeros(nodmax,dtype=int); icnode.fill(-1) 
+    ncnode = 0;
+    icnode = np.zeros(nodmax,dtype=int); icnode.fill(-1)
     cnodev = np.zeros(nodmax);cnodex = np.zeros(nodmax); cnodey = np.zeros(nodmax);
-    
+
 #    print('Node search at '); print(ix,iy)
 #    print('nlooku'); print(nlooku)
     if noct > 0:
         ninoct = np.zeros(8)
-    for il in range(0,nlooku):   
+    for il in range(0,nlooku):
         if ncnode == nodmax: return ncnode, icnode, cnodev, cnodex, cnodey
         i = ix + (int(ixnode[il])-nctx)
         j = iy + (int(iynode[il])-ncty)
 #        print('i,j'); print(i,j)
         if i < 0 or j < 0: continue
         if i >= nx or j >= ny: continue
-        ind = i + (j)*nx 
+        ind = i + (j)*nx
         if sim[ind] > UNEST:
             icnode[ncnode] = il
             cnodex[ncnode] = xmn + (i)*xsiz # adjust for 0 origin
             cnodey[ncnode] = ymn + (j)*ysiz
-            cnodev[ncnode] = sim[ind] 
+            cnodev[ncnode] = sim[ind]
 #            print('srchnd found at index - ' +str(ind) + ' at x and y ' + str(cnodex[ncnode]) + ',' + str(cnodey[ncnode]))
 #            print('     ix = ' + str(i) + ' and iy = ' + str(j))
 #            print('     value = ' + str(sim[ind]))
@@ -687,12 +733,12 @@ def beyond(ivtype,nccut,ccut,ccdf,ncut,cut,cdf,zmin,zmax,ltail,ltpar,middle,mpar
     EPSLON = 1.0e-20; UNEST=-1.0
 
 # Check for both "zval" and "cdfval" defined or undefined:
-    ierr  = 1; 
-    if zval > UNEST and cdfva > UNEST: 
+    ierr  = 1;
+    if zval > UNEST and cdfva > UNEST:
         return -1
-    if zval <= UNEST and cdfval <= UNEST: 
+    if zval <= UNEST and cdfval <= UNEST:
         return - 1
-    
+
 # Handle the case of a categorical variable:
     if ivtype == 0:
         cum = 0
@@ -702,14 +748,14 @@ def beyond(ivtype,nccut,ccut,ccdf,ncut,cut,cdf,zmin,zmax,ltail,ltpar,middle,mpar
                 zval = ccut[i]
                 return zval
         return zval
-    
+
 # Figure out what part of distribution: ipart = 0 - lower tail
 #                                       ipart = 1 - middle
 #                                       ipart = 2 - upper tail
     ierr  = 0
     ipart = 1
     if zva > UNEST:
-        if zval <= ccut[0]:       
+        if zval <= ccut[0]:
             ipart = 0
         if zval >= ccut[nccut-1]:
             ipart = 2
@@ -718,10 +764,10 @@ def beyond(ivtype,nccut,ccut,ccdf,ncut,cut,cdf,zmin,zmax,ltail,ltpar,middle,mpar
             ipart = 0
         if cdfval >= ccdf[nccut-1]:
             ipart = 2
-      
+
 # ARE WE IN THE LOWER TAIL?
 
-    if ipart == 0: 
+    if ipart == 0:
         if ltail ==1:
 # Straight Linear Interpolation:
             powr = 1.0
@@ -732,12 +778,12 @@ def beyond(ivtype,nccut,ccut,ccdf,ncut,cut,cdf,zmin,zmax,ltail,ltpar,middle,mpar
         elif ltail == 2:
 
 # Power Model interpolation to lower limit "zmin"?
-                if zval > UNEST: 
+                if zval > UNEST:
                     cdfval = powint(zmin,ccut[0],0.0,ccdf[0],zval,ltpar)
                 else:
                     powr = 1.0 / ltpar
                     zval = powint(0.0,ccdf[0],zmin,ccut[0],cdfval,powr)
-                
+
 # Linear interpolation between the rescaled global cdf?
         elif ltail == 3:
             if zval > UNEST:
@@ -773,12 +819,12 @@ def beyond(ivtype,nccut,ccut,ccdf,ncut,cut,cdf,zmin,zmax,ltail,ltpar,middle,mpar
 # Error situation - unacceptable option:
            ierr = 2
            return -1
-            
+
 # FINISHED THE LOWER TAIL,  ARE WE IN THE MIDDLE?
     if ipart == 1:
 
 # Establish the lower and upper limits:
-        if zval > UNEST: 
+        if zval > UNEST:
             cclow = locate(ccut,1,nccut,zval)
         else:
             cclow = locate(ccdf,1,nccut,cdfval)
@@ -791,7 +837,7 @@ def beyond(ivtype,nccut,ccut,ccdf,ncut,cut,cdf,zmin,zmax,ltail,ltpar,middle,mpar
                 cdfval = powint(ccut[cclow],ccut[cchigh],ccdf[cclow],ccdf[cchigh],zval,powr)
             else:
                 zval = powint(ccdf[cclow],ccdf[cchigh],ccut[cclow],ccut[cchigh],cdfval,powr)
-                  
+
 # Power interpolation between class bounds?
         elif middle == 2:
                 if zval > UNEST:
@@ -799,14 +845,14 @@ def beyond(ivtype,nccut,ccut,ccdf,ncut,cut,cdf,zmin,zmax,ltail,ltpar,middle,mpar
                 else:
                     powr = 1.0 / mpar
                     zval = powint(ccdf[cclow],ccdf[cchigh],ccut[cclow],ccut[cchigh],cdfval,powr)
-                  
+
 # Linear interpolation between the rescaled global cdf?
         elif middle == 3:
             ilow = locate(cut,ncut,1,ncut,ccut[cclow])
             iupp = locate(cut,ncut,1,ncut,ccut[cchigh])
-            if cut[ilow] < ccut[cclow]:  
+            if cut[ilow] < ccut[cclow]:
                 ilow = ilow + 1
-            if cut[iupp]  > ccut[cchigh]:  
+            if cut[iupp]  > ccut[cchigh]:
                 iupp = iupp - 1
             if zval > UNEST:
                 idat = locate(cut,1,ncut,zval)
@@ -827,7 +873,7 @@ def beyond(ivtype,nccut,ccut,ccdf,ncut,cut,cdf,zmin,zmax,ltail,ltpar,middle,mpar
                 else:
                     temp=powint(ccdf[cclow],ccdf[cchigh],cdf[ilow],cdf[iupp],cdfval,1.)
                     idat = locate(cdf,1,ncut,temp)
-                    if cut[idat] < ccut[cclow]: 
+                    if cut[idat] < ccut[cclow]:
                         idat=idat+1
                     if idat <= -1 or idat >= ncut-1 or cut[idat+1] > ccut[cchigh]:
                         zval = powint(ccdf[cclow],ccdf[cchigh],ccut[cclow],ccut[cchigh],cdfval,1.)
@@ -842,13 +888,13 @@ def beyond(ivtype,nccut,ccut,ccdf,ncut,cut,cdf,zmin,zmax,ltail,ltpar,middle,mpar
             return -1
 
 # FINISHED THE MIDDLE,  ARE WE IN THE UPPER TAIL?
-    if ipart == 2: 
-        if utail == 1: 
+    if ipart == 2:
+        if utail == 1:
             powr = 1.0
             if zval > UNEST:
                 cdfval = powint(ccut(nccut),zmax,ccdf(nccut),1.0,zval,powr)
             else:
-                zval   = powint(ccdf(nccut),1.0,ccut(nccut),zmax,cdfval,powr)        
+                zval   = powint(ccdf(nccut),1.0,ccut(nccut),zmax,cdfval,powr)
         elif utail == 2:
 
 # Power interpolation to upper limit "utpar"?
@@ -867,7 +913,7 @@ def beyond(ivtype,nccut,ccut,ccdf,ncut,cut,cdf,zmin,zmax,ltail,ltpar,middle,mpar
                 ilow = locate(cut,1,ncut,ccut(nccut),ilow)
                 if cut[idat] < zval:
                     idat = idat + 1
-                if cut[ilow] < ccut[nccut-1]: 
+                if cut[ilow] < ccut[nccut-1]:
                     ilow = ilow + 1
 
 # Straight linear interpolation if no data; otherwise, local linear
@@ -882,7 +928,7 @@ def beyond(ivtype,nccut,ccut,ccdf,ncut,cut,cdf,zmin,zmax,ltail,ltpar,middle,mpar
 
 # Computing Z value: Are there any data out in the tail?
                 ilow = locate(cut,ncut,1,ncut,ccut(nccut),ilow)
-                if cut[ilow] < ccut[nccut-1]: 
+                if cut[ilow] < ccut[nccut-1]:
                     ilow = ilow + 1
 
 # Straight linear interpolation if no data; otherwise, local linear
@@ -892,7 +938,7 @@ def beyond(ivtype,nccut,ccut,ccdf,ncut,cut,cdf,zmin,zmax,ltail,ltpar,middle,mpar
                 else:
                     temp = powint(ccdf(nccut),1.0,cdf(ilow),1.0,cdfval,1.)
                     idat = locate(cdf,ncut,1,ncut,temp)
-                    if cut[idat] < ccut[nccut-1]: 
+                    if cut[idat] < ccut[nccut-1]:
                         idat=idat+1
                     if idat >= ncut-1:
                         zval   = powint(ccdf[nccut-1],1.0,ccut[nccut-1],zmax,cdfval,1.)
@@ -904,20 +950,20 @@ def beyond(ivtype,nccut,ccut,ccdf,ncut,cut,cdf,zmin,zmax,ltail,ltpar,middle,mpar
 
 # Figure out "lambda" and required info:
             lambd = math.pow(ccut[nccut],utpar)*(1.0-ccdf[nccut-1])
-            if zval > UNEST: 
+            if zval > UNEST:
                 cdfval = 1.0 - (lambd/(math.pow(zval,utpar)))
             else:
-                zval = (lambd/math.pow((1.0-cdfval),(1.0/utpar)))          
+                zval = (lambd/math.pow((1.0-cdfval),(1.0/utpar)))
         else:
 
 # Error situation - unacceptable option:
             ierr = 2
             return -1
-        
+
 
     if zval < zmin:
         zval = zmin
-    if zval > zmax: 
+    if zval > zmax:
         zval = zmax
 
 # All finished - return:
@@ -932,19 +978,19 @@ def krige(ix,iy,nx,ny,xx,yy,lktype,x,y,vr,sec,colocorr,lvm,close,covtab,nctx,nct
     """
     EPSLON = 1.0e-20
     cur_index  = ix + (iy)*nx
-#    print('krige at grid '); print(ix,iy) 
+#    print('krige at grid '); print(ix,iy)
 #    print('krige at node '); print(xx,yy)
 #    print('grid index = '); print(cur_index)
 #    print('Check ixnode '); print(ixnode); print(iynode)
     nclose = len(close)
-    ncnode = (icnode >= 0).sum() 
+    ncnode = (icnode >= 0).sum()
 #    print('In kriging, maxcov = ' + str(maxcov))
 #    print('kriging')
 #    print('nclose ' + str(nclose) + ', ncnode ' + str(ncnode))
 #    print('MAXKR1'); print(MAXKR1)
     vra = np.zeros(MAXKR1); vrea = np.zeros(MAXKR1)
     r = np.zeros(MAXKR1); rr = np.zeros(MAXKR1); s = np.zeros(MAXKR1); a = np.zeros(MAXKR2)
-    cbb = cova2(0,0,0,0,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov) 
+    cbb = cova2(0,0,0,0,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov)
 #    print(r.shape)
 # Local mean
     if lktype == 2:
@@ -965,7 +1011,7 @@ def krige(ix,iy,nx,ny,xx,yy,lktype,x,y,vr,sec,colocorr,lvm,close,covtab,nctx,nct
     if lktype == 4: neq = na + 1
 #    print('prior matrix build neq'); print(neq)
 #    print('na'); print(na)
-        
+
 # Set up kriging matrices:
     iin=-1 # acocunting for 0 origin
 #    print('krige na' + str(na))
@@ -978,13 +1024,13 @@ def krige(ix,iy,nx,ny,xx,yy,lktype,x,y,vr,sec,colocorr,lvm,close,covtab,nctx,nct
             y1     = y[index]
             vra[j] = vr[index]
 #            print('data: index = ' + str(index) + ', x,y ' + str(x1) + ',' + str(y1) + ', value = ' + str(vra[j]))
-            if sec.shape[0] > 1: 
+            if sec.shape[0] > 1:
                 vrea[j]= sec[index];
             else:
                 vrea[j] = 0.0 # added this - no effect
             if lktype == 2: vra[j] = vra[j] - vrea[j]
         else:
-            
+
 # It is a previously simulated node (keep index for table look-up):
 #            print(j)
             index  = j-(nclose) # adjust for 0 index
@@ -992,15 +1038,15 @@ def krige(ix,iy,nx,ny,xx,yy,lktype,x,y,vr,sec,colocorr,lvm,close,covtab,nctx,nct
             y1     = cnodey[index]
             vra[j] = cnodev[index]
             ind    = icnode[index]
-#            print('prev node: index = ' + str(index) + ', x,y ' + str(x1) + ',' + str(y1) + ', value = ' + str(vra[j])) 
+#            print('prev node: index = ' + str(index) + ', x,y ' + str(x1) + ',' + str(y1) + ', value = ' + str(vra[j]))
             ix1    = ix + (int(ixnode[ind])-nctx-1)
             iy1    = iy + (int(iynode[ind])-ncty-1)
 #            print('ix1, iy1 = '); print(ix1,iy1)
             index  = ix1 + (iy1-1)*nx
-            if lktype == 2: 
+            if lktype == 2:
                 vrea[j]= lvm[index]
                 vra[j] = vra[j] - vrea[j]
-        for i in range(0,na): # we need the full matrix 
+        for i in range(0,na): # we need the full matrix
 #            print('kriging indice populated' + str(j) + ',' + str(i))
 # Sort out the actual location of point "i"
             if i < nclose:
@@ -1046,37 +1092,37 @@ def krige(ix,iy,nx,ny,xx,yy,lktype,x,y,vr,sec,colocorr,lvm,close,covtab,nctx,nct
 #            if cov >= 1.0:
 #                print('cov of 1.0 RHS for data ')
 #                print('ix,iy ='); print(xx,xx)
-#                print('ix1,iy1'); print(x1,y1)      
-            r[j] = cov        
+#                print('ix1,iy1'); print(x1,y1)
+            r[j] = cov
         else:
 
 # Try to use the covariance look-up (if the distance is in range):
 #            ii = nctx + 1 + (ix - ix1)
 #            jj = ncty + 1 + (iy - iy1)
-    
+
 #            print('RHS ctable coord' + str(ii) + ',' + str(jj))
 #            print('ix,iy ='); print(ix,iy)
 #            print('ix1,iy1'); print(ix1,iy1)
 #            if ii < 0 or ii >= MAXCTX or jj < 0 or jj >= MAXCTY: # adjusted for origin 0
 #                print('Not using covariance table')
-#                cov = cova2(xx,yy,x1,y1,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov)    
+#                cov = cova2(xx,yy,x1,y1,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov)
 #            else:
 #               cov = covtab[ii,jj]
-            cov = cova2(xx,yy,x1,y1,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov) 
+            cov = cova2(xx,yy,x1,y1,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov)
 #            if cov >= 1.0:
 #                print('cov of 1.0 RHS for node ' + str(j))
 #                print('ix,iy ='); print(xx,xx)
-#                print('ix1,iy1'); print(x1,y1)               
-        
+#                print('ix1,iy1'); print(x1,y1)
+
             r[j] = cov
 #        print('kriging, writing RHS '+ str(j) + ',' + str(cov) + 'loc_est' + str(xx) + ',' + str(yy) + 'data' + str(x1) + ',' + str(y1))
         rr[j] = r[j]
         if lktype == 1: # we need the full array
             iin = iin + 1
-            a[iin] = 1.0 
+            a[iin] = 1.0
         if lktype == 4: # we need the full array
             iin = iin + 1
-            a[iin] = colocorr*r[j]    
+            a[iin] = colocorr*r[j]
 # Addition of OK constraint:
     if lktype == 1 or lktype == 3:
         for i in range(0,na):
@@ -1120,12 +1166,12 @@ def krige(ix,iy,nx,ny,xx,yy,lktype,x,y,vr,sec,colocorr,lvm,close,covtab,nctx,nct
         ii     = na
         r[ii]  = colocorr
         rr[ii] = r[ii]
-#        if (sfmax-sfmin) < EPSLON: 
+#        if (sfmax-sfmin) < EPSLON:
 #            neq = neq - 1
 #            colc = False
 
 # Solve the Kriging System:
-#    print('neq = ' + str(neq)); 
+#    print('neq = ' + str(neq));
 #    print('a'); print(a)
 #    print('r'); print(r)
 #    print('data'); print(vra)
@@ -1135,11 +1181,11 @@ def krige(ix,iy,nx,ny,xx,yy,lktype,x,y,vr,sec,colocorr,lvm,close,covtab,nctx,nct
     else:
 #        print('neq prior ksol' + str(neq))
         s = ksol_numpy(neq,a,r)
-#        print('neq post ksol' + str(neq))      
+#        print('neq post ksol' + str(neq))
 #        if s.shape[0]< neq:
 #            print('s shape'); print(s.shape)
 #            print('a'); print(a)
-#            print('r'); print(r)            
+#            print('r'); print(r)
 
         ising = 0 # need to figure this out
 #    print('s'); print(s)
@@ -1154,13 +1200,13 @@ def krige(ix,iy,nx,ny,xx,yy,lktype,x,y,vr,sec,colocorr,lvm,close,covtab,nctx,nct
 #    print('kriging weights'); print(s)
     cmean  = 0.0
 #    print('cbb = ' + str(cbb))
-    cstdev = cbb 
+    cstdev = cbb
     sumwts = 0.0
     for i in range(0,na):
         cmean  = cmean  + s[i]*vra[i]
         cstdev = cstdev - s[i]*rr[i]
         sumwts = sumwts + s[i]
-    if lktype == 1: 
+    if lktype == 1:
         cstdev = cstdev - s[na]
  #       print('Ordinary Weight' + str(s[na]))
     if lktype == 2: cmean  = cmean + gmean
@@ -1190,25 +1236,25 @@ def ikrige(ix,iy,nx,ny,xx,yy,lktype,x,y,vr,sec,colocorr,gmean,lvm,close,covtab,n
     """
     EPSLON = 1.0e-20
     cur_index  = ix + (iy)*nx
-#    print('krige at grid '); print(ix,iy) 
+#    print('krige at grid '); print(ix,iy)
 #    print('krige at node '); print(xx,yy)
 #    print('grid index = '); print(cur_index)
 #    print('Check ixnode '); print(ixnode); print(iynode)
     nclose = len(close)
-    ncnode = (icnode >= 0).sum() 
+    ncnode = (icnode >= 0).sum()
 #    print('In kriging, maxcov = ' + str(maxcov))
 #    print('kriging')
 #    print('nclose ' + str(nclose) + ', ncnode ' + str(ncnode))
 #    print('MAXKR1'); print(MAXKR1)
     vra = np.zeros(MAXKR1); vrea = np.zeros(MAXKR1)
     r = np.zeros(MAXKR1); rr = np.zeros(MAXKR1); s = np.zeros(MAXKR1); a = np.zeros(MAXKR2)
-    cbb = cova2(0,0,0,0,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov) 
+    cbb = cova2(0,0,0,0,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov)
 #    print(r.shape)
-# Local mean # just pass the local probability as gmean 
+# Local mean # just pass the local probability as gmean
 #   if lktype == 2:
 #       gmean = lvm[cur_index]
 
-# keep input gmean otherwise    
+# keep input gmean otherwise
 
 # Size of the kriging system:
     first = False
@@ -1223,7 +1269,7 @@ def ikrige(ix,iy,nx,ny,xx,yy,lktype,x,y,vr,sec,colocorr,gmean,lvm,close,covtab,n
     if lktype == 4: neq = na + 1
 #    print('prior matrix build neq'); print(neq)
 #    print('na'); print(na)
-        
+
 #    print('kriging data close'); print(close)
 #    print('kriging node close'); print(icnode)
 # Set up kriging matrices:
@@ -1238,13 +1284,13 @@ def ikrige(ix,iy,nx,ny,xx,yy,lktype,x,y,vr,sec,colocorr,gmean,lvm,close,covtab,n
             y1     = y[index]
             vra[j] = vr[index]
 #            print('data: index = ' + str(index) + ', x,y ' + str(x1) + ',' + str(y1) + ', value = ' + str(vra[j]))
-#            if lvm.shape[0] > 1: 
+#            if lvm.shape[0] > 1:
 #                vrea[j]= sec[index];
 #            else:
             vrea[j] = 0.0 # added this - no effect
 #            if lktype == 2: vra[j] = vra[j] - vrea[j] # just using local variable mean not full residual approach
         else:
-            
+
 # It is a previously simulated node (keep index for table look-up):
 #            print(j)
             index  = j-(nclose) # adjust for 0 index
@@ -1252,15 +1298,15 @@ def ikrige(ix,iy,nx,ny,xx,yy,lktype,x,y,vr,sec,colocorr,gmean,lvm,close,covtab,n
             y1     = cnodey[index]
             vra[j] = cnodev[index]
             ind    = icnode[index]
-#            print('prev node: index = ' + str(index) + ', x,y ' + str(x1) + ',' + str(y1) + ', value = ' + str(vra[j])) 
+#            print('prev node: index = ' + str(index) + ', x,y ' + str(x1) + ',' + str(y1) + ', value = ' + str(vra[j]))
             ix1    = ix + (int(ixnode[ind])-nctx-1)
             iy1    = iy + (int(iynode[ind])-ncty-1)
 #            print('ix1, iy1 = '); print(ix1,iy1)
             index  = ix1 + (iy1-1)*nx
-#            if lktype == 2: 
+#            if lktype == 2:
 #                vrea[j]= lvm[index]
 #                vra[j] = vra[j] - vrea[j]
-        for i in range(0,na): # we need the full matrix 
+        for i in range(0,na): # we need the full matrix
 #            print('kriging indice populated' + str(j) + ',' + str(i))
 # Sort out the actual location of point "i"
             if i < nclose:
@@ -1309,37 +1355,37 @@ def ikrige(ix,iy,nx,ny,xx,yy,lktype,x,y,vr,sec,colocorr,gmean,lvm,close,covtab,n
 #            if cov >= 1.0:
 #                print('cov of 1.0 RHS for data ')
 #                print('ix,iy ='); print(xx,xx)
-#                print('ix1,iy1'); print(x1,y1)      
-            r[j] = cov        
+#                print('ix1,iy1'); print(x1,y1)
+            r[j] = cov
         else:
 
 # Try to use the covariance look-up (if the distance is in range):
 #            ii = nctx + 1 + (ix - ix1)
 #            jj = ncty + 1 + (iy - iy1)
-    
+
 #            print('RHS ctable coord' + str(ii) + ',' + str(jj))
 #            print('ix,iy ='); print(ix,iy)
 #            print('ix1,iy1'); print(ix1,iy1)
 #            if ii < 0 or ii >= MAXCTX or jj < 0 or jj >= MAXCTY: # adjusted for origin 0
 #                print('Not using covariance table')
-#                cov = cova2(xx,yy,x1,y1,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov)    
+#                cov = cova2(xx,yy,x1,y1,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov)
 #            else:
 #               cov = covtab[ii,jj]
-            cov = cova2(xx,yy,x1,y1,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov) 
+            cov = cova2(xx,yy,x1,y1,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov)
 #            if cov >= 1.0:
 #                print('cov of 1.0 RHS for node ' + str(j))
 #                print('ix,iy ='); print(xx,xx)
-#                print('ix1,iy1'); print(x1,y1)               
-        
+#                print('ix1,iy1'); print(x1,y1)
+
             r[j] = cov
 #        print('kriging, writing RHS '+ str(j) + ',' + str(cov) + 'loc_est' + str(xx) + ',' + str(yy) + 'data' + str(x1) + ',' + str(y1))
         rr[j] = r[j]
         if lktype == 1: # we need the full array
             iin = iin + 1
-            a[iin] = 1.0 
+            a[iin] = 1.0
         if lktype == 4: # we need the full array
             iin = iin + 1
-            a[iin] = colocorr*r[j]    
+            a[iin] = colocorr*r[j]
 # Addition of OK constraint:
     if lktype == 1 or lktype == 3:
         for i in range(0,na):
@@ -1383,12 +1429,12 @@ def ikrige(ix,iy,nx,ny,xx,yy,lktype,x,y,vr,sec,colocorr,gmean,lvm,close,covtab,n
         ii     = na
         r[ii]  = colocorr
         rr[ii] = r[ii]
-#        if (sfmax-sfmin) < EPSLON: 
+#        if (sfmax-sfmin) < EPSLON:
 #            neq = neq - 1
 #            colc = False
 
 # Solve the Kriging System:
-#    print('Kriging equations neq = ' + str(neq)); 
+#    print('Kriging equations neq = ' + str(neq));
 #    print('a'); print(a)
 #    print('r'); print(r)
 #    print('data'); print(vra)
@@ -1398,11 +1444,11 @@ def ikrige(ix,iy,nx,ny,xx,yy,lktype,x,y,vr,sec,colocorr,gmean,lvm,close,covtab,n
     else:
 #        print('neq prior ksol' + str(neq))
         s = ksol_numpy(neq,a,r)
-#        print('neq post ksol' + str(neq))      
+#        print('neq post ksol' + str(neq))
 #        if s.shape[0]< neq:
 #            print('s shape'); print(s.shape)
 #            print('a'); print(a)
-#            print('r'); print(r)            
+#            print('r'); print(r)
 
         ising = 0 # need to figure this out
 #    print('s'); print(s)
@@ -1417,13 +1463,13 @@ def ikrige(ix,iy,nx,ny,xx,yy,lktype,x,y,vr,sec,colocorr,gmean,lvm,close,covtab,n
 #    print('kriging weights'); print(s)
     cmean  = 0.0
 #    print('cbb = ' + str(cbb))
-    cstdev = cbb 
+    cstdev = cbb
     sumwts = 0.0
     for i in range(0,na):
         cmean  = cmean  + s[i]*vra[i]
         cstdev = cstdev - s[i]*rr[i]
         sumwts = sumwts + s[i]
-    if lktype == 1: 
+    if lktype == 1:
         cstdev = cstdev - s[na]
  #       print('Ordinary Weight' + str(s[na]))
  #   if lktype == 2: cmean  = cmean + gmean
@@ -1439,7 +1485,7 @@ def ikrige(ix,iy,nx,ny,xx,yy,lktype,x,y,vr,sec,colocorr,gmean,lvm,close,covtab,n
     if lktype == 0 or lktype == 2:
         cmean = cmean + (1.0-sumwts)*gmean
 #    print('cmean'); print(cmean)
-        
+
 # Error message if negative variance:
     if cstdev < 0.0:
 #        print('ERROR: Negative Variance: ' + str(cstdev))
@@ -1866,7 +1912,7 @@ def variogram_loop(x, y, vr, xlag, xltol, nlag, azm, atol, bandwh):
     # Main loop over all pairs
     for i in range(0, nd):
         for j in range(0, nd):
-            
+
             # Definition of the lag corresponding to the current pair
             dx = x[j] - x[i]
             dy = y[j] - y[i]
@@ -1993,16 +2039,16 @@ def varmapv(df,xcol,ycol,vcol,tmin,tmax,nxlag,nylag,dxlag,dylag,minnp,isill):
     nd = len(df_extract)
     x = df_extract[xcol].values
     y = df_extract[ycol].values
-    vr = df_extract[vcol].values  
-    
+    vr = df_extract[vcol].values
+
     # Summary statistics for the data after trimming
     avg = vr.mean()
     stdev = vr.std()
     sills = stdev**2.0
     ssq = sills
     vrmin = vr.min()
-    vrmax = vr.max() 
-    
+    vrmax = vr.max()
+
     # Initialize the summation arrays
     npp = np.zeros((nylag*2+1,nxlag*2+1))
     gam = np.zeros((nylag*2+1,nxlag*2+1))
@@ -2012,11 +2058,11 @@ def varmapv(df,xcol,ycol,vcol,tmin,tmax,nxlag,nylag,dxlag,dylag,minnp,isill):
     tm = np.zeros((nylag*2+1,nxlag*2+1))
     hv = np.zeros((nylag*2+1,nxlag*2+1))
     tv = np.zeros((nylag*2+1,nxlag*2+1))
-    
-    # First fix the location of a seed point: 
-    for i in range(0,nd):     
-        # Second loop over the data: 
-        for j in range(0,nd): 
+
+    # First fix the location of a seed point:
+    for i in range(0,nd):
+        # Second loop over the data:
+        for j in range(0,nd):
             # The lag:
             ydis = y[j] - y[i]
             iyl = nylag + int(ydis/dylag)
@@ -2025,7 +2071,7 @@ def varmapv(df,xcol,ycol,vcol,tmin,tmax,nxlag,nylag,dxlag,dylag,minnp,isill):
             xdis = x[j] - x[i]
             ixl = nxlag + int(xdis/dxlag)
             if ixl < 0 or ixl > nxlag*2: # acocunting for 0,...,n-1 array indexing
-                continue             
+                continue
             # We have an acceptable pair, therefore accumulate all the statistics
             # that are required for the variogram:
             npp[iyl,ixl] = npp[iyl,ixl] + 1 # our ndarrays read from the base to top, so we flip
@@ -2034,11 +2080,11 @@ def varmapv(df,xcol,ycol,vcol,tmin,tmax,nxlag,nylag,dxlag,dylag,minnp,isill):
             tv[iyl,ixl] = tm[iyl,ixl] + vr[i]*vr[i]
             hv[iyl,ixl] = hm[iyl,ixl] + vr[j]*vr[j]
             gam[iyl,ixl] = gam[iyl,ixl] + ((vr[i]-vr[j])*(vr[i]-vr[j]))
-            
+
     # Get average values for gam, hm, tm, hv, and tv, then compute
     # the correct "variogram" measure:
-    for iy in range(0,nylag*2+1): 
-        for ix in range(0,nxlag*2+1): 
+    for iy in range(0,nylag*2+1):
+        for ix in range(0,nxlag*2+1):
             if npp[iy,ix] <= minnp:
                 gam[iy,ix] = -999.
                 hm[iy,ix]  = -999.
@@ -2051,14 +2097,14 @@ def varmapv(df,xcol,ycol,vcol,tmin,tmax,nxlag,nylag,dxlag,dylag,minnp,isill):
                 hm[iy,ix] = hm[iy,ix] / rnum
                 tm[iy,ix] = tm[iy,ix] / rnum
                 hv[iy,ix] = hv[iy,ix] / rnum - hm[iy,ix]*hm[iy,ix]
-                tv[iy,ix] = tv[iy,ix] / rnum - tm[iy,ix]*tm[iy,ix]                
+                tv[iy,ix] = tv[iy,ix] / rnum - tm[iy,ix]*tm[iy,ix]
                 # Attempt to standardize:
             if isill > 0:
                 gamf[iy,ix] = gamf[iy,ix]/sills
-    for iy in range(0,nylag*2+1): 
-        for ix in range(0,nxlag*2+1):             
+    for iy in range(0,nylag*2+1):
+        for ix in range(0,nxlag*2+1):
             gamf[iy,ix] = gam[nylag*2-iy,ix]
-            nppf[iy,ix] = npp[nylag*2-iy,ix]        
+            nppf[iy,ix] = npp[nylag*2-iy,ix]
     return gamf, nppf
 
 def vmodel(
@@ -2070,27 +2116,27 @@ def vmodel(
     """GSLIB's VMODEL program (Deutsch and Journel, 1998) converted from the
     original Fortran to Python by Michael Pyrcz, the University of Texas at
     Austin (Mar, 2019).
-    :param nlag: number of variogram lags 
+    :param nlag: number of variogram lags
     :param xlag: size of the lags
-    :param axm: direction by 2D azimuth, 000 is y positive, 090 is x positive 
+    :param axm: direction by 2D azimuth, 000 is y positive, 090 is x positive
     :param vario: dictionary with the variogram parameters
     :return:
     """
-    
+
 # Parameters
     MAXNST=4
-    DEG2RAD=3.14159265/180.0 
+    DEG2RAD=3.14159265/180.0
     MAXROT=MAXNST+1
     EPSLON = 1.0e-20
     VERSION= 1.01
-  
+
 # Declare arrays
     index = np.zeros(nlag+1)
     h = np.zeros(nlag+1)
     gam = np.zeros(nlag+1)
     cov = np.zeros(nlag+1)
     ro = np.zeros(nlag+1)
-    
+
 # Load the variogram
     nst = vario["nst"]
     cc = np.zeros(nst)
@@ -2098,7 +2144,7 @@ def vmodel(
     it = np.zeros(nst)
     ang = np.zeros(nst)
     anis = np.zeros(nst)
-    
+
     c0 = vario["nug"]
     cc[0] = vario["cc1"]
     it[0] = vario["it1"]
@@ -2111,14 +2157,14 @@ def vmodel(
         ang[1] = vario["azi2"]
         aa[1] = vario["hmaj2"]
         anis[1] = vario["hmin2"] / vario["hmaj2"]
-                    
+
     xoff = math.sin(DEG2RAD*azm)*xlag
     yoff = math.cos(DEG2RAD*azm)*xlag
     print(' x,y,z offsets = ' + str(xoff) + ',' + str(yoff))
-    rotmat, maxcov = setup_rotmat(c0, nst, it, cc, ang, 99999.9)   
-          
-    
-    xx = 0.0; yy = 0.0      
+    rotmat, maxcov = setup_rotmat(c0, nst, it, cc, ang, 99999.9)
+
+
+    xx = 0.0; yy = 0.0
     for il in range(0,nlag+1):
         index[il] = il
         cov[il] = cova2(0.0,0.0,xx,yy,nst,c0,9999.9,cc,aa,it,ang,anis,rotmat,maxcov)
@@ -2250,31 +2296,31 @@ def kb2d(
     :param vario:
     :return:
     """
-    
+
 # Constants
     UNEST = -999.
     EPSLON = 1.0e-10
     VERSION = 2.907
     first = True
-    PMX = 9999.0    
+    PMX = 9999.0
     MAXSAM = ndmax + 1
     MAXDIS = nxdis * nydis
     MAXKD = MAXSAM + 1
     MAXKRG = MAXKD * MAXKD
-    
+
 # load the variogram
     nst = vario['nst']
     cc = np.zeros(nst); aa = np.zeros(nst); it = np.zeros(nst)
     ang = np.zeros(nst); anis = np.zeros(nst)
-    
-    c0 = vario['nug']; 
-    cc[0] = vario['cc1']; it[0] = vario['it1']; ang[0] = vario['azi1']; 
+
+    c0 = vario['nug'];
+    cc[0] = vario['cc1']; it[0] = vario['it1']; ang[0] = vario['azi1'];
     aa[0] = vario['hmaj1']; anis[0] = vario['hmin1']/vario['hmaj1'];
     if nst == 2:
-        cc[1] = vario['cc2']; it[1] = vario['it2']; ang[1] = vario['azi2']; 
+        cc[1] = vario['cc2']; it[1] = vario['it2']; ang[1] = vario['azi2'];
         aa[1] = vario['hmaj2']; anis[1] = vario['hmin2']/vario['hmaj2'];
-    
-# Allocate the needed memory:   
+
+# Allocate the needed memory:
     xdb = np.zeros(MAXDIS)
     ydb = np.zeros(MAXDIS)
     xa = np.zeros(MAXSAM)
@@ -2296,8 +2342,8 @@ def kb2d(
     x = df_extract[xcol].values
     y = df_extract[ycol].values
     vr = df_extract[vcol].values
-    
-# Make a KDTree for fast search of nearest neighbours   
+
+# Make a KDTree for fast search of nearest neighbours
     dp = list((y[i], x[i]) for i in range(0,nd))
     data_locs = np.column_stack((y,x))
     tree = sp.cKDTree(data_locs, leafsize=16, compact_nodes=True, copy_data=False, balanced_tree=True)
@@ -2313,7 +2359,7 @@ def kb2d(
 # are needed, the spacing, and fill the xdb and ydb arrays with the
 # offsets relative to the block center (this only gets done once):
     ndb  = nxdis * nydis
-    if ndb > MAXDIS: 
+    if ndb > MAXDIS:
         print('ERROR KB2D: Too many discretization points ')
         print('            Increase MAXDIS or lower n[xy]dis')
         return kmap
@@ -2321,10 +2367,10 @@ def kb2d(
     ydis = ysiz  / max(float(nydis),1.0)
     xloc = -0.5*(xsiz+xdis)
     i    = -1   # accounting for 0 as lowest index
-    for ix in range(0,nxdis):       
+    for ix in range(0,nxdis):
         xloc = xloc + xdis
         yloc = -0.5*(ysiz+ydis)
-        for iy in range(0,nydis): 
+        for iy in range(0,nydis):
             yloc = yloc + ydis
             i = i+1
             xdb[i] = xloc
@@ -2343,10 +2389,10 @@ def kb2d(
     if ndb <= 1:
         cbb = cov
     else:
-        for i in range(0,ndb): 
-            for j in range(0,ndb): 
+        for i in range(0,ndb):
+            for j in range(0,ndb):
                 cov = cova2(xdb[i],ydb[i],xdb[j],ydb[j],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
-            if i == j: 
+            if i == j:
                 cov = cov - c0
             cbb = cbb + cov
         cbb = cbb/real(ndb*ndb)
@@ -2356,11 +2402,11 @@ def kb2d(
     ak = 0.0
     vk = 0.0
     for iy in range(0,ny):
-        yloc = ymn + (iy-0)*ysiz  
+        yloc = ymn + (iy-0)*ysiz
         for ix in range(0,nx):
             xloc = xmn + (ix-0)*xsiz
             current_node = (yloc,xloc)
-        
+
 # Find the nearest samples within each octant: First initialize
 # the counter arrays:
             na = -1   # accounting for 0 as first index
@@ -2370,8 +2416,8 @@ def kb2d(
             # remove any data outside search radius
             na = len(dist)
             nums = nums[dist<radius]
-            dist = dist[dist<radius] 
-            na = len(dist)        
+            dist = dist[dist<radius]
+            na = len(dist)
 
 # Is there enough samples?
             if na + 1 < ndmin:   # accounting for min index of 0
@@ -2386,7 +2432,7 @@ def kb2d(
                     xa[ia]  = x[jj]
                     ya[ia]  = y[jj]
                     vra[ia] = vr[jj]
-                    
+
 # Handle the situation of only one sample:
                 if na == 0:  # accounting for min index of 0 - one sample case na = 0
                     cb1 = cova2(xa[0],ya[0],xa[0],ya[0],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
@@ -2398,7 +2444,7 @@ def kb2d(
                         cb = cova2(xx,yy,xdb[0],ydb[0],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
                     else:
                         cb  = 0.0
-                        for i in range(0,ndb):                  
+                        for i in range(0,ndb):
                             cb = cb + cova2(xx,yy,xdb[i],ydb[i],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
                             dx = xx - xdb(i)
                             dy = yy - ydb(i)
@@ -2424,9 +2470,9 @@ def kb2d(
                     for j in range(0,na):
 
 # Establish Left Hand Side Covariance Matrix:
-                        for i in range(0,na):  # was j - want full matrix                    
+                        for i in range(0,na):  # was j - want full matrix
                             iin = iin + 1
-                            a[iin] = cova2(xa[i],ya[i],xa[j],ya[j],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov) 
+                            a[iin] = cova2(xa[i],ya[i],xa[j],ya[j],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
                         if ktype == 1:
                             iin = iin + 1
                             a[iin] = unbias
@@ -2438,7 +2484,7 @@ def kb2d(
                             cb = cova2(xx,yy,xdb[0],ydb[0],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
                         else:
                             cb  = 0.0
-                            for j1 in range(0,ndb):    
+                            for j1 in range(0,ndb):
                                 cb = cb + cova2(xx,yy,xdb[j1],ydb[j1],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
                                 dx = xx - xdb[j1]
                                 dy = yy - ydb[j1]
@@ -2466,8 +2512,8 @@ def kb2d(
                     ising = 0 # need to figure this out
 #                    print('weights' + str(s))
 #                    stop
-                
-            
+
+
 # Write a warning if the matrix is singular:
                     if ising != 0:
                         print('WARNING KB2D: singular matrix')
@@ -2480,13 +2526,13 @@ def kb2d(
                         est  = 0.0
                         estv = cbb
                         sumw = 0.0
-                        if ktype == 1: 
+                        if ktype == 1:
                             estv = estv - (s[na])*unbias
-                        for i in range(0,na):                          
+                        for i in range(0,na):
                             sumw = sumw + s[i]
                             est  = est  + s[i]*vra[i]
                             estv = estv - s[i]*rr[i]
-                        if ktype == 0: 
+                        if ktype == 0:
                             est = est + (1.0-sumw)*skmean
             kmap[ny-iy-1,ix] = est
             vmap[ny-iy-1,ix] = estv
@@ -2506,7 +2552,7 @@ def kb2d(
     return kmap, vmap
 
 def ik2d(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,nx,xmn,xsiz,ny,ymn,ysiz,ndmin,ndmax,radius,ktype,vario):
-          
+
     """A 2D version of GSLIB's IK3D Indicator Kriging program (Deutsch and Journel, 1998) converted from the
     original Fortran to Python by Michael Pyrcz, the University of Texas at
     Austin (March, 2019).
@@ -2537,7 +2583,7 @@ def ik2d(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,nx,xm
     :param vario: list with all of the indicator variograms (sill of 1.0) in consistent order with above parameters
     :return:
     """
-        
+
 # Find the needed paramters:
     PMX = 9999.9
     MAXSAM = ndmax + 1
@@ -2545,20 +2591,20 @@ def ik2d(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,nx,xm
     mik = 0  # full indicator kriging
     use_trend = False
     if trend.shape[0] == nx and trend.shape[1] == ny and trend.shape[2] == ncut: use_trend = True
-    
+
 # load the variogram
     MAXNST = 2
-    nst = np.zeros(ncut,dtype=int); c0 = np.zeros(ncut); cc = np.zeros((MAXNST,ncut)) 
-    aa = np.zeros((MAXNST,ncut),dtype=int); it = np.zeros((MAXNST,ncut),dtype=int) 
+    nst = np.zeros(ncut,dtype=int); c0 = np.zeros(ncut); cc = np.zeros((MAXNST,ncut))
+    aa = np.zeros((MAXNST,ncut),dtype=int); it = np.zeros((MAXNST,ncut),dtype=int)
     ang = np.zeros((MAXNST,ncut)); anis = np.zeros((MAXNST,ncut))
 
     for icut in range(0,ncut):
         nst[icut] = int(vario[icut]['nst'])
-        c0[icut] = vario[icut]['nug']; cc[0,icut] = vario[icut]['cc1']; it[0,icut] = vario[icut]['it1']; 
-        ang[0,icut] = vario[icut]['azi1']; 
+        c0[icut] = vario[icut]['nug']; cc[0,icut] = vario[icut]['cc1']; it[0,icut] = vario[icut]['it1'];
+        ang[0,icut] = vario[icut]['azi1'];
         aa[0,icut] = vario[icut]['hmaj1']; anis[0,icut] = vario[icut]['hmin1']/vario[icut]['hmaj1'];
         if nst[icut] == 2:
-            cc[1,icut] = vario[icut]['cc2']; it[1,icut] = vario[icut]['it2']; ang[1,icut] = vario[icut]['azi2']; 
+            cc[1,icut] = vario[icut]['cc2']; it[1,icut] = vario[icut]['it2']; ang[1,icut] = vario[icut]['azi2'];
             aa[1,icut] = vario[icut]['hmaj2']; anis[1,icut] = vario[icut]['hmin2']/vario[icut]['hmaj2'];
 
 # Load the data
@@ -2569,8 +2615,8 @@ def ik2d(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,nx,xm
     MAXROT = MAXNST*MAXCUT+ 1
     ikout = np.zeros((nx,ny,ncut))
     maxcov = np.zeros(ncut)
-            
-    # Allocate the needed memory:   
+
+    # Allocate the needed memory:
     xa = np.zeros(MAXSAM)
     ya = np.zeros(MAXSAM)
     vra = np.zeros(MAXSAM)
@@ -2582,37 +2628,37 @@ def ik2d(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,nx,xm
     a = np.zeros(MAXEQ*MAXEQ)
     ikmap = np.zeros((nx,ny,ncut))
     vr = np.zeros((MAXDAT,MAXCUT+1))
-    
+
     nviol = np.zeros(MAXCUT)
     aviol = np.zeros(MAXCUT)
     xviol = np.zeros(MAXCUT)
-    
+
     ccdf = np.zeros(ncut)
     ccdfo = np.zeros(ncut)
     ikout = np.zeros((nx,ny,ncut))
-    
+
     x = df_extract[xcol].values
     y = df_extract[ycol].values
     v = df_extract[vcol].values
-    
+
 # The indicator data are constructed knowing the thresholds and the
 # data value.
-    
+
     if ivtype == 0:
-        for icut in range(0,ncut): 
+        for icut in range(0,ncut):
             vr[:,icut] = np.where((v <= thresh[icut] + 0.5) & (v > thresh[icut] - 0.5), '1', '0')
     else:
-        for icut in range(0,ncut): 
+        for icut in range(0,ncut):
             vr[:,icut] = np.where(v <= thresh[icut], '1', '0')
     vr[:,ncut] = v
 
-# Make a KDTree for fast search of nearest neighbours   
+# Make a KDTree for fast search of nearest neighbours
     dp = list((y[i], x[i]) for i in range(0,MAXDAT))
     data_locs = np.column_stack((y,x))
     tree = sp.cKDTree(data_locs, leafsize=16, compact_nodes=True, copy_data=False, balanced_tree=True)
-    
+
 # Summary statistics of the input data
-    
+
     avg = vr[:,ncut].mean()
     stdev = vr[:,ncut].std()
     ss = stdev**2.0
@@ -2621,20 +2667,20 @@ def ik2d(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,nx,xm
     print('Data for IK3D: Variable column ' + str(vcol))
     print('  Number   = ' + str(MAXDAT))
     ndh = MAXDAT
-    
+
     actloc = np.zeros(MAXDAT, dtype = int)
     for i in range(1,MAXDAT):
         actloc[i] = i
-    
+
 # Set up the rotation/anisotropy matrices that are needed for the
 # variogram and search:
 
     print('Setting up rotation matrices for variogram and search')
     radsqd = radius * radius
     rotmat = []
-    for ic in range(0,ncut):  
+    for ic in range(0,ncut):
         rotmat_temp, maxcov[ic] = setup_rotmat(c0[ic],int(nst[ic]),it[:,ic],cc[:,ic],ang[:,ic],9999.9)
-        rotmat.append(rotmat_temp)    
+        rotmat.append(rotmat_temp)
 # Initialize accumulators:  # not setup yet
     nk = 0
     xk = 0.0
@@ -2647,7 +2693,7 @@ def ik2d(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,nx,xm
     print('Working on the kriging')
 
 # Report on progress from time to time:
-    if koption == 0: 
+    if koption == 0:
         nxy   = nx*ny
         nloop = nxy
         irepo = max(1,min((nxy/10),10000))
@@ -2655,14 +2701,14 @@ def ik2d(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,nx,xm
         nloop = 10000000
         irepo = max(1,min((nd/10),10000))
     ddh = 0.0
-    
+
 # MAIN LOOP OVER ALL THE BLOCKS IN THE GRID:
     for index in range(0,nloop):
-      
+
         if (int(index/irepo)*irepo) == index: print('   currently on estimate ' + str(index))
-    
+
         if koption == 0:
-            iy   = int((index)/nx) 
+            iy   = int((index)/nx)
             ix   = index - (iy)*nx
             xloc = xmn + (ix)*xsiz
             yloc = ymn + (iy)*ysiz
@@ -2678,8 +2724,8 @@ def ik2d(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,nx,xm
         dist, close = tree.query(current_node,ndmax) # use kd tree for fast nearest data search
         # remove any data outside search radius
         close = close[dist<radius]
-        dist = dist[dist<radius] 
-        nclose = len(dist) 
+        dist = dist[dist<radius]
+        nclose = len(dist)
 
 # Is there enough samples?
 
@@ -2687,7 +2733,7 @@ def ik2d(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,nx,xm
             for i in range(0,ncut):
                 ccdfo[i] = UNEST
             print('UNEST at ' + str(ix) + ',' + str(iy))
-        else:         
+        else:
 
 # Loop over all the thresholds/categories:
             for ic in range(0,ncut):
@@ -2716,7 +2762,7 @@ def ik2d(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,nx,xm
                     else:
                         ccdf[ic] = gcdf[ic]
                 else:
-            
+
 # Now, only load the variogram, build the matrix,... if kriging:
                     neq = nclose + ktype
                     na = nclose
@@ -2725,14 +2771,14 @@ def ik2d(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,nx,xm
                     iin=-1 # accounting for first index of 0
                     for j in range(0,na):
 # Establish Left Hand Side Covariance Matrix:
-                        for i in range(0,na):  # was j - want full matrix                    
+                        for i in range(0,na):  # was j - want full matrix
                             iin = iin + 1
-                            a[iin] = cova2(xa[i],ya[i],xa[j],ya[j],nst[ic],c0[ic],PMX,cc[:,ic],aa[:,ic],it[:,ic],ang[:,ic],anis[:,ic],rotmat[ic],maxcov[ic]) 
+                            a[iin] = cova2(xa[i],ya[i],xa[j],ya[j],nst[ic],c0[ic],PMX,cc[:,ic],aa[:,ic],it[:,ic],ang[:,ic],anis[:,ic],rotmat[ic],maxcov[ic])
                         if ktype == 1:
                             iin = iin + 1
-                            a[iin] = maxcov[ic]            
-                        r[j] = cova2(xloc,yloc,xa[j],ya[j],nst[ic],c0[ic],PMX,cc[:,ic],aa[:,ic],it[:,ic],ang[:,ic],anis[:,ic],rotmat[ic],maxcov[ic]) 
-    
+                            a[iin] = maxcov[ic]
+                        r[j] = cova2(xloc,yloc,xa[j],ya[j],nst[ic],c0[ic],PMX,cc[:,ic],aa[:,ic],it[:,ic],ang[:,ic],anis[:,ic],rotmat[ic],maxcov[ic])
+
 # Set the unbiasedness constraint:
                     if ktype == 1:
                         for i in range(0,na):
@@ -2757,33 +2803,33 @@ def ik2d(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,nx,xm
                     for i in range(0,nclose):
                         ccdf[ic] = ccdf[ic] + vra[i]*s[i]
                         sumwts   = sumwts   + s[i]
-                    if ktype == 0: 
+                    if ktype == 0:
                         if use_trend == True:
                             ccdf[ic] = ccdf[ic] + (1.0-sumwts)*trend[ny-iy-1,ix,ic]
                         else:
                             ccdf[ic] = ccdf[ic] + (1.0-sumwts)*gcdf[ic]
 
 # Keep looping until all the thresholds are estimated:
- 
+
 # Correct and write the distribution to the output file:
             nk = nk + 1
             ccdfo = ordrel(ivtype,ncut,ccdf)
-        
+
 # Write the IK CCDF for this grid node:
             if koption == 0:
                  ikout[ny-iy-1,ix,:] = ccdfo
             else:
                  print('TBD')
-    return ikout  
+    return ikout
 
 def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtcol,zmin,zmax,ltail,ltpar,utail,utpar,nsim,
           nx,xmn,xsiz,ny,ymn,ysiz,seed,ndmin,ndmax,nodmax,mults,nmult,noct,radius,radius1,sang1,
           mxctx,mxcty,ktype,colocorr,sec_map,vario):
-    
-# Parameters from sgsim.inc    
+
+# Parameters from sgsim.inc
     MAXNST=2; MAXROT=2; UNEST=-99.0; EPSLON=1.0e-20; VERSION=2.907
     KORDEI=12; MAXOP1=KORDEI+1; MAXINT=2**30
-    
+
 # Set other parameters
     np.random.seed(seed)
     nxy = nx*ny
@@ -2791,18 +2837,18 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
     radsqd = radius * radius
     sanis1 = radius1/radius
     if ktype == 4: varred = 1.0
-        
+
 # load the variogram
     nst = int(vario['nst'])
     cc = np.zeros(nst); aa = np.zeros(nst); it = np.zeros(nst,dtype=int)
     ang = np.zeros(nst); anis = np.zeros(nst)
-    
-    c0 = vario['nug']; 
-    cc[0] = vario['cc1']; it[0] = vario['it1']; ang[0] = vario['azi1']; 
+
+    c0 = vario['nug'];
+    cc[0] = vario['cc1']; it[0] = vario['it1']; ang[0] = vario['azi1'];
     aa[0] = vario['hmaj1']; anis[0] = vario['hmin1']/vario['hmaj1'];
     if nst == 2:
-        cc[1] = vario['cc2']; it[1] = vario['it2']; ang[1] = vario['azi2']; 
-        aa[1] = vario['hmaj2']; anis[1] = vario['hmin2']/vario['hmaj2'];        
+        cc[1] = vario['cc2']; it[1] = vario['it2']; ang[1] = vario['azi2'];
+        aa[1] = vario['hmaj2']; anis[1] = vario['hmin2']/vario['hmaj2'];
 
 # Set the constants
     MAXCTX = mxctx
@@ -2823,18 +2869,18 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
         MAXSBX = int(nx/2)
         if MAXSBX > 50: MAXSBX=50
     MAXSBY = 1
-    if ny > 1: 
+    if ny > 1:
         MAXSBY = int(ny/2)
         if MAXSBY > 50: MAXSBY=50
 
     MAXSBZ = 1
     MAXSB = MAXSBX*MAXSBY*MAXSBZ
-    
+
 # Declare arrays
 
     dist = np.zeros(ndmax)
     nums = np.zeros(ndmax,dtype = int)
-    
+
 # Perform some quick checks
     if nx > MAXX or ny> MAXY:
         print('ERROR: available grid size: ' + str(MAXX) + ',' + str(MAXY) + ',' + str(MAXZ) +'.')
@@ -2847,7 +2893,7 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
     if utail != 1 and utail != 2 and utail != 4:
         print('ERROR invalid upper tail option ' + str(ltail))
         print('      only allow 1,2 or 4 - see GSLIB manual ')
-        return sim 
+        return sim
     if utail == 4 and utpar < 1.0:
         print('ERROR invalid power for hyperbolic tail' + str(utpar))
         print('      must be greater than 1.0!')
@@ -2856,11 +2902,11 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
         print('ERROR invalid power for power model' + str(ltpar))
         print('      must be greater than 0.0!')
         return sim
-    if utail == 2 and utpar < 0.0: 
+    if utail == 2 and utpar < 0.0:
         print('ERROR invalid power for power model' + str(utpar))
         print('      must be greater than 0.0!')
         return sim
-     
+
 # Load the data
     df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]    # trim values outside tmin and tmax
     nd = len(df_extract)
@@ -2871,8 +2917,8 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
     vr_orig = np.copy(vr)
 #    print('size of data extract'); print(len(vr))
     wt = []; wt = np.array(wt)
-    if wcol > -1: 
-        wt = df_extract[wcol].values 
+    if wcol > -1:
+        wt = df_extract[wcol].values
     else:
         wt = np.ones(nd)
     sec = []; sec = np.array(sec)
@@ -2880,19 +2926,19 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
         sec = df_extract[scol].values
     if itrans == 1:
         if ismooth == 1:
-            dftrans_extract = dftrans.loc[(dftrans[tcol] >= tmin) & (dftrans[tcol] <= tmax)]  
+            dftrans_extract = dftrans.loc[(dftrans[tcol] >= tmin) & (dftrans[tcol] <= tmax)]
             ntr = len(dftrans_extract)
             vrtr = dftrans_extrac[tcol].values
-            if twtcol > -1: 
+            if twtcol > -1:
                 vrgtr = dftrans_extrac[tcol].values
             else:
-                vrgtr = np.ones(ntr) 
+                vrgtr = np.ones(ntr)
         else:
             vrtr = df_extract[vcol].values
-            ntr = len(df_extract)  
+            ntr = len(df_extract)
             vrgtr = np.copy(wt)
         twt = np.sum(vrgtr)
-# sort        
+# sort
         vrtr,vrgtr = dsortem(0,ntr,vrtr,2,b=vrgtr)
 
 # Compute the cumulative probabilities and write transformation table
@@ -2900,33 +2946,33 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
         oldcp = 0.0
         cp    = 0.0
 #        print('ntr'); print(ntr)
-        for j in range(0,ntr):               
+        for j in range(0,ntr):
             cp =  cp + vrgtr[j]/twt
             w  = (cp + oldcp)*0.5
             vrg = gauinv(w)
             oldcp =  cp
 # Now, reset the weight to the normal scores value:
             vrgtr[j] = vrg
-              
-        twt = np.sum(wt)             
+
+        twt = np.sum(wt)
 # Normal scores transform the data
         for id in range(0,nd):
-            if itrans == 1: 
+            if itrans == 1:
                 vrr = vr[id]
                 j = dlocate(vrtr,1,nd,vrr)
                 j   = min(max(0,j),(nd-2))
                 vrg = dpowint(vrtr[j],vrtr[j+1],vrgtr[j],vrgtr[j+1],vrr,1.0)
                 if vrg < vrgtr[0]: vrg = vrgtr[0]
                 if(vrg > vrgtr[nd-1]): vrg = vrgtr[nd-1]
-                vr[id] = vrg   
-    
+                vr[id] = vrg
+
     weighted_stats_orig = DescrStatsW(vr_orig,weights=wt)
-    orig_av = weighted_stats_orig.mean        
-    orig_ss = weighted_stats_orig.var   
-    
+    orig_av = weighted_stats_orig.mean
+    orig_ss = weighted_stats_orig.var
+
     weighted_stats = DescrStatsW(vr,weights=wt)
-    av = weighted_stats.mean        
-    ss = weighted_stats.var        
+    av = weighted_stats.mean
+    ss = weighted_stats.var
 
     print('\n Data for SGSIM: Number of acceptable data     = ' + str(nd))
     print('                 Number trimmed                = ' + str(len(df)- nd))
@@ -2934,13 +2980,13 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
     print('                 Weighted Variance             = ' + str(round(orig_ss,4)))
     print('                 Weighted Transformed Average  = ' + str(round(av,4)))
     print('                 Weighted Transformed Variance = ' + str(round(ss,4)))
-              
-# Read in secondary data           
+
+# Read in secondary data
     sim = np.random.rand(nx*ny)
     index = 0
     for ixy in range(0,nxy):
         sim[index] = index
-    
+
     lvm = []; lvm = np.array(lvm)
     if ktype >= 2:
         #lvm = np.copy(sec_map.flatten())
@@ -2948,10 +2994,10 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
         lvm = np.zeros(nxy)
         for iy in range(0,ny):
             for ix in range(0,nx):
-                lvm[ind] = sec_map[ny-iy-1,ix]    
+                lvm[ind] = sec_map[ny-iy-1,ix]
                 ind = ind + 1
-        if ktype == 2 and itrans == 1: 
-            for ixy in range(0,nxy): 
+        if ktype == 2 and itrans == 1:
+            for ixy in range(0,nxy):
 # Do we to transform the secondary variable for a local mean?
                 vrr = lvm[ixy]
                 j = dlocate(vrtr,1,ntr,vrr)
@@ -2959,17 +3005,17 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
                 vrg = dpowint(vrtr[j],vrtr[j+1],vrgtr[j],vrgtr[j+1],vrr,1.0)
                 if vrg < vrgtr[0]: vrg = vrgtr[0]
                 if(vrg > vrgtr[ntr-1]): vrg = vrgtr[nd-1]
-                lvm[ixy] = vrg 
+                lvm[ixy] = vrg
         av = np.average(lvm)
         ss = np.var(lvm)
         print(' Secondary Data: Number of data             = ' + str(nx*ny))
         print('                 Equal Weighted Average     = ' + str(round(av,4)))
-        print('                 Equal Weighted Variance    = ' + str(round(ss,4)))             
+        print('                 Equal Weighted Variance    = ' + str(round(ss,4)))
 
 # Do we need to work with data residuals? (Locally Varying Mean)
         if ktype == 2:
             sec = np.zeros(nd)
-            for idd in range(0,nd): 
+            for idd in range(0,nd):
                 ix = getindex(nx,xmn,xsiz,x[idd])
                 iy = getindex(ny,ymn,ysiz,y[idd])
                 index = ix + (iy-1)*nx
@@ -2979,7 +3025,7 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
 
 # Do we need to get an external drift attribute for the data?
         if ktype == 3:
-            for idd in range(0,nd): 
+            for idd in range(0,nd):
                 if sec[i] != UNEST:
                     ix = getindx(nx,xmn,xsiz,x[idd])
                     iy = getindx(ny,ymn,ysiz,y[idd])
@@ -2990,26 +3036,26 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
         if ktype == 4:
             order_sec = np.zeros(nxy)
             ind = 0
-            for ixy in range(0,nxy): 
-                order_sec[ixy] = ind  
+            for ixy in range(0,nxy):
+                order_sec[ixy] = ind
                 ind = ind + 1
             print(' Transforming Secondary Data with')
-            print(' variance reduction of ' + str(varred))            
+            print(' variance reduction of ' + str(varred))
             lvm,order_sec = dsortem(0,nxy,lvm,2,b=order_sec)
             oldcp = 0.0
             cp    = 0.0
-            for i in range(0,nxy): 
+            for i in range(0,nxy):
                 cp =  cp + (1.0/(nxy))
                 w  = (cp + oldcp)/2.0
                 lvm[i] = gauinv(w)
                 lvm[i] = lvm[i] * varred
                 oldcp  =  cp
-            order_sec,lvm = dsortem(0,nxy,order_sec,2,b=lvm) 
+            order_sec,lvm = dsortem(0,nxy,order_sec,2,b=lvm)
 #            return np.reshape(lvm,(ny,nx)) # check the transform
 
 # Set up the rotation/anisotropy matrices that are needed for the
 # variogram and search.
-    print('Setting up rotation matrices for variogram and search') 
+    print('Setting up rotation matrices for variogram and search')
     if nst == 1:
         rotmat = setrot(ang[0],ang[0],sang1,anis[0],anis[0],sanis1,nst,MAXROT=2)
     else:
@@ -3018,46 +3064,46 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
 
     rotmat_2d, maxcov = setup_rotmat2(c0,nst,it,cc,ang) # will use one in the future
 #    print('MaxCov = ' + str(maxcov))
-    
-# Make a KDTree for fast search of nearest neighbours   
+
+# Make a KDTree for fast search of nearest neighbours
     dp = list((y[i], x[i]) for i in range(0,nd))
     data_locs = np.column_stack((y,x))
     tree = sp.cKDTree(data_locs, leafsize=16, compact_nodes=True, copy_data=False, balanced_tree=True)
-              
+
 # Set up the covariance table and the spiral search:
     cov_table,tmp,order,ixnode,iynode,nlooku,nctx,ncty = ctable(MAXNOD,MAXCXY,MAXCTX,MAXCTY,MXY,
                                 xsiz,ysiz,isrot,nx,ny,nst,c0,cc,aa,it,ang,anis,rotmat,radsqd)
-       
+
 #    print('Covariance Table'); print(cov_table)
 # MAIN LOOP OVER ALL THE SIMULAUTIONS:
     for isim in range(0,nsim):
-          
+
 # Work out a random path for this realization:
         sim = np.random.rand(nx*ny)
         order = np.zeros(nxy)
         ind = 0
-        for ixy in range(0,nxy): 
-            order[ixy] = ind  
+        for ixy in range(0,nxy):
+            order[ixy] = ind
             ind = ind + 1
-            
+
 # The multiple grid search works with multiples of 4 (yes, that is
 # somewhat arbitrary):
 
         if mults == 1:
-            for imult in range(0,nmult): 
+            for imult in range(0,nmult):
                 nny = int(max(1,ny/((imult+1)*4)))
                 nnx = int(max(1,nx/((imult+1)*4)))
 #                print('multi grid - nnx, nny'); print(nnx,nny)
                 jy  = 1
                 jx  = 1
-                for iy in range(0,nny): 
+                for iy in range(0,nny):
                     if nny > 0: jy = iy*(imult+1)*4
                     for ix in range(0,nnx):
                         if nnx > 0: jx = ix*(imult+1)*4
                         index = jx + (jy-1)*nx
                         sim[index] = sim[index] - (imult+1)
 
-    
+
 # Initialize the simulation:
         sim, order = dsortem(0,nxy,sim,2,b=order)
         sim.fill(UNEST)
@@ -3070,7 +3116,7 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
 #            print('data'); print(x[idd],y[idd])
             ix = getindex(nx,xmn,xsiz,x[idd])
             iy = getindex(ny,ymn,ysiz,y[idd])
-            ind = ix + (iy-1)*nx 
+            ind = ix + (iy-1)*nx
             xx  = xmn + (ix)*xsiz
             yy  = ymn + (iy)*ysiz
 #            print('xx, yy' + str(xx) + ',' + str(yy))
@@ -3081,7 +3127,7 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
                 if sim[ind] > 0.0:
                     id2 = int(sim[ind]+0.5)
                     test2 = abs(xx-x(id2)) + abs(yy-y(id2))
-                    if test <= test2: 
+                    if test <= test2:
                         sim[ind] = idd
                     else:
                         sim[ind] = id2
@@ -3090,25 +3136,25 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
             if sstrat == 0 and test <= TINY: sim[ind]=10.0*UNEST
 
 # Now, enter data values into the simulated grid:
-        for ind in range(0,nxy):              
+        for ind in range(0,nxy):
             idd = int(sim[ind]+0.5)
             if idd > 0: sim[ind] = vr[id]
-        irepo = max(1,min((nxy/10),10000))          
+        irepo = max(1,min((nxy/10),10000))
 
 # MAIN LOOP OVER ALL THE NODES:
-        for ind in range(0,nxy):  
+        for ind in range(0,nxy):
             if (int(ind/irepo)*irepo) == ind:
                 print('   currently on node ' + str(ind))
-              
+
 # Figure out the location of this point and make sure it has
 # not been assigned a value already:
 
             index = int(order[ind]+0.5)
             if (sim[index] > (UNEST+EPSLON)) or (sim[index] < (UNEST*2.0)): continue
-            iy   = int((index)/nx) 
+            iy   = int((index)/nx)
             ix   = index - (iy)*nx
             xx = xmn + (ix)*xsiz
-            yy = ymn + (iy)*ysiz   
+            yy = ymn + (iy)*ysiz
             current_node = (yy,xx)
 #            print('Current_node'); print(current_node)
 
@@ -3126,22 +3172,22 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
                 else:
                     dist, nums = tree.query(current_node,ndmax)
                 # remove any data outside search radius
-                
+
 #                print('nums'); print(nums)
 #                print('dist'); print(dist)
                 na = len(dist)
                 nums = nums[dist<radius]
-                dist = dist[dist<radius] 
-                na = len(dist) 
+                dist = dist[dist<radius]
+                na = len(dist)
                 if na < ndmin: continue     # bail if not enough data
-#                print('Found ' + str(na) + 'neighbouring data')            
-                    
+#                print('Found ' + str(na) + 'neighbouring data')
+
 #            print('node search inputs')
 #            print('nodmax ' + str(nodmax))
 #            print('ixnode'); print(ixnode)
-                    
+
             ncnode, icnode, cnodev, cnodex, cnodey = srchnd(ix,iy,nx,ny,xmn,ymn,xsiz,ysiz,sim,noct,nodmax,ixnode,iynode,nlooku,nctx,ncty,UNEST)
-        
+
 #           print('srchnd'); print(ncnode,icnode,cnodev,cnodex,cnodey)
 #           print('Result of srchnd, cnodex = '); print(cnodex)
             nclose = na
@@ -3186,12 +3232,12 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
 # Do we need to reassign the data to the grid nodes?
         if sstrat == 0:
             print('Reassigning data to nodes')
-            for iid in range(0,nd): 
+            for iid in range(0,nd):
                 ix = getindex(nx,xmn,xsiz,x[iid])
                 iy = getindex(ny,ymn,ysiz,y[iid])
                 xx  = xmn + (ix)*xsiz
                 yy  = ymn + (iy)*ysiz
-                ind = ix + (iy-1)*nx 
+                ind = ix + (iy-1)*nx
                 test=abs(xx-x[iid])+abs(yy-y[iid])
                 if test <= TINY: sim[ind] = vr[iid]
 
@@ -3222,14 +3268,14 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
 # END MAIN LOOP OVER SIMULATIONS:
         sim_out = np.zeros((ny,nx))
         for ind in range(0,nxy):
-            iy   = int((ind)/nx) 
+            iy   = int((ind)/nx)
             ix   = ind - (iy)*nx
             sim_out[ny-iy-1,ix] = sim[ind]
     return sim_out
 
 def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,nx,xmn,xsiz,ny,ymn,ysiz,seed,ndmin,
           ndmax,nodmax,mults,nmult,noct,radius,ktype,vario):
-          
+
     """A 2D version of GSLIB's SISIM Indicator Simulation program (Deutsch and Journel, 1998) converted from the
     original Fortran to Python by Michael Pyrcz, the University of Texas at
     Austin (March, 2019). WARNING: only tested for cateogrical ktype 0, 1 and 2 (locally variable proportion).
@@ -3275,7 +3321,7 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
     colocorr = 0.0 # no collocated cokriging
     lvm = 0 # no kriging with a locally variable mean
     sec = []; sec = np.array(sec) # no secondary data
-    ng = 0 # no tabulated values 
+    ng = 0 # no tabulated values
 
 # Find the needed paramters:
     PMX = 9999.9
@@ -3294,13 +3340,13 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
                 for ic in range(0,ncut):
                     trend1d[index,ic] = trend[ny-iy-1,ix,ic] # copy trend
                 index = index + 1
-        
+
     MAXORD = nxy
     MAXNOD = nodmax
-    
+
     cnodeiv = np.zeros((ncut+1,MAXNOD))
-    
-    tmp = np.zeros(MAXORD) 
+
+    tmp = np.zeros(MAXORD)
     sstrat = 0 # search data and nodes by default, turned off if unconditional
     sang1 = 0 # using isotropic search now
     sanis1 = 1.0
@@ -3314,8 +3360,8 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
 # Grid extents
     MAXX = nx
     MAXY = ny
-    MXY = MAXX * MAXY    
-   
+    MXY = MAXX * MAXY
+
 # Kriging system
     MAXKR1 = 2 * MAXNOD + 2 * MAXSAM + 1
     MAXKR2 = MAXKR1 * MAXKR1
@@ -3327,33 +3373,33 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
     MAXSBY = 1
     if ny > 1:
         MAXSBY = int(ny/2)
-    if MAXSBY > 50: 
+    if MAXSBY > 50:
         MAXSBY=50
 #    print('ncut'); print(ncut)
-    
+
 # load the variogram
     MAXNST = 2
-    nst = np.zeros(ncut,dtype=int); c0 = np.zeros(ncut); cc = np.zeros((ncut,MAXNST)) 
-    aa = np.zeros((ncut,MAXNST),dtype=int); it = np.zeros((ncut,MAXNST),dtype=int) 
+    nst = np.zeros(ncut,dtype=int); c0 = np.zeros(ncut); cc = np.zeros((ncut,MAXNST))
+    aa = np.zeros((ncut,MAXNST),dtype=int); it = np.zeros((ncut,MAXNST),dtype=int)
     ang = np.zeros((ncut,MAXNST)); anis = np.zeros((ncut,MAXNST))
 
 #    print('varios - 1 vario'); print(vario[1])
-    
+
     for icut in range(0,ncut):
 #        print('icut'); print(icut)
         nst[icut] = int(vario[icut]['nst'])
-        c0[icut] = vario[icut]['nug']; cc[icut,0] = vario[icut]['cc1']; it[icut,0] = vario[icut]['it1']; 
-        ang[icut,0] = vario[icut]['azi1']; 
+        c0[icut] = vario[icut]['nug']; cc[icut,0] = vario[icut]['cc1']; it[icut,0] = vario[icut]['it1'];
+        ang[icut,0] = vario[icut]['azi1'];
         aa[icut,0] = vario[icut]['hmaj1']; anis[icut,0] = vario[icut]['hmin1']/vario[icut]['hmaj1'];
         if nst[icut] == 2:
-            cc[icut,1] = vario[icut]['cc2']; it[icut,1] = vario[icut]['it2']; ang[icut,1] = vario[icut]['azi2']; 
+            cc[icut,1] = vario[icut]['cc2']; it[icut,1] = vario[icut]['it2']; ang[icut,1] = vario[icut]['azi2'];
             aa[icut,1] = vario[icut]['hmaj2']; anis[icut,1] = vario[icut]['hmin2']/vario[icut]['hmaj2'];
-                
+
 #        print('check loaded cov model- icut '); print(icut)
 #        print(cc[icut],aa[icut],it[icut],ang[icut],anis[icut])
-    
-    
-    
+
+
+
 # Load the data
     df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]    # trim values outside tmin and tmax
     MAXDAT = len(df_extract)
@@ -3363,8 +3409,8 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
     MAXROT = MAXNST*MAXCUT+ 1
     ikout = np.zeros((nx,ny,ncut))
     maxcov = np.zeros(ncut)
-            
-    # Allocate the needed memory:   
+
+    # Allocate the needed memory:
     xa = np.zeros(MAXSAM)
     ya = np.zeros(MAXSAM)
     vra = np.zeros(MAXSAM)
@@ -3376,42 +3422,42 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
     a = np.zeros(MAXEQ*MAXEQ)
     ikmap = np.zeros((nx,ny,ncut))
     vr = np.zeros((MAXDAT,MAXCUT+1))
-    
+
     nviol = np.zeros(MAXCUT)
     aviol = np.zeros(MAXCUT)
     xviol = np.zeros(MAXCUT)
-    
+
     ccdf = np.zeros(ncut)
     ccdfo = np.zeros(ncut)
     ikout = np.zeros((nx,ny,ncut))
-    
+
     x = df_extract[xcol].values
     y = df_extract[ycol].values
     v = df_extract[vcol].values
-    
-    MAXTAB = MAXDAT + MAXCUT # tabulated probabilities not used 
+
+    MAXTAB = MAXDAT + MAXCUT # tabulated probabilities not used
     gcut = np.zeros(MAXTAB)
-    
+
 # The indicator data are constructed knowing the thresholds and the
 # data value.
-    
+
 #    print('ncut'); print(ncut)
     if ivtype == 0:
-        for icut in range(0,ncut): 
+        for icut in range(0,ncut):
             vr[:,icut] = np.where((v <= thresh[icut] + 0.5) & (v > thresh[icut] - 0.5), '1', '0')
     else:
-        for icut in range(0,ncut): 
+        for icut in range(0,ncut):
             vr[:,icut] = np.where(v <= thresh[icut], '1', '0')
     vr[:,ncut] = v
 
 #    print('loaded data '); print(vr)
-# Make a KDTree for fast search of nearest neighbours   
+# Make a KDTree for fast search of nearest neighbours
     dp = list((y[i], x[i]) for i in range(0,MAXDAT))
     data_locs = np.column_stack((y,x))
     tree = sp.cKDTree(data_locs, leafsize=16, compact_nodes=True, copy_data=False, balanced_tree=True)
-    
+
 # Summary statistics of the input data
-    
+
     avg = vr[:,ncut].mean()
     stdev = vr[:,ncut].std()
     ss = stdev**2.0
@@ -3420,37 +3466,37 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
     print('Data for IK3D: Variable column ' + str(vcol))
     print('  Number   = ' + str(MAXDAT))
     ndh = MAXDAT
-    
+
     actloc = np.zeros(MAXDAT, dtype = int) # need to set up data at node locations
     for i in range(1,MAXDAT):
         actloc[i] = i
-    
+
 # Set up the rotation/anisotropy matrices that are needed for the
 # variogram and search:
 
     print('Setting up rotation matrices for variogram and search')
     radsqd = radius * radius
     rotmat = []
-    for ic in range(0,ncut):  
+    for ic in range(0,ncut):
         rotmat_temp, maxcov[ic] = setup_rotmat(c0[ic],int(nst[ic]),it[ic],cc[ic],ang[ic],9999.9)
-        rotmat.append(rotmat_temp) 
-    
+        rotmat.append(rotmat_temp)
+
     #return rotmat
 # Set up the covariance table and the spiral search based just on the first variogram
 # This is ok as we are not using the covariance look up table, just spiral search for previous nodes
     isrot = MAXNST*MAXCUT + 1 # note I removed anisotropic search here
-    
+
 #    print('ang[0]'); print(ang[0])
-    
+
     if nst[0] == 1:
         global_rotmat = setrot(ang[0,0],ang[0,0],sang1,anis[0,0],anis[0,0],sanis1,nst[0],MAXROT=2)
     else:
         global_rotmat = setrot(ang[0,0],ang[1,0],sang1,anis[0,0],anis[1,0],sanis1,nst[0],MAXROT=2)
-    
+
     cov_table,tmp2,order,ixnode,iynode,nlooku,nctx,ncty = ctable(MAXNOD,MAXCXY,MAXCTX,MAXCTY,MXY,
-                                xsiz,ysiz,isrot,nx,ny,nst[0],c0[0],cc[0],aa[0],it[0],ang[0],anis[0],global_rotmat,radsqd)        
-   
-   
+                                xsiz,ysiz,isrot,nx,ny,nst[0],c0[0],cc[0],aa[0],it[0],ang[0],anis[0],global_rotmat,radsqd)
+
+
 #    print('spiral search number nodes '); print(nlooku)
 #    print('ixnode,iynode'); print(ixnode,iynode)
 # Initialize accumulators:  # not setup yet
@@ -3465,7 +3511,7 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
 #    print('Working on the kriging')
 
 # Report on progress from time to time:
-    if koption == 0: 
+    if koption == 0:
         nxy   = nx*ny
         nloop = nxy
         irepo = max(1,min((nxy/10),10000))
@@ -3473,43 +3519,43 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
         nloop = 10000000
         irepo = max(1,min((nd/10),10000))
     ddh = 0.0
- 
+
 # MAIN LOOP OVER ALL THE SIMULAUTIONS:
 #    for isim in range(0,nsim): # will add multiple realizations soon
-          
+
 # Work out a random path for this realization:
     sim = np.random.rand(nx*ny)
     order = np.zeros(nxy)
     ind = 0
-    for ixy in range(0,nxy): 
-        order[ixy] = ind  
+    for ixy in range(0,nxy):
+        order[ixy] = ind
         ind = ind + 1
-        
+
 # Multiple grid search works with multiples of 4 (yes, that is
 # soat arbitrary):
 
     if mults == 1:
-        for imult in range(0,nmult): 
+        for imult in range(0,nmult):
             nny = int(max(1,ny/((imult+1)*4)))
             nnx = int(max(1,nx/((imult+1)*4)))
 #            print('multi grid - nnx, nny'); print(nnx,nny)
             jy  = 1
             jx  = 1
-            for iy in range(0,nny): 
+            for iy in range(0,nny):
                 if nny > 0: jy = iy*(imult+1)*4
                 for ix in range(0,nnx):
                     if nnx > 0: jx = ix*(imult+1)*4
                     index = jx + (jy-1)*nx
                     sim[index] = sim[index] - (imult+1)
 
-    
+
 # Inlize the simulation:
     sim, order = dsortem(0,nxy,sim,2,b=order)
     sim.fill(UNEST)
     tmp.fill(0.0)
     print('Working on a single realization, seed ' + str(seed))
 #    print('Random Path'); print(order)
-    
+
 # As the data to the closest grid node:
 
     TINY = 0.0001
@@ -3517,48 +3563,48 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
 #        print('data'); print(x[idd],y[idd])
         ix = getindex(nx,xmn,xsiz,x[idd])
         iy = getindex(ny,ymn,ysiz,y[idd])
-        ind = ix + (iy-1)*nx 
+        ind = ix + (iy-1)*nx
         xx  = xmn + (ix)*xsiz
         yy  = ymn + (iy)*ysiz
 #        print('xx, yy' + str(xx) + ',' + str(yy))
         test = abs(xx-x[idd]) + abs(yy-y[idd])
 
 # As this data to the node (unless there is a closer data):
-        if sstrat == 1 or (sstrat == 0 and test <= TINY): 
+        if sstrat == 1 or (sstrat == 0 and test <= TINY):
             if sim[ind] > UNEST:
                 id2 = int(sim[ind]+0.5)
                 test2 = abs(xx-x[id2]) + abs(yy-y[id2])
-                if test <= test2: 
+                if test <= test2:
                     sim[ind] = idd
             else:
                 sim[ind] = idd
 
 # As a flag so that this node does not get simulated:
-        
+
 
 # Another data values into the simulated grid:
-    for ind in range(0,nxy):              
+    for ind in range(0,nxy):
         idd = int(sim[ind]+0.5)
-        if idd > 0: 
+        if idd > 0:
             sim[ind] = vr[idd]
-        else: 
+        else:
             tmp[ind] = sim[ind]
             sim[ind] = UNEST
-    irepo = max(1,min((nxy/10),10000))          
+    irepo = max(1,min((nxy/10),10000))
 
 # LOOP OVER ALL THE NODES:
-    for ind in range(0,nxy):  
+    for ind in range(0,nxy):
         if (int(ind/irepo)*irepo) == ind:
             print('   currently on node ' + str(ind))
-          
+
 # Find the index on the random path, check if assigned data and get location
 
         index = int(order[ind]+0.5)
         if (sim[index] > (UNEST+EPSLON)) or (sim[index] < (UNEST*2.0)): continue
-        iy   = int((index)/nx) 
+        iy   = int((index)/nx)
         ix   = index - (iy)*nx
         xx = xmn + (ix)*xsiz
-        yy = ymn + (iy)*ysiz   
+        yy = ymn + (iy)*ysiz
         current_node = (yy,xx)
 #        print('Current_node'); print(current_node)
 
@@ -3576,34 +3622,34 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
             else:
                 dist, nums = tree.query(current_node,ndmax)
             # remove any data outside search radius
-            
+
 #            print('nums'); print(nums)
 #            print('dist'); print(dist)
             na = len(dist)
             nums = nums[dist<radius]
-            dist = dist[dist<radius] 
-            na = len(dist) 
+            dist = dist[dist<radius]
+            na = len(dist)
             if na < ndmin: continue     # bail if not enough data
-#            print('Found ' + str(na) + 'neighbouring data')            
-                
+#            print('Found ' + str(na) + 'neighbouring data')
+
 #        print('node search inputs')
 #        print('nodmax ' + str(nodmax))
 #        print('ixnode'); print(ixnode)
-    
+
 # Indicator transform the nearest node data
 #        print('start node search')
         ncnode, icnode, cnodev, cnodex, cnodey = srchnd(ix,iy,nx,ny,xmn,ymn,xsiz,ysiz,sim,noct,nodmax,ixnode,iynode,nlooku,nctx,ncty,UNEST)
-  
+
         if ncnode > 0:
-            for icut in range(0,ncut): 
+            for icut in range(0,ncut):
                 cnodeiv[icut,:] = np.where((cnodev <= thresh[icut] + 0.5) & (cnodev > thresh[icut] - 0.5), '1', '0')
         else:
-            for icut in range(0,ncut): 
+            for icut in range(0,ncut):
                 cnodeiv[icut,:] = np.where(cnodev <= thresh[icut], '1', '0')
         cnodeiv[ncut,:] = cnodev
 
 #        print('indicator transformed nearest nodes'); print(cnodeiv)
-    
+
 #       print('srchnd'); print(ncnode,icnode,cnodev,cnodex,cnodey)
 #       print('Result of srchnd, cnodex = '); print(cnodex)
         nclose = na
@@ -3620,8 +3666,8 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
 # check inputs
  #       print('nst'); print(nst)
 
-    
-    
+
+
         if nclose + ncnode <= 0:
 #            print('nclose & ncnode'); print(nclose, ncnode)
             zval = beyond(ivtype,ncut,thresh,gcdf,ng,gcut,gcdf,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,zval,cdfval)
@@ -3633,9 +3679,9 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
 #                print('check kriging cov model- icut '); print(ic)
 #                print('node data values for kriging'); print(cnodev)
 #                print(cc[ic],aa[ic],it[ic],ang[ic],anis[ic],rotmat[ic],maxcov[ic])
-                #ccdf([ic] = krige(ix,iy,iz,xx,yy,zz,ic,cdf(ic),MAXCTX,MAXCTY,MAXCTZ,MAXKR1,ccdf(ic),MAXROT)                             
+                #ccdf([ic] = krige(ix,iy,iz,xx,yy,zz,ic,cdf(ic),MAXCTX,MAXCTY,MAXCTZ,MAXKR1,ccdf(ic),MAXROT)
                 if ktype == 0:
-                    gmean = gcdf[ic]  
+                    gmean = gcdf[ic]
                 elif ktype == 2:
                     gmean = trend1d[index,ic]
                 else:
@@ -3643,27 +3689,27 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
 #                    print('gmean'); print(gmean)
                 ccdf[ic], cstdev = ikrige(ix,iy,nx,ny,xx,yy,ktype,x,y,vr[:,ic],sec,colocorr,gmean,trend[:,ic],nums,cov_table,nctx,ncty,
                                       icnode,ixnode,iynode,cnodeiv[ic],cnodex,cnodey,nst[ic],c0[ic],9999.9,cc[ic],aa[ic],it[ic],ang[ic],anis[ic],
-                                      rotmat[ic],maxcov[ic],MAXCTX,MAXCTY,MAXKR1,MAXKR2)   
+                                      rotmat[ic],maxcov[ic],MAXCTX,MAXCTY,MAXKR1,MAXKR2)
  #           print('ccdf'); print(ccdf)
-                    
+
 # Correct order relations:
             ccdfo = ordrel(ivtype,ncut,ccdf)
 # Draw from the local distribution:
             zval = beyond(ivtype,ncut,thresh,ccdfo,ng,gcut,gcdf,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,zval,cdfval)
         sim[index] = zval
  #       print('zval'); print(zval)
-    
+
 
 # END MAIN LOOP OVER SIMULATIONS:
     sim_out = np.zeros((ny,nx))
     for ind in range(0,nxy):
-        iy   = int((ind)/nx) 
+        iy   = int((ind)/nx)
         ix   = ind - (iy)*nx
         sim_out[ny-iy-1,ix] = sim[ind]
 
-    return sim_out  
-    
-    
+    return sim_out
+
+
 def kb2d_locations(
     df,
     xcol,
@@ -3701,30 +3747,30 @@ def kb2d_locations(
     :param vario:
     :return:
     """
-    
+
 # Constants
     UNEST = -999.
     EPSLON = 1.0e-10
     VERSION = 2.907
     first = True
-    PMX = 9999.0    
+    PMX = 9999.0
     MAXSAM = ndmax + 1
     MAXKD = MAXSAM + 1
     MAXKRG = MAXKD * MAXKD
-    
+
 # load the variogram
     nst = vario['nst']
     cc = np.zeros(nst); aa = np.zeros(nst); it = np.zeros(nst)
     ang = np.zeros(nst); anis = np.zeros(nst)
-    
-    c0 = vario['nug']; 
-    cc[0] = vario['cc1']; it[0] = vario['it1']; ang[0] = vario['azi1']; 
+
+    c0 = vario['nug'];
+    cc[0] = vario['cc1']; it[0] = vario['it1']; ang[0] = vario['azi1'];
     aa[0] = vario['hmaj1']; anis[0] = vario['hmin1']/vario['hmaj1'];
     if nst == 2:
-        cc[1] = vario['cc2']; it[1] = vario['it2']; ang[1] = vario['azi2']; 
+        cc[1] = vario['cc2']; it[1] = vario['it2']; ang[1] = vario['azi2'];
         aa[1] = vario['hmaj2']; anis[1] = vario['hmin2']/vario['hmaj2'];
-    
-# Allocate the needed memory:   
+
+# Allocate the needed memory:
     xa = np.zeros(MAXSAM)
     ya = np.zeros(MAXSAM)
     vra = np.zeros(MAXSAM)
@@ -3744,14 +3790,14 @@ def kb2d_locations(
     x = df_extract[xcol].values
     y = df_extract[ycol].values
     vr = df_extract[vcol].values
-    
+
 # Load the estimation loactions
     nd_loc = len(df_loc)
     x_loc = df_loc[xcol].values
     y_loc = df_loc[ycol].values
     vr_loc = df_loc[vcol].values
-    
-# Make a KDTree for fast search of nearest neighbours   
+
+# Make a KDTree for fast search of nearest neighbours
     dp = list((y[i], x[i]) for i in range(0,nd))
     data_locs = np.column_stack((y,x))
     tree = sp.cKDTree(data_locs, leafsize=16, compact_nodes=True, copy_data=False, balanced_tree=True)
@@ -3779,13 +3825,13 @@ def kb2d_locations(
     nk = 0
     ak = 0.0
     vk = 0.0
-    
+
     for idata in range(len(df_loc)):
         print('Working on location ' + str(idata))
         xloc = x_loc[idata]
-        yloc = y_loc[idata] 
+        yloc = y_loc[idata]
         current_node = (yloc,xloc)
-        
+
 # Find the nearest samples within each octant: First initialize
 # the counter arrays:
         na = -1   # accounting for 0 as first index
@@ -3795,8 +3841,8 @@ def kb2d_locations(
         # remove any data outside search radius
         na = len(dist)
         nums = nums[dist<radius]
-        dist = dist[dist<radius] 
-        na = len(dist)        
+        dist = dist[dist<radius]
+        na = len(dist)
 
 # Is there enough samples?
         if na + 1 < ndmin:   # accounting for min index of 0
@@ -3811,7 +3857,7 @@ def kb2d_locations(
                 xa[ia]  = x[jj]
                 ya[ia]  = y[jj]
                 vra[ia] = vr[jj]
-                    
+
 # Handle the situation of only one sample:
             if na == 0:  # accounting for min index of 0 - one sample case na = 0
                 cb1 = cova2(xa[0],ya[0],xa[0],ya[0],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
@@ -3840,9 +3886,9 @@ def kb2d_locations(
                 for j in range(0,na):
 
 # Establish Left Hand Side Covariance Matrix:
-                    for i in range(0,na):  # was j - want full matrix                    
+                    for i in range(0,na):  # was j - want full matrix
                         iin = iin + 1
-                        a[iin] = cova2(xa[i],ya[i],xa[j],ya[j],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov) 
+                        a[iin] = cova2(xa[i],ya[i],xa[j],ya[j],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
                     if ktype == 1:
                         iin = iin + 1
                         a[iin] = unbias
@@ -3872,8 +3918,8 @@ def kb2d_locations(
                 ising = 0 # need to figure this out
 #                print('weights' + str(s))
 #                stop
-                
-            
+
+
 # Write a warning if the matrix is singular:
                 if ising != 0:
                     print('WARNING KB2D: singular matrix')
@@ -3886,13 +3932,13 @@ def kb2d_locations(
                     est  = 0.0
                     estv = cbb
                     sumw = 0.0
-                    if ktype == 1: 
+                    if ktype == 1:
                         estv = estv - (s[na])*unbias
-                    for i in range(0,na):                          
+                    for i in range(0,na):
                         sumw = sumw + s[i]
                         est  = est  + s[i]*vra[i]
                         estv = estv - s[i]*rr[i]
-                    if ktype == 0: 
+                    if ktype == 0:
                         est = est + (1.0-sumw)*skmean
         klist[idata] = est
         vlist[idata] = estv
@@ -3910,10 +3956,10 @@ def kb2d_locations(
         print('      average   ' + str(ak) + '  variance  ' + str(vk))
 
     return klist, vlist
-    
+
 #Partial Correlation in Python (clone of Matlab's partialcorr)
 
-#This uses the linear regression approach to compute the partial correlation 
+#This uses the linear regression approach to compute the partial correlation
 #(might be slow for a huge number of variables). The algorithm is detailed here:
 
 # http://en.wikipedia.org/wiki/Partial_correlation#Using_linear_regression
@@ -3924,7 +3970,7 @@ def kb2d_locations(
 #    2) calculate the residuals in Step #1
 #    3) perform a normal linear least-squares regression with Y as the target and Z as the predictor
 #    4) calculate the residuals in Step #3
-#    5) calculate the correlation coefficient between the residuals from Steps #2 and #4; 
+#    5) calculate the correlation coefficient between the residuals from Steps #2 and #4;
 #    The result is the partial correlation between X and Y while controlling for the effect of Z
 
 #Date: Nov 2014
@@ -3932,7 +3978,7 @@ def kb2d_locations(
 #Testing: Valentina Borghesani, valentinaborghesani@gmail.com
 
 def partial_corr(C):
-#    Returns the sample linear partial correlation coefficients between pairs of variables in C, controlling 
+#    Returns the sample linear partial correlation coefficients between pairs of variables in C, controlling
 #    for the remaining variables in C.
 
 #    Parameters
@@ -3981,20 +4027,20 @@ def semipartial_corr(C): # Michael Pyrcz modified the function above by Fabian P
 
 def sqdist3(x1,y1,z1,x2,y2,z2,ind,rotmat):
     """Squared Anisotropic Distance Calculation Given Matrix Indicator - 3D
-    
-    This routine calculates the anisotropic distance between two points 
+
+    This routine calculates the anisotropic distance between two points
     given the coordinates of each point and a definition of the
     anisotropy.
-    
+
     Converted from original fortran GSLIB (Deutsch and Journel, 1998) to Python by Wendi Liu, University of Texas at Austin
-    
+
     INPUT VARIABLES:
- 
+
     x1,y1,z1         Coordinates of first point
     x2,y2,z2         Coordinates of second point
     ind              The rotation matrix to use
     rotmat           The rotation matrices"""
-    
+
     dx = x1 - x2
     dy = y1 - y2
     dz = z1 - z2
@@ -4006,12 +4052,12 @@ def sqdist3(x1,y1,z1,x2,y2,z2,ind,rotmat):
 
 def setrot3(ang1,ang2,ang3,anis1,anis2,ind,rotmat):
     """Sets up an Anisotropic Rotation Matrix - 3D
-    
+
     Sets up the matrix to transform cartesian coordinates to coordinates
     accounting for angles and anisotropy
-    
+
     Converted from original fortran GSLIB (Deutsch and Journel, 1998) to Python by Wendi Liu, University of Texas at Austin
-    
+
     INPUT PARAMETERS:
 
     ang1             Azimuth angle for principal direction
@@ -4021,7 +4067,7 @@ def setrot3(ang1,ang2,ang3,anis1,anis2,ind,rotmat):
     anis2            Second anisotropy ratio
     ind              matrix indicator to initialize
     rotmat           rotation matrices
-    
+
     Converts the input angles to three angles which make more mathematical sense:
 
           alpha   angle between the major axis of anisotropy and the
@@ -4030,7 +4076,7 @@ def setrot3(ang1,ang2,ang3,anis1,anis2,ind,rotmat):
                   (The dip of the ellipsoid measured positive down)
           theta   Angle of rotation of minor axis about the major axis
                   of the ellipsoid."""
-    
+
     DEG2RAD=np.pi/180.0; EPSLON=1e-20
     if (ang1 >= 0.0)&(ang1<270.0):
         alpha = (90.0 - ang1) * DEG2RAD
@@ -4038,7 +4084,7 @@ def setrot3(ang1,ang2,ang3,anis1,anis2,ind,rotmat):
         alpha = (450.0 - ang1) * DEG2RAD
     beta = -1.0 * ang2 *DEG2RAD
     theta = ang3 * DEG2RAD
-    
+
     sina = np.sin(alpha)
     sinb = np.sin(beta)
     sint = np.sin(theta)
@@ -4046,7 +4092,7 @@ def setrot3(ang1,ang2,ang3,anis1,anis2,ind,rotmat):
     cosb = np.cos(beta)
     cost = np.cos(theta)
     ### Construct the rotation matrix in the required memory
-    
+
     afac1 = 1.0/max(anis1, EPSLON)
     afac2 = 1.0/max(anis2, EPSLON)
     rotmat[ind,0,0] = cosb * cosa
@@ -4058,13 +4104,13 @@ def setrot3(ang1,ang2,ang3,anis1,anis2,ind,rotmat):
     rotmat[ind,2,0] = afac2*(sint*sina + cost*sinb*cosa)
     rotmat[ind,2,1] = afac2*(-sint*cosa + cost*sinb*sina)
     rotmat[ind,2,2] = afac2*(cost * cosb)
-    
+
     return rotmat
 
 def gammabar(xsiz, ysiz, zsiz,nst,c0,it,cc,hmaj,hmin,hvert):
     """This program calculates the gammabar value from a 3D semivariogram model"""
     """Converted from original fortran GSLIB (Deutsch and Journel, 1998) to Python by Wendi Liu, University of Texas at Austin"""
-    
+
     ###Initialization
     rotmat = np.zeros((5, 3, 3))
     EPSLON = 1.0e-20
@@ -4079,7 +4125,7 @@ def gammabar(xsiz, ysiz, zsiz,nst,c0,it,cc,hmaj,hmin,hvert):
     ang3 = np.zeros((MAXNST,)) #plenge
     anis1 = np.zeros((MAXNST,))
     anis2 = np.zeros((MAXNST,))
-    
+
     for i in range(nst):
         anis1[i] = hmin[i]/max(hmaj[i],EPSLON)
         anis2[i] = hvert[i]/max(hmaj[i],EPSLON)
@@ -4189,7 +4235,7 @@ def gam_3D(array, tmin, tmax, xsiz, ysiz, zsiz, ixd, iyd, izd, nlag, isill):
                                         tm[il] = tm[il] + vrt
                                         hm[il] = hm[il] + vrh
                                         vario[il] = vario[il] + ((vrh - vrt) ** 2.0)
-                                  
+
     # Get average values for gam, hm, tm, hv, and tv, then compute the correct
     # "variogram" measure
     for il in range(0, nlag):
@@ -4305,28 +4351,28 @@ def vmodel_3D(
     """GSLIB's VMODEL program (Deutsch and Journel, 1998) converted from the
     original Fortran to Python by Michael Pyrcz, the University of Texas at
     Austin (Nov, 2019).
-    :param nlag: number of variogram lags 
+    :param nlag: number of variogram lags
     :param xlag: size of the lags
     :param axm: direction by 3D azimuth, 000 is y positive, 090 is x positive
-    :param dip: direction by 3D dip, 000 is horizontal to x-y plane, 090 is perpendicular to x-y plane   
+    :param dip: direction by 3D dip, 000 is horizontal to x-y plane, 090 is perpendicular to x-y plane
     :param vario: dictionary with the variogram parameters
     :return:
     """
-    
+
 # Parameters
     MAXNST=4
-    DEG2RAD=3.14159265/180.0 
+    DEG2RAD=3.14159265/180.0
     MAXROT=MAXNST+1
     EPSLON = 1.0e-20
     VERSION= 1.01
-  
+
 # Declare arrays
     index = np.zeros(nlag+1)
     h = np.zeros(nlag+1)
     gam = np.zeros(nlag+1)
     cov = np.zeros(nlag+1)
     ro = np.zeros(nlag+1)
-    
+
 # Load the variogram
     nst = vario["nst"]
     cc = np.zeros(nst)
@@ -4336,7 +4382,7 @@ def vmodel_3D(
     ang_dip = np.zeros(nst)
     anis = np.zeros(nst)
     anis_v = np.zeros(nst)
-    
+
     c0 = vario["nug"]
     cc[0] = vario["cc1"]
     it[0] = vario["it1"]
@@ -4346,23 +4392,23 @@ def vmodel_3D(
     anis[0] = vario["hmed1"] / vario["hmax1"]
     anis_v[0] = vario["hmin1"] / vario["hmax1"]
     if nst == 2:
-        cc[1] = vario["cc2"]	 
+        cc[1] = vario["cc2"]
         it[1] = vario["it2"]
         ang_azi[1] = vario["azi2"]
         ang_dip[1] = vario["dip2"]
         aa[1] = vario["hmax2"]
         anis[1] = vario["hmed2"] / vario["hmax2"]
         anis_v[1] = vario["hmin2"] / vario["hmax2"]
-                    
+
     xoff = math.sin(DEG2RAD*azm)*math.cos(DEG2RAD*dip)*xlag
     yoff = math.cos(DEG2RAD*azm)*math.cos(DEG2RAD*dip)*xlag
     zoff = math.sin(DEG2RAD*dip)*xlag
-	
+
     print(' x,y,z offsets = ' + str(xoff) + ',' + str(yoff) + ',' + str(zoff))
-    rotmat, maxcov = setup_rotmat_3D(c0, nst, it, cc, ang_azi, ang_dip, 99999.9)   
-    
+    rotmat, maxcov = setup_rotmat_3D(c0, nst, it, cc, ang_azi, ang_dip, 99999.9)
+
     xx = 0.0; yy = 0.0; zz = 0.0;
-	
+
     for il in range(0,nlag+1):
         index[il] = il
         cov[il] = cova3(0.0,0.0,0.0,xx,yy,zz,nst,c0,9999.9,cc,aa,it,anis, anis_v, rotmat, maxcov)
@@ -4385,12 +4431,12 @@ def setup_rotmat_3D(c0, nst, it, cc, ang_azi, ang_dip, pmx):
     :param cc: multiplicative factor of each nested structure
     :param ang_azi: azimuths of each nested structure
     :param ang_dip: dips of each nested structure
-    :param pmx: TODO
+    :param pmx: constant 9999.0
     :return: TODO
     """
     PI = 3.141_592_65
     DTOR = PI / 180.0
-	
+
     # The first time around, re-initialize the cosine matrix for the variogram
     # structures
     rotmat = np.zeros((9, nst))
@@ -4418,23 +4464,52 @@ def cova3(x1, y1, z1, x2, y2, z2, nst, c0, pmx, cc, aa, it, anis, anis_v, rotmat
     """Calculate the covariance associated with a variogram model specified by a
     nugget effect and nested variogram structures.
     :param x1: x coordinate of first point
+    :type x1: float
     :param y1: y coordinate of first point
+    :type y1: float
     :param z1: z coordinate of first point
+    :type z1: float
     :param x2: x coordinate of second point
+    :type x2: float
     :param y2: y coordinate of second point
+    :type y2: float
     :param z2: z coordinate of second point
+    :type z2: float
     :param nst: number of nested structures (maximum of 4)
+    :type nst: int
     :param c0: isotropic nugget constant (TODO: not used)
-    :param pmx: TODO
+    :type c0: float
+    :param pmx: Maximum variogram value needed for kriging when using Power
+                model. Each nested structure that uses the power model uses a
+                unique value of PMX. Therefore, PMX needs to be large enough
+                to account for the singly largest structure that uses the Power
+                model.
+    :type pmx: float
     :param cc: multiplicative factor of each nested structure
+    :type cc: an array
     :param aa: parameter `a` of each nested structure
-    :param it: TODO
-    :param ang: TODO: not used
+    :type aa: an array
+    :param it: Type of each nested structure:
+                    1: spherical model of range `a`
+                    2: exponential model of param `a` (practical range is 3`a`)
+                    3: gaussian model of param `a` (practical range is `a`*sqrt(3))
+                    4: power model of power `a` (a must be 0 < `a` < 2). if linear
+                       model: a = 1; c = slope
+    :type it: an array
+    :param ang: Azmiuth angle for the principal direction of continuity
+                (measured clockwise in degrees from y); TODO: not used
+    :type ang: an array
     :param anis: Horizontal aspect ratio
+    :type anis: an array
 	:param anis_v: Vertical aspect ratio
+    :type anis_v: an array
     :param rotmat: rotation matrices
-    :param maxcov: TODO
-    :return: TODO
+    :type rotmat: an array
+    :param maxcov: maximum covariance value
+    :type maxcov: float
+    :return: returns the covariance obtained from the variagram model
+    :type return: float
+
     """
     """ Revised from Wendi Liu's code """
 
@@ -4455,8 +4530,8 @@ def cova3(x1, y1, z1, x2, y2, z2, nst, c0, pmx, cc, aa, it, anis, anis_v, rotmat
         dx1 = dx * rotmat[0, js] + dy * rotmat[1, js] + dz * rotmat[2, js]
         dy1 = (dx * rotmat[3, js] + dy * rotmat[4, js] + dz * rotmat[5, js] ) / anis[js]
         dz1 = (dx * rotmat[6, js] + dy * rotmat[7, js] + dz * rotmat[8, js] ) / anis_v[js]
-		
-		
+
+
         h = math.sqrt(max((dx1 * dx1 + dy1 * dy1 + dz1 * dz1 ), 0.0))
         if it[js] == 1:
             # Spherical model
@@ -4474,12 +4549,12 @@ def cova3(x1, y1, z1, x2, y2, z2, nst, c0, pmx, cc, aa, it, anis, anis_v, rotmat
             # Power model
             cov1 = pmx - cc[js] * (h ** aa[js])
             cova3_ = cova3_ + cov1
-    return cova3_	
-	
+    return cova3_
 
 
-	
-	
+
+
+
 def gamv_3D(
     df,
     xcol,
@@ -4556,7 +4631,7 @@ def gamv_3D(
         vario[il] = 0.5 * vario[il]
 
     return dis, vario, npp
-	
+
 def cova(x, y, z, vr, xlag, xltol, nlag, azm, dip, atol, dtol, bandwh):
     """Calculate the variogram by looping over combinatorial of data pairs.
     :param x: x values
@@ -4604,12 +4679,12 @@ def cova(x, y, z, vr, xlag, xltol, nlag, azm, dip, atol, dtol, bandwh):
         csatol = math.cos(45.0 * math.pi / 180.0)
     else:
         csatol = math.cos(atol * math.pi / 180.0)
-    
+
     if dtol <= 0.0:
         csdtol = math.cos(30.0 * math.pi / 180.0)
     else:
         csdtol = math.cos(dtol * math.pi / 180.0)
-		
+
     # Initialize the arrays for each direction, variogram, and lag
     nsiz = nlag + 2  # TODO: not used
     dismxs = ((float(nlag) + 0.5 - EPSLON) * xlag) ** 2
@@ -4617,7 +4692,7 @@ def cova(x, y, z, vr, xlag, xltol, nlag, azm, dip, atol, dtol, bandwh):
     # Main loop over all pairs
     for i in range(0, nd):
         for j in range(0, nd):
-            
+
             # Definition of the lag corresponding to the current pair
             dx = x[j] - x[i]
             dy = y[j] - y[i]
@@ -4664,8 +4739,8 @@ def cova(x, y, z, vr, xlag, xltol, nlag, azm, dip, atol, dtol, bandwh):
                     if dxyz < EPSLON:
                         dcdip = 1.0
                     else:
-                        dcdip = (dx * uvxazm + dy * uvyazm + dz * uvzdip) / dxyz                    
-                    
+                        dcdip = (dx * uvxazm + dy * uvyazm + dz * uvzdip) / dxyz
+
                     # Check the horizontal bandwidth criteria (maximum deviation
                     # perpendicular to the specified direction azimuth)
                     band = np.cross([dx,dy,dz], [uvxazm, uvyazm, uvzdip])
