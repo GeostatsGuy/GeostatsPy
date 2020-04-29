@@ -507,7 +507,7 @@ def cova2(x1, y1, x2, y2, nst, c0, pmx, cc, aa, it, ang, anis, rotmat, maxcov):
             # Spherical model
             hr = h / aa[js]
             if hr < 1.0:
-                cova2_ = cova2_ + cc[js] * (1.0 - hr * (1.5 - 0.5 * hr * hr))
+                (cova2)_ = cova2_ + cc[js] * (1.0 - hr * (1.5 - 0.5 * hr * hr))
         elif it[js] == 2:
             # Exponential model
             cova2_ = cova2_ + cc[js] * np.exp(-3.0 * h / aa[js])
@@ -4464,23 +4464,52 @@ def cova3(x1, y1, z1, x2, y2, z2, nst, c0, pmx, cc, aa, it, anis, anis_v, rotmat
     """Calculate the covariance associated with a variogram model specified by a
     nugget effect and nested variogram structures.
     :param x1: x coordinate of first point
+    :type x1: float
     :param y1: y coordinate of first point
+    :type y1: float
     :param z1: z coordinate of first point
+    :type z1: float
     :param x2: x coordinate of second point
+    :type x2: float
     :param y2: y coordinate of second point
+    :type y2: float
     :param z2: z coordinate of second point
+    :type z2: float
     :param nst: number of nested structures (maximum of 4)
+    :type nst: int
     :param c0: isotropic nugget constant (TODO: not used)
-    :param pmx: constant 9999.0
+    :type c0: float
+    :param pmx: Maximum variogram value needed for kriging when using Power
+                model. Each nested structure that uses the power model uses a
+                unique value of PMX. Therefore, PMX needs to be large enough
+                to account for the singly largest structure that uses the Power
+                model.
+    :type pmx: float
     :param cc: multiplicative factor of each nested structure
+    :type cc: an array
     :param aa: parameter `a` of each nested structure
-    :param it: matrix
-    :param ang: TODO: not used
+    :type aa: an array
+    :param it: Type of each nested structure:
+                    1: spherical model of range `a`
+                    2: exponential model of param `a` (practical range is 3`a`)
+                    3: gaussian model of param `a` (practical range is `a`*sqrt(3))
+                    4: power model of power `a` (a must be 0 < `a` < 2). if linear
+                       model: a = 1; c = slope
+    :type it: an array
+    :param ang: Azmiuth angle for the principal direction of continuity
+                (measured clockwise in degrees from y); TODO: not used
+    :type ang: an array
     :param anis: Horizontal aspect ratio
+    :type anis: an array
 	:param anis_v: Vertical aspect ratio
+    :type anis_v: an array
     :param rotmat: rotation matrices
-    :param maxcov:isotropic nugget constant
-    :return: TODO
+    :type rotmat: an array
+    :param maxcov: maximum covariance value
+    :type maxcov: float
+    :return: returns the covariance obtained from the variagram model
+    :type return: float
+
     """
     """ Revised from Wendi Liu's code """
 
