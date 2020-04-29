@@ -1827,7 +1827,7 @@ def make_variogram_3D(
     :param hmax2: Range in major direction (Horizontal)
     :param hmed2: Range in minor direction (Horizontal)
     :param hmin2: Range in vertical direction
-    :return: TODO
+    :return: a dict containing the above variogram parameters.
     """
     if cc2 == 0:
         nst = 1
