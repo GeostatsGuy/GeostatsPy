@@ -36,8 +36,10 @@ def backtr(df,vcol,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):
     :param ltpar: lower tail extrapolation parameter
     :param utail: upper tail value
     :param utpar: upper tail extrapolation parameter
-    :return: returns the new dataframe
-    """
+    :return: backtr: the DataFrame column, which has been back transformed using
+             the provided transformation table and tail extrapolation.
+    """    
+
 
     EPSLON=1.0e-20
     nd = len(df); nt = len(vr) # number of data to transform and number of data in table
@@ -86,6 +88,7 @@ def backtr_value(vrgs,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):
     :param utail: upper tail value
     :param utpar: upper tail extrapolation parameter
     :return: returns revised array
+
     """
     EPSLON=1.0e-20
     nt = len(vr) # number of data to transform
@@ -122,7 +125,9 @@ def backtr_value(vrgs,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):
 def gcum(x):
     """Calculate the cumulative probability of the standard normal distribution.
     :param x: the value from the standard normal distribution
-    :return: TODO
+    :type x: float
+    :return: probability selected x will be less than or equal to a specific value
+    :type: float
     """
 
     z = x
@@ -144,11 +149,16 @@ def locate(xx,iis,iie,x):
     """Return value `j` such that `x` is between `xx[j]` and `xx[j+1]`, where
     `xx` is an array of length `n`, and `x` is a given value. `xx` must be
     monotonic, either increasing or decreasing (GSLIB version).
-    :param xx: array
+    :param xx: monotonic array to be searched
+    :type: array
     :param iis: start point
+    :type: integer
     :param iie: end point
+    :type: integer
     :param x: given value
-    :return: value between xx[j] and xx[j+1]
+    :type: integer
+    :return: location (index) in array
+    :type: int
     """
 
     n = len(xx)
@@ -272,7 +282,9 @@ def gauinv(p):
     """Compute the inverse of the standard normal cumulative distribution
     function.
     :param p: cumulative probability value
-    :return: TODO
+    :type: float
+    :return: inverse of the normal cdf, evaluated at probability p
+    :type: float
     """
     lim = 1.0e-10
     p0 = -0.322_232_431_088
@@ -318,8 +330,10 @@ def gcum(x):
     """Evaluate the standard normal cdf given a normal deviate `x`. `gcum` is
     the area under a unit normal curve to the left of `x`. The results are
     accurate only to about 5 decimal places.
-    :param x: TODO
-    :return: TODO
+    :param x: normal deviate
+    :type: float
+    :return: proportion of area left of x
+    :type: float
     """
     z = x
     if z < 0:
@@ -422,23 +436,55 @@ def setup_rotmat(c0, nst, it, cc, ang, pmx):
 
 @jit(nopython=True)
 def cova2(x1, y1, x2, y2, nst, c0, pmx, cc, aa, it, ang, anis, rotmat, maxcov):
-    """Calculate the covariance associated with a variogram model specified by a
-    nugget effect and nested variogram structures.
+    """Calculate the covariance associated with a variogram model specified by
+    a nugget effect and nested variogram structures.
     :param x1: x coordinate of first point
+    :type x1: float
     :param y1: y coordinate of first point
+    :type y1: float
     :param x2: x coordinate of second point
+    :type x2: float
     :param y2: y coordinate of second point
+    :type y2: float
     :param nst: number of nested structures (maximum of 4)
+    :type nst: int
     :param c0: isotropic nugget constant (TODO: not used)
-    :param pmx: TODO
+    :type c0: float
+    :param pmx: Maximum variogram value needed for kriging when using power
+                model. pmx is a unique value used for all nested structures
+                that use the power model, so pmx should be chosen to account
+                for the largest structure that uses the power model.
+    :type pmx: float
     :param cc: multiplicative factor of each nested structure
+    :type cc: array
     :param aa: parameter `a` of each nested structure
-    :param it: TODO
-    :param ang: TODO: not used
-    :param anis: TODO
+    :type aa: array
+    :param it: Integer value indicating type of variogram model
+             for values 0,1,2,..., nst
+             it[value] == 1: Spherical model 
+                 (aa[value] == `a` is the range, cc[value] is the contribution)
+             it[value] == 2: Exponential model 
+                 (aa[value] == `a`, 3a is the practical range, 
+                 cc[value] is the contribution)
+             it[value] == 3: Gaussian model 
+                 (aa[value] == `a`, a*sqrt(3)  is the practical range), 
+                 cc[value] is the contribution)
+             it[value] == 4: Power model 
+                 (aa[value] == `a` is the power such that 0 < a < 2,
+                 if linear, then a == 1, and cc[value] is the slope)
+    :type it: array
+    :param ang: azimuth angle measured in degrees clockwise from positive 
+                y-diretion for each variogram structure: not used
+                (accounted for in anis)
+    :type ang: array
+    :param anis: Anistropy factors that apply after rotations
+    :type anis: array
     :param rotmat: rotation matrices
-    :param maxcov: isotropic nugget constant (c0)
-    :return: TODO
+    :type rotmat: array
+    :param maxcov: maximum covariance value
+    :type maxcov: float
+    :return: covariance of a nested variogram model described by the inputs
+    :type return: float
     """
     EPSLON = 0.000001
 

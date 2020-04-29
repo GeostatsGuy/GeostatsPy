@@ -248,7 +248,7 @@ def locmap(
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: TODO
+    :param vlabel: label for colorbar
     :param cmap: colormap
     :param fig_name: figure name
     :return: PathCollection
@@ -316,7 +316,7 @@ def locmap_st(
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: TODO
+    :param vlabel: label for colorbar
     :param cmap: colormap
     :return: PathCollection
     """
@@ -377,7 +377,7 @@ def pixelplt(
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: TODO
+    :param vlabel: label for colorbar
     :param cmap: colormap
     :param fig_name: figure name
     :return: QuadContourSet
@@ -431,12 +431,12 @@ def pixelplt_st(
     :param ymin: y axis minimum
     :param ymax: y axis maximum
     :param step: step
-    :param vmin: TODO
-    :param vmax: TODO
+    :param vmin: normalize luminance data
+    :param vmax: normalize luminance data
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: TODO
+    :param vlabel: label for colorbar
     :param cmap: colormap
     :return: QuadContourSet
     """
@@ -506,12 +506,12 @@ def pixelplt_log_st(
     :param ymin: y axis minimum
     :param ymax: y axis maximum
     :param step: step
-    :param vmin: TODO
-    :param vmax: TODO
+    :param vmin: normalize luminance data
+    :param vmax: normalize luminance data
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: TODO
+    :param vlabel: label for colorbar
     :param cmap: colormap
     :return: QuadContourSet
     """
@@ -589,8 +589,8 @@ def locpix(
     :param ymin: y axis minimum
     :param ymax: y axis maximum
     :param step: step
-    :param vmin: TODO
-    :param vmax: TODO
+    :param vmin: normalize luminance data
+    :param vmax: normalize luminance data
     :param df: dataframe
     :param xcol: data for x axis
     :param ycol: data for y axis
@@ -598,7 +598,7 @@ def locpix(
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: TODO
+    :param vlabel: label for colorbar
     :param cmap: colormap
     :param fig_name: figure name
     :return: QuadContourSet
@@ -671,8 +671,8 @@ def locpix_st(
     :param ymin: y axis minimum
     :param ymax: y axis maximum
     :param step: step
-    :param vmin: TODO
-    :param vmax: TODO
+    :param vmin: normalize luminance data
+    :param vmax: normalize luminance data
     :param df: dataframe
     :param xcol: data for x axis
     :param ycol: data for y axis
@@ -680,7 +680,7 @@ def locpix_st(
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: TODO
+    :param vlabel: label for colorbar
     :param cmap: colormap
     :return: QuadContourSet
     """
@@ -749,8 +749,8 @@ def locpix_log_st(
     :param ymin: y axis minimum
     :param ymax: y axis maximum
     :param step: step
-    :param vmin: TODO
-    :param vmax: TODO
+    :param vmin: normalize luminance data
+    :param vmax: normalize luminance data
     :param df: dataframe
     :param xcol: data for x axis
     :param ycol: data for y axis
@@ -758,7 +758,7 @@ def locpix_log_st(
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: TODO
+    :param vlabel: label for colorbar
     :param cmap: colormap
     :return: QuadContourSet
     """
@@ -808,8 +808,8 @@ def affine(array, tmean, tstdev):
     methods.
 
     :param array: ndarray
-    :param tmean: TODO
-    :param tstdev: TODO
+    :param tmean: adjusted standared deviation 
+    :param tstdev: adjusted mean
     :return: ndarray
     """
     mean = np.average(array)
@@ -865,19 +865,19 @@ def make_variogram(
     """Make a dictionary of variogram parameters for application with spatial
     estimation and simulation.
 
-    :param nug: TODO
-    :param nst: TODO
-    :param it1: TODO
-    :param cc1: TODO
-    :param azi1: TODO
-    :param hmaj1: TODO
-    :param hmin1: TODO
-    :param it2: TODO
-    :param cc2: TODO
-    :param azi2: TODO
-    :param hmaj2: TODO
-    :param hmin2: TODO
-    :return: TODO
+    :param nug: the nugget value for this particular variogram 
+    :param nst: whether a normal score transformation is used on this variogram
+    :param it1: internal trend of the variogram 
+    :param cc1: covariance contribution of the variable  
+    :param azi1: azimuth, in degrees, used in this particular variogram
+    :param hmaj1: maximum lag distance measured in this variogram
+    :param hmin1: minimum lag distance measured in this variogram
+    :param it2: (optional, default = 0) internal trend of second variable of variogram
+    :param cc2: (optional, default = 0) covariance contribution of this variable
+    :param azi2: (optional, default = 0) azimuth, in degrees, used for this variable 
+    :param hmaj2: (optional, default = 0) maximum lag distance used for this variable
+    :param hmin2: (optional, default = 0) minimum lag distance used for this variable
+    :return: a dicitonary with all input values mapped to by variable name
     """
     if cc2 == 0:
         nst = 1
@@ -1670,18 +1670,30 @@ def gkern(kernlen=21, std=3):
 def regular_sample(array, xmin, xmax, ymin, ymax, step, mx, my, nx, ny, name):
     """Extract regular spaced samples from a 2D spatial model.
 
-    :param array: ndarray
-    :param xmin: TODO
-    :param xmax: TODO
-    :param ymin: TODO
-    :param ymax: TODO
-    :param step: TODO
-    :param mx: TODO
-    :param my: TODO
-    :param nx: TODO
-    :param ny: TODO
-    :param name: TODO
-    :return: dataframe
+    :param array: array containing data that is to be fit to a coordinate system
+    :type array:  nparray
+    :param xmin:  lowest x coordinate (inclusive) for the new coordinate system
+    :type xmin:   float
+    :param xmax:  largest x coordinate (noninclusive) for the new coordinate system
+    :type xmax:   float
+    :param ymin:  lowest y coordinate (noninclusive) for the new coordinate system
+    :type ymin:   float
+    :param ymax:  largest y coordinate (inclusive) for the new coordinate system
+    :type ymax:   float
+    :param step:  spacing between coordinates in the new coordinate system
+    :type step:   float
+    :param mx:    x coordinate for where to start extracting data from array
+    :type mx:     float
+    :param my:    y coordinate for where to start extracting data from array
+    :type my:     float
+    :param nx:    x coordinate for where to stop extracting data from array
+    :type nx:     float
+    :param ny:    y coordinate for where to stop extracting data from array
+    :type ny:     float
+    :param name:  name of the new column containing the data extracted from array
+    :type name:   string
+    :return:      new coordinate system with corresponding data from Array
+    :type return: dataframe
     """
     x = []
     y = []
@@ -1710,15 +1722,24 @@ def regular_sample(array, xmin, xmax, ymin, ymax, step, mx, my, nx, ny, name):
 def random_sample(array, xmin, xmax, ymin, ymax, step, nsamp, name):
     """Extract random samples from a 2D spatial model.
 
-    :param array: ndarray
-    :param xmin: TODO
-    :param xmax: TODO
-    :param ymin: TODO
-    :param ymax: TODO
-    :param step: TODO
-    :param nsamp: TODO
-    :param name: TODO
-    :return: dataframe
+    :param array: array where the data is to be extracted from
+    :type array:  nparray
+    :param xmin:  lowest x coordinate in the new coordinate system
+    :type xmin:   float
+    :param xmax:  largest x coordinate in the new coordinate system
+    :type xmax:   float
+    :param ymin:  lowest y coordinate in the new coordinate system
+    :type ymin:   float
+    :param ymax:  largest y coordinate in the new coordinate system
+    :type ymax:   float
+    :param step:  spacing between coordinates in the new coordinate system
+    :type step:   float
+    :param nsamp: number of elements to extract from array
+    :type nsamp:  float
+    :param name:  name of the new column containing the data extracted from array
+    :type name:   float
+    :return:      new coordinate system with corresponding data from Array
+    :type return: dataframe
     """
     x = []
     y = []
@@ -1769,7 +1790,6 @@ def DataFrame2ndarray(df, xcol, ycol, vcol, xmin, xmax, ymin, ymax, step):
         array[iy, ix] = df.iloc[isamp][vcol]
     return array
 
-
 def make_variogram_3D(
     nug,
     nst,
@@ -1807,7 +1827,7 @@ def make_variogram_3D(
     :param hmax2: Range in major direction (Horizontal)
     :param hmed2: Range in minor direction (Horizontal)
     :param hmin2: Range in vertical direction
-    :return: TODO
+    :return: a dict containing the above variogram parameters.
     """
     if cc2 == 0:
         nst = 1
@@ -1996,3 +2016,4 @@ def GSLIB2ndarray_3D(data_file, kcol,nreal, nx, ny, nz):
                     head = next(f)
                     array[ineal][ix] = head.split()[kcol]
     return array, col_name
+
