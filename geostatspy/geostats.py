@@ -2409,7 +2409,32 @@ def kt3d (
                                 a[j][i] = cova3(xa[i],ya[i],za[i],xa[j],ya[j],za[j],nst,c0,PMX,cc,aa,it,ang_azi,anis,rotmat,maxcov) 
                             r[j] = cova3(xloc,yloc,zloc,xa[j],ya[j],za[j],nst,c0,PMX,cc,aa,it,ang_azi,anis,rotmat,maxcov) 
 
+# Write a warning if the matrix is singular:
+                        if ising != 0:
+                            print('WARNING KT3D: singular matrix')
+                            print('              for block' + str(ix) + ',' + str(iy) + ',' + str(iz))
+                            est  = UNEST
+                            estv = UNEST
+                        else:
 
+# Compute the estimate and the kriging variance:
+                            est  = 0.0
+                            estv = cbb
+                            sumw = 0.0
+                            if ktype == 1: 
+                                estv = estv - (s[na])*unbias
+                            for i in range(0,na):                          
+                                sumw = sumw + s[i]
+                                est  = est  + s[i]*vra[i]
+                                estv = estv - s[i]*rr[i]
+                            if ktype == 0: 
+                                est = est + (1.0-sumw)*skmean
+                kmap[nz-iz-1, ny-iy-1,ix] = est
+                vmap[nz-iz-1, ny-iy-1,ix] = estv
+                if est > UNEST:
+                    nk = nk + 1
+                    ak = ak + est
+                    vk = vk + est*est
 # TODO Set up kriging matrices:
 
     return kmap, vmap   
