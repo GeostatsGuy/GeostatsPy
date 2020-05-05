@@ -2245,10 +2245,10 @@ def kt3d (
     vra = np.zeros(MAXSAM)
     dist = np.zeros(MAXSAM)
     nums = np.zeros(MAXSAM)
-    r = np.zeros(MAXKD)
-    rr = np.zeros(MAXKD)
-    s = np.zeros(MAXKD)
-    a = np.zeros(MAXKRG)
+    # r = np.zeros(MAXKD)
+    # rr = np.zeros(MAXKD)
+    # s = np.zeros(MAXKD)
+    # a = np.zeros(MAXKRG)
     kmap = np.zeros((nx,ny,nz))
     vmap = np.zeros((nx,ny,nz))
 
@@ -2269,12 +2269,12 @@ def kt3d (
     ya = np.zeros(MAXSAM)
     za = np.zeros(MAXSAM)
     vra = np.zeros(MAXSAM)
-    dist = np.zeros(MAXSAM)
-    nums = np.zeros(MAXSAM)
-    r = np.zeros(MAXKD)
-    rr = np.zeros(MAXKD)
-    s = np.zeros(MAXKD)
-    a = np.zeros(MAXKRG)
+    # dist = np.zeros(MAXSAM)   # these allocations shouldn't be necessary
+    # nums = np.zeros(MAXSAM)
+    # r = np.zeros(MAXKD)
+    # rr = np.zeros(MAXKD)
+    # s = np.zeros(MAXKD)
+    # a = np.zeros(MAXKRG)
     kmap = np.zeros((nx,ny,nz))
     vmap = np.zeros((nx,ny,nz)) 
 
@@ -2343,8 +2343,8 @@ def kt3d (
 
                  # Find the nearest samples within each octant: First initializ the counter arrays:
                 na = -1   # accounting for 0 as first index
-                dist.fill(1.0e+20)
-                nums.fill(-1)
+                # dist.fill(1.0e+20)
+                # nums.fill(-1)
                 dist, nums = tree.query(current_node,ndmax) # use kd tree for fast nearest data search
                 # remove any data outside search radius
                 na = len(dist)
@@ -2403,6 +2403,7 @@ def kt3d (
                         # Set up kriging matrices:
                         a = np.zeroes((na,na))
                         r = np.zeroes(na)
+                        rr = np.zeroes(na)
 
                         # Establish Left Hand Side Covariance Matrix:
 
