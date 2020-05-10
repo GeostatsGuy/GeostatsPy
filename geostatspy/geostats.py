@@ -2227,28 +2227,24 @@ def kt3d (
 ):
     UNEST = -999.
     EPSLON = 1.0e-10
-    # VERSION = 2.907
-    # first = True
     PMX = 9999.0    
     MAXSAM = ndmax + 1
     MAXDIS = nxdis * nydis * nzdis
     MAXKD = MAXSAM + 1
     MAXKRG = MAXKD * MAXKD
 
-# Allocate the needed memory:   
+# Allocate the needed memory:  
+    
+    # used for block kriging displacements
     xdb = np.zeros(MAXDIS)
     ydb = np.zeros(MAXDIS)
     zdb = np.zeros(MAXDIS)
+    # temp arrays to hold nearest neighbor search results
     xa = np.zeros(MAXSAM)
     ya = np.zeros(MAXSAM)
     za = np.zeros(MAXSAM)
     vra = np.zeros(MAXSAM)
-    dist = np.zeros(MAXSAM)
-    nums = np.zeros(MAXSAM)
-    # r = np.zeros(MAXKD)
-    # rr = np.zeros(MAXKD)
-    # s = np.zeros(MAXKD)
-    # a = np.zeros(MAXKRG)
+    # result grid meshes for estimated values and estimation variance
     kmap = np.zeros((nx,ny,nz))
     vmap = np.zeros((nx,ny,nz))
 
@@ -2260,23 +2256,6 @@ def kt3d (
     y = df_extract[ycol].values
     z = df_extract[zcol].values
     vr = df_extract[vcol].values
-
-    # Allocate the needed memory:   
-    xdb = np.zeros(MAXDIS)
-    ydb = np.zeros(MAXDIS)
-    zdb = np.zeros(MAXDIS)
-    xa = np.zeros(MAXSAM)
-    ya = np.zeros(MAXSAM)
-    za = np.zeros(MAXSAM)
-    vra = np.zeros(MAXSAM)
-    # dist = np.zeros(MAXSAM)   # these allocations shouldn't be necessary
-    # nums = np.zeros(MAXSAM)
-    # r = np.zeros(MAXKD)
-    # rr = np.zeros(MAXKD)
-    # s = np.zeros(MAXKD)
-    # a = np.zeros(MAXKRG)
-    kmap = np.zeros((nx,ny,nz))
-    vmap = np.zeros((nx,ny,nz)) 
 
 # set up tree for nearest neighbor search
     dp = list((z[i], y[i], x[i]) for i in range(0,nd))
@@ -2340,11 +2319,8 @@ def kt3d (
                 xloc = xmn + (ix-0)*xsiz
                 current_node = (zloc, yloc,xloc) # xloc, yloc, zloc centroid of current cell
 
-
-                 # Find the nearest samples within each octant: First initializ the counter arrays:
+                # Find the nearest samples within each octant:
                 na = -1   # accounting for 0 as first index
-                # dist.fill(1.0e+20)
-                # nums.fill(-1)
                 dist, nums = tree.query(current_node,ndmax) # use kd tree for fast nearest data search
                 # remove any data outside search radius
                 na = len(dist)
@@ -2356,6 +2332,7 @@ def kt3d (
                 if na + 1 < ndmin:   # accounting for min index of 0
                     est  = UNEST
                     estv = UNEST
+                    # not enough samples, mark as "unestimated"
                     print('UNEST at ' + str(ix) + ',' + str(iy) + ','+str(iz)) 
                 else:
                     # Put coordinates and values of neighborhood samples into xa,ya,za,vra:
@@ -2364,7 +2341,7 @@ def kt3d (
                         xa[ia]  = x[jj] #why this error?
                         ya[ia]  = y[jj]
                         za[ia]  = z[jj]
-                        vra[ia] = vr[jj] #what is vra??
+                        vra[ia] = vr[jj]
                     
                     # Handle the situation of only one sample:
                     if na == 0:  # accounting for min index of 0 - one sample case na = 0
@@ -2375,25 +2352,15 @@ def kt3d (
                         zz  = za[0] - zloc
 
                     # Establish Right Hand Side Covariance:
-                        if ndb <= 1:
-                            cb = cova3(xx,yy,zz,xdb[0],ydb[0],zdb[i],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
-                        else:    
-                            cb  = 0.0
-                            for i in range(0,ndb):                  
-                                cb = cb + cova3(xx,yy,zz,xdb[i],ydb[i],zdb[i],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
-                                dx = xx - xdb(i)
-                                dy = yy - ydb(i)
-                                dz = zz - zdb(i)
-                                if (dx*dx+dy*dy+dz*dz) < EPSLON:
-                                    cb = cb - c0
-                                cb = cb / real(ndb)
+                        cb = cova3(xx,yy,zz,xdb[0],ydb[0],zdb[i],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
+                        
                         if ktype == 0:
                             s[0] = cb/cbb
                             est  = s[0]*vra[0] + (1.0-s[0])*skmean
                             estv = cbb - s[0] * cb
-                        else:
-                            est  = vra[0]
-                            estv = cbb - 2.0*cb + cb1
+                        # else:
+                        #     est  = vra[0]
+                        #     estv = cbb - 2.0*cb + cb1
                     else:
                     # Solve the Kriging System with more than one sample:
                         neq = na + ktype # accounting for first index of 0
@@ -2408,10 +2375,13 @@ def kt3d (
                         # Establish Left Hand Side Covariance Matrix:
 
                         for j in range(0,na):
-                            for i in range(0,na): #loops through and adds covariances into matrix
+                            for i in range(0,na): 
+                                # add covariance into left-hand square matrix
                                 a[j][i] = cova3(xa[i],ya[i],za[i],xa[j],ya[j],za[j],nst,c0,PMX,cc,aa,it,ang_azi,anis,rotmat,maxcov) 
+                            # add covariance into right-hand column matrix
                             r[j] = cova3(xloc,yloc,zloc,xa[j],ya[j],za[j],nst,c0,PMX,cc,aa,it,ang_azi,anis,rotmat,maxcov) 
 
+                        # solve the kriging system
                         s = ksol_numpy(neq,a,r)
                         ising = 0
 
@@ -2421,7 +2391,6 @@ def kt3d (
                             est  = UNEST
                             estv = UNEST
                         else:
-
                     # Compute the estimate and the kriging variance:
                             est  = 0.0
                             estv = cbb
@@ -2434,7 +2403,7 @@ def kt3d (
                                 estv = estv - s[i]*rr[i]
                             if ktype == 0: 
                                 est = est + (1.0-sumw)*skmean
-                # add estimation variance and estimated value to map
+                # add estimation variance and estimated value to maps
                 kmap[nz-iz-1, ny-iy-1,ix] = est
                 vmap[nz-iz-1, ny-iy-1,ix] = estv
                 if est > UNEST:
