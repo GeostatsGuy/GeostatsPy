@@ -5,7 +5,7 @@
 
 [![Documentation Status](https://readthedocs.org/projects/geostatspy/badge/?version=latest)](https://geostatspy.readthedocs.io/en/latest/?badge=latest)
 
-WARNING: use Python $\le$ 3.8. GeostatsPy depends on [numba](https://github.com/numba/numba) for optimizing compiler for efficient calculations. Numba is currently not compatible with Python $\ge$ 3.9. 
+WARNING: use Python < 3.9. GeostatsPy depends on [numba](https://github.com/numba/numba) for optimizing compiler for efficient calculations. Numba is currently not compatible with Python  3.9. 
 
 # GeostatsPy Package 
 
