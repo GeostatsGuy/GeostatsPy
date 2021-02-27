@@ -5,6 +5,8 @@
 
 [![Documentation Status](https://readthedocs.org/projects/geostatspy/badge/?version=latest)](https://geostatspy.readthedocs.io/en/latest/?badge=latest)
 
+WARNING: use Python $\le$ 3.8. GeostatsPy depends on [numba](https://github.com/numba/numba) for optimizing compiler for efficient calculations. Numba is currently not compatible with Python $\ge$ 3.9. 
+
 # GeostatsPy Package 
 
 The GeostatsPy Package brings GSLIB: Geostatistical Library (Deutsch and Journel, 1998) functions to Python. GSLIB is a practical and extremely robust set of code for building spatial modeling workflows. 
