@@ -2017,3 +2017,104 @@ def GSLIB2ndarray_3D(data_file, kcol,nreal, nx, ny, nz):
                     array[ineal][ix] = head.split()[kcol]
     return array, col_name
 
+
+def kt3d(df, xcol, ycol, zcol, vcol, nx, ny, nz, hsiz, vsiz, var, krig_type,
+         output_file, skmean=None):
+    """
+    Kriging estimation, 3D wrapper for kt3d from GSLIB (.exe must be
+    available in PATH or working directory).
+    :param df: DataFrame
+    :param xcol: The column for the x coordinate
+    :param ycol: The column for the Y coordinate
+    :param zcol: The column for the Z coordinate
+    :param vcol: The variable to be estimated
+    :param nx: Number of cells to simulate (x axis)
+    :param ny: Number of cells to simulate (y axis)
+    :param nz: Number of cells to simulate (z axis)
+    :param hsiz: Cell size for both x and y coordinates
+    :param vsiz: Cell size for z coordinate
+    :param var: Variogram 3D model as a dictionary
+    :param krig_type: If set to 0, simple kriging with skmean is performed. If set to 1, then ordinary kriging
+    is performed.
+    :param output_file: output file
+    :param skmean: The mean used for simple kriging (if krig_type=0). If not specified, the mean of vcol is used
+    :return: Two 3D numpy arrays for the kriging estimate and the kriging variance
+    """
+    x = df[xcol]
+    y = df[ycol]
+    z = df[zcol]
+    v = df[vcol]
+    df_temp = pd.DataFrame({"X": x, "Y": y, "Z": z, "Var": v})
+    Dataframe2GSLIB("data_temp.dat", df_temp)
+
+    nug = var.get("nug")
+    nst = var.get("nst")
+    it1 = var.get("it1")
+    cc1 = var.get("cc1")
+    azi1 = var.get("azi1")
+    dip1 = var.get("dip1")
+    hmax1 = var.get("hmax1")
+    hmed1 = var.get("hmed1")
+    hmin1 = var.get("hmin1")
+    it2 = var.get("it2")
+    cc2 = var.get("cc2")
+    azi2 = var.get("azi2")
+    dip2 = var.get("dip2")
+    hmax2 = var.get("hmax2")
+    hmed2 = var.get("hmed2")
+    hmin2 = var.get("hmin2")
+    max_range = max(hmax1, hmax2)
+    max_range_v = max(hmin1, hmin2) * 10
+    hmn = hsiz * 0.5
+    zmn = vsiz * 0.5
+    if skmean is None:
+        skmean = v.mean()
+    else:
+        pass
+
+    with open("kt3d.par", "w") as f:
+        f.write("              Parameters for KT3D                                          \n")
+        f.write("              *******************                                          \n")
+        f.write("                                                                           \n")
+        f.write("START OF PARAMETERS:                                                       \n")
+        f.write("data_temp.dat                         -file with data                      \n")
+        f.write("0 1  2  3  4  0                         -  columns for X,Y,Z,vr            \n")
+        f.write(
+            "-1.0e21   1.0e21                      -   trimming limits                  \n")
+        f.write("0                                     - 0=grid, 1=cross, 2=jackknife       \n")
+        f.write("none.dat                              -jack                                \n")
+        f.write("1   2   3    4    0                   -file for jack                       \n")
+        f.write("0                                     -debugging level: 0,1,2,3            \n")
+        f.write("kt3d.dbg                              -file for debugging output           \n")
+        f.write(str(output_file) + "                   -file for kriged output              \n")
+        f.write(
+            str(nx) + " " + str(hmn) + " " + str(hsiz) + "                              \n")
+        f.write(
+            str(ny) + " " + str(hmn) + " " + str(hsiz) + "                              \n")
+        f.write(
+            str(nz) + " " + str(zmn) + " " + str(vsiz) + "                              \n")
+        f.write("1    1    1                           -x and y block discretization        \n")
+        f.write(
+            "1    30                               -min and max data for kriging        \n")
+        f.write("0                                     -max number data form an octant      \n")
+        f.write(
+            str(max_range) + " " + str(max_range) + " " + str(
+                max_range_v) + " -maximum search  (hmax,hmin,vert) \n")
+        f.write(str(azi1) + "   0.0   0.0              -angles for search ellipsoid         \n")  #
+        f.write(str(krig_type) + " " + str(skmean) + " -iseccol                             \n")
+        f.write("0 0 0 0 0 0 0 0 0                     -idrif                               \n")
+        f.write("0                                     -itrend                              \n")
+        f.write("none.dat                              -secfl                               \n")
+        f.write("0                                     -iseccol                             \n")
+        f.write(str(nst) + " " + str(nug) + "  -nst, nugget effect                          \n")
+        f.write(str(it1) + " " + str(cc1) + " " + str(azi1) + "  " + str(dip1) + " 0.0 -it,cc,ang1,ang2,ang3\n")
+        f.write(" " + str(hmax1) + "    " + str(hmed1) + "    " + str(
+            hmin1) + "  - a_hmax, a_hmin, a_vert        \n")
+        f.write(str(it2) + " " + str(cc2) + "   " + str(azi2) + "       " + str(
+            dip2) + " 0.0 -it,cc,ang1,ang2,ang3\n")
+        f.write(" " + str(hmax2) + " " + str(hmed2) + " " + str(hmin2) + " - a_hmax, a_hmin, a_vert        \n")
+
+    os.system("kt3d.exe kt3d.par")
+    est_array = GSLIB2ndarray_3D(output_file, 0, 1, nx, ny, nz)
+    var_array = GSLIB2ndarray_3D(output_file, 1, 1, nx, ny, nz)
+    return est_array[0][0, :, :, :], var_array[0][0, :, :, :]
