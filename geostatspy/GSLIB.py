@@ -1543,8 +1543,8 @@ def sgsim(nreal, df, xcol, ycol, vcol, nx, ny, hsiz, seed, var, output_file):
         f.write(" " + str(hmaj2) + " " + str(hmin2) + " 1.0 - a_hmax, a_hmin, a_vert        \n")
 
     os.system("sgsim.exe sgsim.par")
-    sim_array = GSLIB2ndarray(output_file, 0, nx, ny)
-    return sim_array[0]
+    sim_array = GSLIB2ndarray(output_file, 0, nx, ny*nreal)[0].reshape(nreal, ny, nx)
+    return sim_array
 
 
 def cosgsim_uncond(nreal, nx, ny, hsiz, seed, var, sec, correl, output_file):
