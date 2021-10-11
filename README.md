@@ -5,7 +5,9 @@
 
 [![Documentation Status](https://readthedocs.org/projects/geostatspy/badge/?version=latest)](https://geostatspy.readthedocs.io/en/latest/?badge=latest)
 
-WARNING: use Python < 3.9. GeostatsPy depends on [numba](https://github.com/numba/numba) for optimizing compiler for efficient calculations. Numba is currently not compatible with Python  3.9. 
+# Citate As:
+
+Pyrcz, M.J., Jo. H., Kupenko, A., Liu, W., Gigliotti, A.E., Salomaki, T., and Santos, J., 2021, GeostatsPy Python Package, PyPI, Python Package Index, https://pypi.org/project/geostatspy/.
 
 # GeostatsPy Package 
 
