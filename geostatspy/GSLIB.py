@@ -68,7 +68,7 @@ def GSLIB2ndarray(data_file, kcol, nx, ny):
     Python methods
 
     :param data_file: file name
-    :param kcol: name of column which contains property
+    :param kcol: TODO
     :param nx: shape along x dimension
     :param ny: shape along y dimension
     :return: ndarray, column name
@@ -248,7 +248,7 @@ def locmap(
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: label for colorbar
+    :param vlabel: TODO
     :param cmap: colormap
     :param fig_name: figure name
     :return: PathCollection
@@ -266,7 +266,6 @@ def locmap(
         vmax=vmax,
         alpha=0.8,
         linewidths=0.8,
-        verts=None,
         edgecolors="black",
     )
     plt.title(title)
@@ -316,7 +315,7 @@ def locmap_st(
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: label for colorbar
+    :param vlabel: TODO
     :param cmap: colormap
     :return: PathCollection
     """
@@ -332,7 +331,6 @@ def locmap_st(
         vmax=vmax,
         alpha=0.8,
         linewidths=0.8,
-        verts=None,
         edgecolors="black",
     )
     plt.title(title)
@@ -372,12 +370,12 @@ def pixelplt(
     :param ymin: y axis minimum
     :param ymax: y axis maximum
     :param step: step
-    :param vmin: normalize luminance data
-    :param vmax: normalize luminance data
+    :param vmin: TODO
+    :param vmax: TODO
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: label for colorbar
+    :param vlabel: TODO
     :param cmap: colormap
     :param fig_name: figure name
     :return: QuadContourSet
@@ -386,15 +384,16 @@ def pixelplt(
         np.arange(xmin, xmax, step), np.arange(ymax, ymin, -1 * step)
     )
     plt.figure(figsize=(8, 6))
-    im = plt.contourf(
-        xx,
-        yy,
-        array,
-        cmap=cmap,
-        vmin=vmin,
-        vmax=vmax,
-        levels=np.linspace(vmin, vmax, 100),
-    )
+    # im = plt.contourf(
+    #    xx,
+    #    yy,
+    #    array,
+    #    cmap=cmap,
+    #    vmin=vmin,
+    #    vmax=vmax,
+    #    levels=np.linspace(vmin, vmax, 100),
+    #)
+    im = plt.imshow(array,interpolation = None,extent = [xmin,xmax,ymin,ymax], vmin = vmin, vmax = vmax,cmap = cmap)
     plt.title(title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
@@ -431,12 +430,12 @@ def pixelplt_st(
     :param ymin: y axis minimum
     :param ymax: y axis maximum
     :param step: step
-    :param vmin: normalize luminance data
-    :param vmax: normalize luminance data
+    :param vmin: TODO
+    :param vmax: TODO
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: label for colorbar
+    :param vlabel: TODO
     :param cmap: colormap
     :return: QuadContourSet
     """
@@ -450,15 +449,16 @@ def pixelplt_st(
     y = []
     v = []
 
-    cs = plt.contourf(
-        xx,
-        yy,
-        array,
-        cmap=cmap,
-        vmin=vmin,
-        vmax=vmax,
-        levels=np.linspace(vmin, vmax, 100),
-    )
+    #cs = plt.contourf(
+    #    xx,
+    #    yy,
+    #    array,
+    #    cmap=cmap,
+    #    vmin=vmin,
+    #    vmax=vmax,
+    #    levels=np.linspace(vmin, vmax, 100),
+    #)
+    cs = plt.imshow(array,interpolation = None,extent = [xmin,xmax,ymin,ymax], vmin = vmin, vmax = vmax,cmap = cmap)
     im = plt.scatter(
         x,
         y,
@@ -470,7 +470,6 @@ def pixelplt_st(
         vmax=vmax,
         alpha=0.8,
         linewidths=0.8,
-        verts=None,
         edgecolors="black",
     )
     plt.title(title)
@@ -506,12 +505,12 @@ def pixelplt_log_st(
     :param ymin: y axis minimum
     :param ymax: y axis maximum
     :param step: step
-    :param vmin: normalize luminance data
-    :param vmax: normalize luminance data
+    :param vmin: TODO
+    :param vmax: TODO
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: label for colorbar
+    :param vlabel: TODO
     :param cmap: colormap
     :return: QuadContourSet
     """
@@ -548,7 +547,6 @@ def pixelplt_log_st(
         vmax=vmax,
         alpha=0.8,
         linewidths=0.8,
-        verts=None,
         edgecolors="black",
         norm=matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax),
     )
@@ -589,8 +587,8 @@ def locpix(
     :param ymin: y axis minimum
     :param ymax: y axis maximum
     :param step: step
-    :param vmin: normalize luminance data
-    :param vmax: normalize luminance data
+    :param vmin: TODO
+    :param vmax: TODO
     :param df: dataframe
     :param xcol: data for x axis
     :param ycol: data for y axis
@@ -598,7 +596,7 @@ def locpix(
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: label for colorbar
+    :param vlabel: TODO
     :param cmap: colormap
     :param fig_name: figure name
     :return: QuadContourSet
@@ -608,15 +606,16 @@ def locpix(
     )
 
     plt.figure(figsize=(8, 6))
-    cs = plt.contourf(
-        xx,
-        yy,
-        array,
-        cmap=cmap,
-        vmin=vmin,
-        vmax=vmax,
-        levels=np.linspace(vmin, vmax, 100),
-    )
+    #cs = plt.contourf(
+    #    xx,
+    #    yy,
+    #    array,
+    #    cmap=cmap,
+    #    vmin=vmin,
+    #    vmax=vmax,
+    #    levels=np.linspace(vmin, vmax, 100),
+    #)
+    cs = plt.imshow(array,interpolation = None,extent = [xmin,xmax,ymin,ymax], vmin = vmin, vmax = vmax,cmap = cmap)
     plt.scatter(
         df[xcol],
         df[ycol],
@@ -628,7 +627,6 @@ def locpix(
         vmax=vmax,
         alpha=0.8,
         linewidths=0.8,
-        verts=None,
         edgecolors="black",
     )
     plt.title(title)
@@ -671,8 +669,8 @@ def locpix_st(
     :param ymin: y axis minimum
     :param ymax: y axis maximum
     :param step: step
-    :param vmin: normalize luminance data
-    :param vmax: normalize luminance data
+    :param vmin: TODO
+    :param vmax: TODO
     :param df: dataframe
     :param xcol: data for x axis
     :param ycol: data for y axis
@@ -680,7 +678,7 @@ def locpix_st(
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: label for colorbar
+    :param vlabel: TODO
     :param cmap: colormap
     :return: QuadContourSet
     """
@@ -688,15 +686,16 @@ def locpix_st(
         np.arange(xmin, xmax, step), np.arange(ymax, ymin, -1 * step)
     )
 
-    cs = plt.contourf(
-        xx,
-        yy,
-        array,
-        cmap=cmap,
-        vmin=vmin,
-        vmax=vmax,
-        levels=np.linspace(vmin, vmax, 100),
-    )
+    #cs = plt.contourf(
+    #    xx,
+    #    yy,
+    #    array,
+    #    cmap=cmap,
+    #    vmin=vmin,
+    #    vmax=vmax,
+    #    levels=np.linspace(vmin, vmax, 100),
+    #)
+    cs = plt.imshow(array,interpolation = None,extent = [xmin,xmax,ymin,ymax], vmin = vmin, vmax = vmax,cmap = cmap)
     plt.scatter(
         df[xcol],
         df[ycol],
@@ -708,7 +707,6 @@ def locpix_st(
         vmax=vmax,
         alpha=0.8,
         linewidths=0.8,
-        verts=None,
         edgecolors="black",
     )
     plt.title(title)
@@ -749,8 +747,8 @@ def locpix_log_st(
     :param ymin: y axis minimum
     :param ymax: y axis maximum
     :param step: step
-    :param vmin: normalize luminance data
-    :param vmax: normalize luminance data
+    :param vmin: TODO
+    :param vmax: TODO
     :param df: dataframe
     :param xcol: data for x axis
     :param ycol: data for y axis
@@ -758,7 +756,7 @@ def locpix_log_st(
     :param title: title
     :param xlabel: label for x axis
     :param ylabel: label for y axis
-    :param vlabel: label for colorbar
+    :param vlabel: TODO
     :param cmap: colormap
     :return: QuadContourSet
     """
@@ -789,7 +787,6 @@ def locpix_log_st(
         vmax=vmax,
         alpha=0.8,
         linewidths=0.8,
-        verts=None,
         edgecolors="black",
         norm=matplotlib.colors.LogNorm(vmin=vmin, vmax=vmax),
     )
@@ -808,8 +805,8 @@ def affine(array, tmean, tstdev):
     methods.
 
     :param array: ndarray
-    :param tmean: adjusted standared deviation 
-    :param tstdev: adjusted mean
+    :param tmean: TODO
+    :param tstdev: TODO
     :return: ndarray
     """
     mean = np.average(array)
@@ -865,19 +862,19 @@ def make_variogram(
     """Make a dictionary of variogram parameters for application with spatial
     estimation and simulation.
 
-    :param nug: the nugget value for this particular variogram 
-    :param nst: whether a normal score transformation is used on this variogram
-    :param it1: internal trend of the variogram 
-    :param cc1: covariance contribution of the variable  
-    :param azi1: azimuth, in degrees, used in this particular variogram
-    :param hmaj1: maximum lag distance measured in this variogram
-    :param hmin1: minimum lag distance measured in this variogram
-    :param it2: (optional, default = 0) internal trend of second variable of variogram
-    :param cc2: (optional, default = 0) covariance contribution of this variable
-    :param azi2: (optional, default = 0) azimuth, in degrees, used for this variable 
-    :param hmaj2: (optional, default = 0) maximum lag distance used for this variable
-    :param hmin2: (optional, default = 0) minimum lag distance used for this variable
-    :return: a dicitonary with all input values mapped to by variable name
+    :param nug: TODO
+    :param nst: TODO
+    :param it1: TODO
+    :param cc1: TODO
+    :param azi1: TODO
+    :param hmaj1: TODO
+    :param hmin1: TODO
+    :param it2: TODO
+    :param cc2: TODO
+    :param azi2: TODO
+    :param hmaj2: TODO
+    :param hmin2: TODO
+    :return: TODO
     """
     if cc2 == 0:
         nst = 1
@@ -1061,7 +1058,7 @@ def varmapv_2d(
     :param minpairs: TODO
     :param vmax: TODO
     :param bstand: TODO
-    :param title: title
+    :param title: TODO
     :param vlabel: TODO
     :param cmap: colormap
     :param fig_name: figure name
@@ -1670,30 +1667,18 @@ def gkern(kernlen=21, std=3):
 def regular_sample(array, xmin, xmax, ymin, ymax, step, mx, my, nx, ny, name):
     """Extract regular spaced samples from a 2D spatial model.
 
-    :param array: array containing data that is to be fit to a coordinate system
-    :type array:  nparray
-    :param xmin:  lowest x coordinate (inclusive) for the new coordinate system
-    :type xmin:   float
-    :param xmax:  largest x coordinate (noninclusive) for the new coordinate system
-    :type xmax:   float
-    :param ymin:  lowest y coordinate (noninclusive) for the new coordinate system
-    :type ymin:   float
-    :param ymax:  largest y coordinate (inclusive) for the new coordinate system
-    :type ymax:   float
-    :param step:  spacing between coordinates in the new coordinate system
-    :type step:   float
-    :param mx:    x coordinate for where to start extracting data from array
-    :type mx:     float
-    :param my:    y coordinate for where to start extracting data from array
-    :type my:     float
-    :param nx:    x coordinate for where to stop extracting data from array
-    :type nx:     float
-    :param ny:    y coordinate for where to stop extracting data from array
-    :type ny:     float
-    :param name:  name of the new column containing the data extracted from array
-    :type name:   string
-    :return:      new coordinate system with corresponding data from Array
-    :type return: dataframe
+    :param array: ndarray
+    :param xmin: TODO
+    :param xmax: TODO
+    :param ymin: TODO
+    :param ymax: TODO
+    :param step: TODO
+    :param mx: TODO
+    :param my: TODO
+    :param nx: TODO
+    :param ny: TODO
+    :param name: TODO
+    :return: dataframe
     """
     x = []
     y = []
@@ -1722,24 +1707,15 @@ def regular_sample(array, xmin, xmax, ymin, ymax, step, mx, my, nx, ny, name):
 def random_sample(array, xmin, xmax, ymin, ymax, step, nsamp, name):
     """Extract random samples from a 2D spatial model.
 
-    :param array: array where the data is to be extracted from
-    :type array:  nparray
-    :param xmin:  lowest x coordinate in the new coordinate system
-    :type xmin:   float
-    :param xmax:  largest x coordinate in the new coordinate system
-    :type xmax:   float
-    :param ymin:  lowest y coordinate in the new coordinate system
-    :type ymin:   float
-    :param ymax:  largest y coordinate in the new coordinate system
-    :type ymax:   float
-    :param step:  spacing between coordinates in the new coordinate system
-    :type step:   float
-    :param nsamp: number of elements to extract from array
-    :type nsamp:  float
-    :param name:  name of the new column containing the data extracted from array
-    :type name:   float
-    :return:      new coordinate system with corresponding data from Array
-    :type return: dataframe
+    :param array: ndarray
+    :param xmin: TODO
+    :param xmax: TODO
+    :param ymin: TODO
+    :param ymax: TODO
+    :param step: TODO
+    :param nsamp: TODO
+    :param name: TODO
+    :return: dataframe
     """
     x = []
     y = []
@@ -1769,10 +1745,10 @@ def DataFrame2ndarray(df, xcol, ycol, vcol, xmin, xmax, ymin, ymax, step):
     :param xcol: TODO
     :param ycol: TODO
     :param vcol: TODO
-    :param xmin: axis min limit on x axis
-    :param xmax: axis max limit on x axis
-    :param ymin: axis min limit on y axis
-    :param ymax: axis maximum limit on y axis
+    :param xmin: TODO
+    :param xmax: TODO
+    :param ymin: TODO
+    :param ymax: TODO
     :param step: TODO
     :return: ndarray
     """
@@ -1789,6 +1765,7 @@ def DataFrame2ndarray(df, xcol, ycol, vcol, xmin, xmax, ymin, ymax, step):
         ix = min(nx - 1, int((df.iloc[isamp][xcol] - xmin) / step))
         array[iy, ix] = df.iloc[isamp][vcol]
     return array
+
 
 def make_variogram_3D(
     nug,
@@ -1827,7 +1804,7 @@ def make_variogram_3D(
     :param hmax2: Range in major direction (Horizontal)
     :param hmed2: Range in minor direction (Horizontal)
     :param hmin2: Range in vertical direction
-    :return: a dict containing the above variogram parameters.
+    :return: TODO
     """
     if cc2 == 0:
         nst = 1
@@ -1908,14 +1885,14 @@ def sgsim_3D(nreal, df, xcol, ycol, zcol, vcol, nx, ny, nz, hsiz, vsiz, seed, va
     it1 = var["it1"]
     cc1 = var["cc1"]
     azi1 = var["azi1"]
-    dip1 = var["dip1"]
+    dip1 = var["dip1"] 
     hmax1 = var["hmax1"]
     hmed1 = var["hmed1"]
     hmin1 = var["hmin1"]
     it2 = var["it2"]
     cc2 = var["cc2"]
     azi2 = var["azi2"]
-    dip2 = var["dip2"]
+    dip2 = var["dip2"] 
     hmax2 = var["hmax2"]
     hmed2 = var["hmed2"]
     hmin2 = var["hmin2"]
@@ -1999,13 +1976,13 @@ def GSLIB2ndarray_3D(data_file, kcol,nreal, nx, ny, nz):
             head = next(f)
             if icol == kcol:
                 col_name = head.split()[0]
-        for ineal in range(nreal):
+        for ineal in range(nreal):		
             if nz > 1 and ny > 1:
                 for iz in range(nz):
                     for iy in range(ny):
                         for ix in range(nx):
                             head = next(f)
-                            array[ineal][ny - 1 - iy][ix][iz] = head.split()[kcol]
+                            array[ineal][ny - 1 - iy][ix][iz] = head.split()[kcol]    					
             elif ny > 1:
                 for iy in range(ny):
                     for ix in range(0, nx):
@@ -2016,4 +1993,3 @@ def GSLIB2ndarray_3D(data_file, kcol,nreal, nx, ny, nz):
                     head = next(f)
                     array[ineal][ix] = head.split()[kcol]
     return array, col_name
-
