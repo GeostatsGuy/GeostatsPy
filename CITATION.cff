@@ -1,0 +1,28 @@
+cff-version: 1.2.0
+message: "If you use this data repository, please cite it as below."
+authors:
+  - family-names: Pyrcz
+    given-names: Michael
+    orcid:  https://orcid.org/0000-0002-5983-219X 
+  - family-names: Jo
+    given-names: Honggeun
+    orcid: 
+  - family-names: Kupenko
+    given-names: Anton
+    orcid:
+  - family-names: Liu
+    given-names: Wendi
+    orcid:
+  - family-names: Gigliotti
+    given-names: Alex E.
+    orcid:
+  - family-names: Salomaki
+    given-names: Travis
+    orcid:
+  - family-names: Javier
+    given-names: Santos
+    orcid: 
+title: "GeostatsPy: Geostatistical Library in Python"
+version: 1.0.0
+doi: 10.5281/zenodo.
+date-released: 2021-10-13
