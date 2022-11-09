@@ -6,23 +6,23 @@ authors:
     orcid:  https://orcid.org/0000-0002-5983-219X 
   - family-names: Jo
     given-names: Honggeun
-    orcid: 
+    # orcid: 
   - family-names: Kupenko
     given-names: Anton
-    orcid:
+    # orcid:
   - family-names: Liu
     given-names: Wendi
-    orcid:
+    # orcid:
   - family-names: Gigliotti
     given-names: Alex E.
-    orcid:
+    # orcid:
   - family-names: Salomaki
     given-names: Travis
-    orcid:
+    # orcid:
   - family-names: Javier
     given-names: Santos
-    orcid: 
+    # orcid:
 title: "GeostatsPy: Geostatistical Library in Python"
-version: 1.0.0
-doi: 10.5281/zenodo.
-date-released: 2021-10-13
+# version: 1.0.0
+# doi: 10.5281/zenodo.
+# date-released: 2021-10-13

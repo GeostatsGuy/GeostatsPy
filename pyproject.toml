@@ -1,0 +1,43 @@
+[build-system]
+requires = [
+    "setuptools>=61",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "geostatspy"
+dynamic = ["version"]
+authors = [
+    {name = "Michael Pyrcz", email = "mpyrcz@austin.utexas.edu"},
+]
+description = "Geostatistical methods from GSLIB: Geostatistical Library translated and reimplemented in Python"
+readme = "README.md"
+keywords = ["geostatistics", "GSLIB"]
+license = {text = "MIT"}
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+]
+requires-python = ">=3.7"
+dependencies = [
+    "matplotlib",
+    "numpy",
+    "numba",
+    "pandas",
+    "scipy",
+    "statsmodels",
+]
+
+[project.urls]
+Source = "https://github.com/GeostatsGuy/GeostatsPy"
+
+[tool.setuptools.packages.find]
+include = [
+    "geostatspy",
+    "geostatspy.*",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "geostatspy.__version__"}
