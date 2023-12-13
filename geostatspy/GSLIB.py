@@ -1897,7 +1897,7 @@ def sgsim_3D(nreal, df, xcol, ycol, zcol, vcol, nx, ny, nz, hsiz, vsiz, seed, va
     hmed2 = var["hmed2"]
     hmin2 = var["hmin2"]
     max_range = max(hmax1, hmax2)
-    max_range_v = max(hmin1, hmin2) * 10
+    max_range_v = max(hmin1, hmin2) 
     hmn = hsiz * 0.5
     zmn = vsiz * 0.5
     hctab = int(max_range / hsiz) * 2 + 1
