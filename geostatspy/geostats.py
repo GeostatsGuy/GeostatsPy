@@ -4723,3 +4723,59 @@ def cova(x, y, z, vr, xlag, xltol, nlag, azm, dip, atol, dtol, bandwh):
             tm[i] = tm[i] / rnum
 
     return dis, vario, npp
+
+def ESMDA(OBS, en_Mean, en_static_, en_data_, num_static, alpha, stdErrOfDynamic=0.01):
+    """Calculate the variogram by looping over combinatorial of data pairs.
+    :param OBS: observed measurements
+    :param en_Mean: mean of the ensemble
+    :param en_static_: ensemble static model
+    :param en_data_: ensemble dynamic response
+    :param num_static: number of static model realizations
+    :param alpha: alpha factor for Kalman Gain
+    :param stdErrofDynamic: user-defined standard error of dynamic data
+    :return: updated en_static_new (ensemble static model), Cy, Cy2
+    """
+    num_dynamic      = OBS.shape[0]
+    No_realization   = en_static_.shape[0]
+    num_state_vector = num_dynamic + num_static
+    ref_OBS          = np.repeat(OBS.reshape(num_dynamic,1), No_realization, axis=1) 
+    
+    # Make Cd:
+    sizeOfCd = num_dynamic
+    Cd = np.zeros((sizeOfCd,sizeOfCd))  
+    for i in range(sizeOfCd):
+        Cd[i,i]=stdErrOfDynamic**2
+    
+    # Make H:
+    H = np.zeros((num_dynamic, num_state_vector))
+    for i in range(num_dynamic):
+        H[i,num_static+i] = 1
+    
+    # Make En:
+    enM = en_static_
+    enD = en_data_
+    En = np.concatenate((enM, enD),axis=1).T
+    En_Mean = np.repeat(en_Mean.reshape(1, num_state_vector),No_realization,axis=0).T
+    # Make Le ahd H_Le
+    Le = 1 / np.sqrt(num_state_vector-1) * (En - En_Mean)
+    H_Le = np.dot(H, Le)
+    
+    # Get Kalman Gain, K:
+    K_ = alpha*np.dot(np.dot(Le,H_Le.T), np.linalg.inv(np.dot(H_Le,H_Le.T)+Cd))
+    
+    # add stdErroOfDynamic to refOBS
+    for i in range(num_dynamic):
+        for j in range(No_realization):
+            ref_OBS[i,j] = ref_OBS[i,j] + np.random.normal(scale = stdErrOfDynamic)
+    
+    # Assimilate En:
+    En_ = En + np.dot(K_, ref_OBS - np.dot(H,En))
+    en_static_new = En_.T[:,:num_static]
+
+    # Degree of uncertainty reduction:
+    CY_ = 1/(num_state_vector-1) * (En - En_Mean)
+    CY_ = np.dot(CY_,CY_.T)
+    Cy=np.linalg.norm(CY_.flatten(),1)
+    Cy2=np.linalg.norm(CY_.flatten(),2)
+    
+    return en_static_new, Cy, Cy2
