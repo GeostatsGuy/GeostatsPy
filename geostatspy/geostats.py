@@ -4725,7 +4725,7 @@ def cova(x, y, z, vr, xlag, xltol, nlag, azm, dip, atol, dtol, bandwh):
     return dis, vario, npp
 
 def enkf(OBS, en_Mean, en_static_, en_data_, num_static, stdErrOfDynamic=0.01):
-    """Calculate the variogram by looping over combinatorial of data pairs.
+    """Perform Ensemble Kalman Filter for observed dynamic measurements to an ensemble of static realizations.
     :param OBS: observed measurements
     :param en_Mean: mean of the ensemble
     :param en_static_: ensemble static model
@@ -4781,7 +4781,7 @@ def enkf(OBS, en_Mean, en_static_, en_data_, num_static, stdErrOfDynamic=0.01):
     return en_static_new, Cy, Cy2
 
 def ESMDA(OBS, en_Mean, en_static_, en_data_, num_static, alpha, stdErrOfDynamic=0.01):
-    """Calculate the variogram by looping over combinatorial of data pairs.
+    """Perform Ensemble Smoother with Multiple Data Assimilation for observed dynamic measurements to an ensemble of static realizations.
     :param OBS: observed measurements
     :param en_Mean: mean of the ensemble
     :param en_static_: ensemble static model
