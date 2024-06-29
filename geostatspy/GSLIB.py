@@ -20,7 +20,7 @@ Mac users with missing DLL issues at that same location above.
 
 import os  # for setting working directory and running fortran executables
 import random as rand  # for random numbers
-
+import pyvista as pv
 import matplotlib
 import matplotlib.pyplot as plt  # for plotting
 import numpy as np  # for ndarrays
@@ -30,7 +30,6 @@ from scipy import signal
 # Hard coded image file output
 image_type = "tif"
 dpi = 600
-
 
 def ndarray2GSLIB(array, data_file, col_name):
     """Convert 1D or 2D numpy ndarray to a GSLIB Geo-EAS file for use with
@@ -1993,3 +1992,177 @@ def GSLIB2ndarray_3D(data_file, kcol,nreal, nx, ny, nz):
                     head = next(f)
                     array[ineal][ix] = head.split()[kcol]
     return array, col_name
+
+def draw_well_traj_3d(df:pd.DataFrame, 
+                      xcol:str = 'X', 
+                      ycol:str = 'Y', 
+                      zcol:str = 'Z', 
+                      well_id_col:str = 'WELL_ID',
+                      figsize:tuple = (10,10),
+                      xlabel:str = 'X-dir, grid',
+                      ylabel:str = 'Y-dir, grid',
+                      zlabel:str = 'Depth, grid',
+                      x_range:list = [0, 3200],
+                      y_range:list = [0, 3200],
+                      z_range:list = [1500, 1600],
+                      )->None:
+    """
+    Draws a 3D well trajectory plot based on the provided data.
+
+    :param df: DataFrame containing the well trajectory data.
+    :param xcol: Column name for the X-coordinate.
+    :param ycol: Column name for the Y-coordinate.
+    :param zcol: Column name for the Z-coordinate.
+    :param well_id_col: Column name specifying the well ID.
+    :param figsize: Tuple specifying the figure size (width, height).
+    :param xlabel: Label for the X-axis.
+    :param ylabel: Label for the Y-axis.
+    :param zlabel: Label for the Z-axis.
+    :param x_range: List specifying the X-axis range.
+    :param y_range: List specifying the Y-axis range.
+    :param z_range: List specifying the Z-axis range.
+
+    :return: None
+    """
+    fig = plt.figure(figsize = figsize)
+    ax = fig.add_subplot(projection='3d')
+
+    # draw well trajectory one-by-one
+    for well_id in df[well_id_col].unique():
+        df_well = df[df[well_id_col] == well_id]  
+        ax.plot(df_well[xcol], 
+                df_well[ycol], 
+                df_well[zcol], label = well_id)
+    
+    # set ranges and axis labels
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_zlabel(zlabel) 
+    ax.set_xlim(x_range)
+    ax.set_ylim(y_range)
+    ax.set_zlim(z_range)
+
+    # To ensure a visual trajectory with depth increasing downward
+    plt.gca().invert_zaxis()
+    plt.gca().invert_yaxis()
+    plt.legend()
+
+def draw_well_log_3d(df:pd.DataFrame, 
+                      xcol:str = 'X', 
+                      ycol:str = 'Y', 
+                      zcol:str = 'Z', 
+                      val_col:str = 'NPHI',
+                      well_id_col:str = 'WELL_ID',
+                      figsize:tuple = (10,10),
+                      xlabel:str = 'X-dir, grid',
+                      ylabel:str = 'Y-dir, grid',
+                      zlabel:str = 'Depth, grid',
+                      clabel:str = 'Porosity, frac',
+                      x_range:list = [0, 3200],
+                      y_range:list = [0, 3200],
+                      z_range:list = [1500, 1600],
+                      val_range:list = [0, 0.25],
+                      cmap = 'viridis'
+                      )->None:
+    """
+    Draws a 3D well log plot based on the provided data.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing the well log data.
+        xcol (str, optional): Column name for the X-coordinate. Defaults to 'X'.
+        ycol (str, optional): Column name for the Y-coordinate. Defaults to 'Y'.
+        zcol (str, optional): Column name for the Z-coordinate. Defaults to 'Z'.
+        val_col (str, optional): Column name for the value. Defaults to 'NPHI'.
+        well_id_col (str, optional): Column name specifying the well ID. Defaults to 'WELL_ID'.
+        figsize (tuple, optional): Tuple specifying the figure size (width, height). Defaults to (10, 10).
+        xlabel (str, optional): Label for the X-axis. Defaults to 'X-dir, grid'.
+        ylabel (str, optional): Label for the Y-axis. Defaults to 'Y-dir, grid'.
+        zlabel (str, optional): Label for the Z-axis. Defaults to 'Depth, grid'.
+        clabel (str, optional): Label for the colorbar. Defaults to 'Porosity, frac'.
+        x_range (list, optional): List specifying the X-axis range. Defaults to [0, 3200].
+        y_range (list, optional): List specifying the Y-axis range. Defaults to [0, 3200].
+        z_range (list, optional): List specifying the Z-axis range. Defaults to [1500, 1600].
+        val_range (list, optional): List specifying the value range. Defaults to [0, 0.25].
+        cmap (str, optional): Colormap. Defaults to 'viridis'.
+
+    Returns:
+        None
+    """
+    fig = plt.figure(figsize = figsize)
+    ax = fig.add_subplot(projection='3d')
+        
+    # draw well trajectory one-by-one
+    for well_id in df[well_id_col].unique():
+        df_well = df[df[well_id_col] == well_id]  
+        s = ax.scatter(df_well[xcol], 
+                    df_well[ycol], 
+                    df_well[zcol],
+                    c = df_well[val_col],
+                    clim = val_range,
+                    cmap = cmap)
+
+    # set ranges and axis labels
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_zlabel(zlabel) 
+    ax.set_xlim(x_range)
+    ax.set_ylim(y_range)
+    ax.set_zlim(z_range)
+    cbar = fig.colorbar(s,  orientation='horizontal', fraction = 0.036)
+    cbar.set_label(clabel)
+    # To ensure a visual trajectory with depth increasing downward
+    plt.gca().invert_zaxis()
+    plt.gca().invert_yaxis()
+    plt.legend()
+
+
+def visual_3d_xyz( property, 
+                aspect_x_to_z = 1, 
+                show_edges=False, 
+                cmap = 'viridis',
+                value = 'value',
+                threshold = None,
+                clim = None,
+                is_xyz_seq = False):
+    """
+
+    Visualizes a 3D property using PyVista.
+
+    Args:
+        property (numpy.ndarray): The 3D property to visualize.
+        aspect_x_to_z (float, optional): The aspect ratio of the x-to-z direction. Defaults to 1.
+        show_edges (bool, optional): Whether to show edges of the mesh. Defaults to False.
+        cmap (str, optional): The colormap to use for the visualization. Defaults to 'viridis'.
+        value (str, optional): The name of the property to use for coloring. Defaults to 'value'.
+        threshold (float, optional): The threshold value for the property. If provided, only values above the threshold will be displayed. Defaults to None.
+        clim (tuple, optional): The color limits for the visualization. If provided, the property values will be scaled to this range. Defaults to None.
+        is_xyz_seq (bool, optional): Whether the property array is in xyz sequence. Defaults to False.
+
+    Returns:
+        None
+    """                
+    if is_xyz_seq is True:
+        property = property.T
+    # GSLIB -> PyVista (i.e., invert z-dir). 
+    # E.g., GSLIB z-dir increases downwards whereas pyvista in the other way around
+    property = property[::-1,:,:]
+
+    plotter = pv.Plotter()
+    grid = pv.ImageData()
+    nz, ny, nx = property.shape
+    grid.dimensions = np.array([nx, ny, nz]) + 1
+
+    grid.origin = (1, 1, 1)  # The bottom left corner of the data set
+    grid.spacing = (1, 1, aspect_x_to_z)  # These are the cell sizes along each axis
+
+    grid.cell_data[value] =property.flatten() # Flatten the array
+
+    if threshold is not None:
+        grid = grid.threshold(threshold)
+    if clim is not None:
+        plotter.add_mesh(grid, show_edges=show_edges, cmap= cmap, clim = clim)
+    else:
+        plotter.add_mesh(grid, show_edges=show_edges, cmap= cmap)
+
+    plotter.view_xy()
+    plotter.show()
