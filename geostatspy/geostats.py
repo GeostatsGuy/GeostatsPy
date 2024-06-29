@@ -18,11 +18,14 @@ the University of Texas at Austin.
 import math  # for trig functions etc.
 from bisect import bisect  # for maintaining array elements sorted
 
+from tqdm import tqdm
 import numpy as np  # for ndarrays
 import numpy.linalg as linalg  # for linear algebra
 import scipy.spatial as sp  # for fast nearest neighbor search
 from numba import jit  # for numerical speed up
 from statsmodels.stats.weightstats import DescrStatsW
+import pandas as pd
+import itertools 
 
 def backtr(df,vcol,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):   
     """Back transform an entire DataFrame column with a provided transformation table and tail extrapolation.
@@ -552,7 +555,7 @@ def setrot(ang1,ang2,sang1,anis1,anis2,sanis1,nst,MAXROT):
     rotmat[MAXROT,2,2] = afac1*(cosa)
 # Return to calling program:
     return rotmat
-
+@jit(nopython=True)
 def ksol_numpy(neq, a, r):
     """Find solution of a system of linear equations.
     :param neq: number of equations
@@ -564,7 +567,7 @@ def ksol_numpy(neq, a, r):
     a = np.reshape(a, (neq, neq))  # reshape to 2D
     ainv = linalg.inv(a)  # invert matrix
     r = r[0: neq]  # trim the array
-    s = np.matmul(ainv, r)  # matrix multiplication
+    s = ainv@r  # matrix multiplication
     return s
 
 def ctable(MAXNOD,MAXCXY,MAXCTX,MAXCTY,MAXXYZ,xsiz,ysiz,isrot,nx,ny,nst,c0,cc,aa,it,ang,anis,global_rotmat,radsqd):
@@ -2197,6 +2200,40 @@ def nscore(
     return ns, vr, wt_ns
 
 
+def inverse_nscore(df, wt_vr, wt_ns, vcol=None):
+    """This is to transform data from normal scored to original scale
+    """
+    # Set constants
+    np.random.seed(240407)
+    pwr = 1.0  # interpolation power, hard coded to 1.0 in GSLIB
+    EPSILON = 1.0e-20
+
+    assert type(df) in [pd.DataFrame, np.ndarray], 'input data should be either dataframe or array'
+    if type (df) == pd.DataFrame:
+        assert vcol != None, 'name of normal scored variable is missing'
+        assert vcol in df.columns, 'vcol is not found in the columns list'
+        ns = df[vcol].values
+
+    else:
+        original_dim = df.shape
+        ns = df.flatten()
+
+    # Inverse Normal scores transform
+    nd = wt_ns.shape[0]
+    ivr = np.zeros(ns.shape[0])
+    temp = []
+    for i in range(0, ns.shape[0]):
+        ns_vrr = ns[i] + np.random.rand() * EPSILON
+
+        # Now, get the normal scores value for "vrr"
+        j = dlocate(wt_ns, 1, nd, ns_vrr)
+        j = min(max(1, j), (nd - 1))
+        ivr[i] = dpowint(wt_ns[j], wt_ns[j + 1], wt_vr[j], wt_vr[j + 1], ns_vrr, pwr)
+    if type (df) == pd.DataFrame:
+        return ivr
+    if type (df) == np.ndarray:
+        return ivr.reshape(original_dim)
+
 def kb2d(
     df,
     xcol,
@@ -2343,7 +2380,7 @@ def kb2d(
             if i == j: 
                 cov = cov - c0
             cbb = cbb + cov
-        cbb = cbb/real(ndb*ndb)
+        cbb = cbb/np.real(ndb*ndb)
 
 # MAIN LOOP OVER ALL THE BLOCKS IN THE GRID:
     nk = 0
@@ -2456,6 +2493,7 @@ def kb2d(
 #                    print('NDB' + str(ndb))
 #                    print('NEQ' + str(neq) + ' Left' + str(a) + ' Right' + str(r))
 #                    stop
+                    
                     s = ksol_numpy(neq,a,r)
                     ising = 0 # need to figure this out
 #                    print('weights' + str(s))
@@ -2488,6 +2526,357 @@ def kb2d(
                 nk = nk + 1
                 ak = ak + est
                 vk = vk + est*est
+
+# END OF MAIN LOOP OVER ALL THE BLOCKS:
+
+    if nk >= 1:
+        ak = ak / float(nk)
+        vk = vk/float(nk) - ak*ak
+        print('  Estimated   ' + str(nk) + ' blocks ')
+        print('      average   ' + str(ak) + '  variance  ' + str(vk))
+
+    return kmap, vmap
+
+def kb3d(
+    df,
+    xcol,
+    ycol,
+    zcol,
+    vcol,
+    tmin,
+    tmax,
+    nx,
+    xmn,
+    xsiz,
+    ny,
+    ymn,
+    ysiz,
+    nz,
+    zmn,
+    zsiz,
+    nxdis,
+    nydis,
+    nzdis,
+    ndmin,
+    ndmax,
+    radius_h,
+    radius_v,
+    ktype,
+    skmean,
+    vario,
+):
+    """
+    Inspired by GSLIB's KB2D program (Deutsch and Journel, 1998) and 
+    Geostatspy (Pyrcz et al., 2017), this function enables 3D kriging. 
+    It was developed by Michael Pyrcz of the University of Texas at 
+    Austin and Honggeun Jo of Inha University, South Korea (June 2024).
+    :param df: pandas DataFrame with the spatial data
+    :param xcol: name of the x coordinate column
+    :param ycol: name of the y coordinate column
+    :param vcol: name of the property column
+    :param tmin: property trimming limit
+    :param tmax: property trimming limit
+    :param nx: definition of the grid system (x axis)
+    :param xmn: definition of the grid system (x axis)
+    :param xsiz: definition of the grid system (x axis)
+    :param ny: definition of the grid system (y axis)
+    :param ymn: definition of the grid system (y axis)
+    :param ysiz: definition of the grid system (y axis)
+    :param nxdis: number of discretization points for a block
+    :param nydis: number of discretization points for a block
+    :param ndmin: minimum number of data points to use for kriging a block
+    :param ndmax: maximum number of data points to use for kriging a block
+    :param radius: maximum isotropic search radius
+    :param ktype:
+    :param skmean:
+    :param vario:
+    :return:
+    """
+    
+# Constants
+    UNEST = -999.
+    EPSLON = 1.0e-10
+    PMX = 9999.0    
+    MAXSAM = ndmax + 1
+    MAXDIS = nxdis * nydis * nzdis
+    MAXKD = MAXSAM + 1
+    MAXKRG = MAXKD * MAXKD 
+    
+# load the variogram
+    nst = vario['nst']
+    cc = np.zeros(nst); aa = np.zeros(nst); it = np.zeros(nst)
+    ang_azi = np.zeros(nst); ang_dip = np.zeros(nst); anis = np.zeros(nst)
+    anis_v = np.zeros(nst)
+    
+    c0 = vario['nug']; 
+    cc[0] = vario['cc1']; it[0] = vario['it1']; 
+    ang_azi[0] = vario['azi1']
+    ang_dip[0] = vario['dip1']
+    aa[0] = vario['hmax1']; 
+    anis[0] = vario['hmed1']/vario['hmax1']
+    anis_v[0] = vario['hmin1']/vario['hmax1']
+
+    if nst == 2:
+        cc[1] = vario['cc2']; it[1] = vario['it2']; 
+        ang_azi[1] = vario['azi2']
+        ang_dip[1] = vario['dip2']
+        aa[1] = vario['hmax2']; 
+        anis[1] = vario['hmed2']/vario['hmax2'];    
+        anis_v[1] = vario['hmin2']/vario['hmax2']
+    
+# Allocate the needed memory:   
+    xdb = np.zeros(MAXDIS)
+    ydb = np.zeros(MAXDIS)
+    zdb = np.zeros(MAXDIS)
+    xa = np.zeros(MAXSAM)
+    ya = np.zeros(MAXSAM)
+    za = np.zeros(MAXSAM)
+    vra = np.zeros(MAXSAM)
+    dist = np.zeros(MAXSAM)
+    nums = np.zeros(MAXSAM)
+    r = np.zeros(MAXKD)
+    rr = np.zeros(MAXKD)
+    s = np.zeros(MAXKD)
+    a = np.zeros(MAXKRG)
+    kmap = np.zeros((nz,ny,nx))
+    vmap = np.zeros((nz,ny,nx))
+
+# Load the data
+    df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]    # trim values outside tmin and tmax
+    nd = len(df_extract)
+    ndmax = min(ndmax,nd)
+    x = df_extract[xcol].values
+    y = df_extract[ycol].values
+    z = df_extract[zcol].values
+    vr = df_extract[vcol].values
+    
+# Make a KDTree for fast search of nearest neighbours   
+    ## TODO: delete - dp = list((y[i], x[i]) for i in range(0,nd))
+    search_radius_ani_ratio = radius_v / radius_h 
+    data_locs = np.column_stack((z/search_radius_ani_ratio,y,x)) 
+    tree = sp.cKDTree(data_locs, leafsize=64, compact_nodes=True, copy_data=True, balanced_tree=True)      
+
+# Set up the discretization points per block.  Figure out how many
+# are needed, the spacing, and fill the xdb and ydb arrays with the
+# offsets relative to the block center (this only gets done once):
+    ndb  = nxdis * nydis * nzdis
+    if ndb > MAXDIS: 
+        print('ERROR KB2D: Too many discretization points ')
+        print('            Increase MAXDIS or lower n[xy]dis')
+        return kmap
+    xdis = xsiz  / max(float(nxdis),1.0)
+    ydis = ysiz  / max(float(nydis),1.0)
+    zdis = zsiz  / max(float(nzdis),1.0)
+    xloc = -0.5*(xsiz+xdis)
+    i    = -1   # accounting for 0 as lowest index
+    for ix in range(0,nxdis):       
+        xloc = xloc + xdis
+        yloc = -0.5*(ysiz+ydis)
+        for iy in range(0,nydis): 
+            yloc = yloc + ydis
+            zloc = -0.5*(zsiz+zdis)
+            for iz in range(0,nzdis):
+                zloc = zloc + zdis
+                i = i+1
+                xdb[i] = xloc
+                ydb[i] = yloc
+                zdb[i] = zloc
+
+
+# Initialize accumulators:
+    cbb  = 0.0
+
+# Calculate Block Covariance. Check for point kriging.
+    rotmat, maxcov = setup_rotmat_3D(c0,nst,it,cc,ang_azi,ang_dip,PMX)
+    cov = cova3(xdb[0],ydb[0],zdb[0],
+                xdb[0],ydb[0],zdb[0],
+                nst,
+                c0,PMX,cc,aa,it, #ang_azi,ang_dip,
+                anis, anis_v,rotmat,maxcov)
+# Keep this value to use for the unbiasedness constraint:
+    unbias = cov
+    first  = False
+    if ndb <= 1:
+        cbb = cov
+    else:
+        assert False, 'No blocked 3D kriging is not supported yet... Contact Dr. Pyrcz'
+# MAIN LOOP OVER ALL THE BLOCKS IN THE GRID:
+    nk = 0
+    ak = 0.0
+    vk = 0.0
+    for iz in tqdm(range(0,nz)):
+        zloc = zmn + (iz-0)*zsiz
+        for iy in range(0,ny):
+            yloc = ymn + (iy-0)*ysiz  
+            for ix in range(0,nx):
+                xloc = xmn + (ix-0)*xsiz
+                current_node_search = (zloc/search_radius_ani_ratio, yloc, xloc)
+    # Find the nearest samples within each octant: First initialize
+    # the counter arrays:
+                na = -1   # accounting for 0 as first index
+                dist.fill(1.0e+20)
+                nums.fill(-1)
+                dist, nums = tree.query(current_node_search,ndmax) # use kd tree for fast nearest data search
+                # remove any data outside search radius
+                ## TODO: we need to separate horizontal search radius from vertical search distance
+                nums_all = nums   
+                nums = nums[dist<radius_h]
+                dist = dist[dist<radius_h] 
+                na = len(dist)    
+
+    # Is there enough samples?
+                if na + 1 < ndmin:   # accounting for min index of 0
+                    est  = UNEST
+                    estv = UNEST
+                    print('UNEST at ' + str(ix) + ',' + str(iy))
+                else:
+
+    # Put coordinates and values of neighborhood samples into xa,ya,vra:
+                    for ia in range(0,na):
+                        jj = int(nums[ia])
+                        xa[ia]  = x[jj]
+                        ya[ia]  = y[jj]
+                        za[ia]  = z[jj]
+                        
+                        vra[ia] = vr[jj]
+                        
+    # Handle the situation of only one sample:
+                    if na == 0:  # accounting for min index of 0 - one sample case na = 0
+                        """ This may not needed
+                        cb1 = cova3(xa[0], ya[0], za[0],
+                                    xa[0], ya[0], za[0],
+                                    nst, c0, PMX, cc, aa, it, # ang_azi, ang_dip,
+                                    anis, anis_v, rotmat,maxcov)
+                        xx  = xa[0] - xloc
+                        yy  = ya[0] - yloc
+                        zz  = za[0] - zloc
+                        print(xx,yy,zz)
+                        """
+    # Establish Right Hand Side Covariance:
+                        if ndb <= 1:
+                            cb = 0.0       
+                            # cova3(xx,yy,zz,
+                            #            xdb[0],ydb[0],zdb[0],
+                            #            nst,c0,PMX,cc,aa,it, #ang_azi, ang_dip,
+                            #            anis, anis_v, rotmat,maxcov)
+                        else:
+                            cb  = 0.0
+                            for i in range(0,ndb):                  
+                                cb = cb + cova3(xx,yy,zz,
+                                                xdb[i],ydb[i],zdb[i],            
+                                                nst, c0, PMX, cc, aa, it, #ang_azi, ang_dip,
+                                                anis, anis_v, rotmat,maxcov)
+                                dx = xx - xdb(i)
+                                dy = yy - ydb(i)
+                                dz = zz - zdb(i)
+                                if (dx**2+dy**2+dz**2) < EPSLON:
+                                    cb = cb - c0
+                                cb = cb / np.real(ndb)
+                        if ktype == 0:
+                            s[0] = cb/cbb
+                            est  = s[0]*vra[0] + (1.0-s[0])*skmean
+                            estv = cbb - s[0] * cb
+                        else:
+                            ## TODO: What should the estimated value be if it falls outside the search boundary?
+                            est  = vr[nums_all].mean()
+                            estv = cbb #- 2.0*cb + cb1
+                    else:
+
+    # Solve the Kriging System with more than one sample:
+                        if ktype == 1:
+                            neq = na + 1 # accounting for first index of 0
+                        elif ktype == 0:
+                            neq = na
+                        else:
+                            assert False, f'ktype should be either 0 (simple) or 1 (ordinary kring)... ktype = {ktype}'
+
+    # Set up kriging matrices:
+                        iin=-1 # accounting for first index of 0
+                        for j in range(0,na):
+    # Establish Left Hand Side Covariance Matrix:
+                            for i in range(0,na):  # was j - want full matrix                    
+                                iin = iin + 1
+                                a[iin] = cova3(xa[i],ya[i],za[i],
+                                                xa[j],ya[j],za[j],
+                                                nst, c0, PMX, cc, aa, it, # ang_azi, ang_dip,
+                                                anis, anis_v, rotmat,maxcov)
+                            
+                            if ktype == 1:
+                                iin = iin + 1
+                                a[iin] = unbias
+
+                            xx = xa[j] - xloc
+                            yy = ya[j] - yloc
+                            zz = za[j] - zloc
+                            
+    # Establish Right Hand Side Covariance:
+                            if ndb <= 1:
+                                cb = cova3(xx,yy,zz,
+                                            xdb[0],ydb[0],zdb[0],
+                                            nst, c0, PMX, cc, aa, it, # ang_azi, ang_dip,
+                                            anis, anis_v, rotmat,maxcov)
+                            else:
+                                cb  = 0.0
+                                for j1 in range(0,ndb):    
+                                    cb = cb + cova3(xx,yy,zz,xdb[j1],ydb[j1],zdb[j1],
+                                                    nst, c0, PMX, cc, aa, it, # ang_azi, ang_dip,
+                                                    anis, anis_v, rotmat,maxcov)
+                                    dx = xx - xdb[j1]
+                                    dy = yy - ydb[j1]
+                                    dz = zz - ydb[j1]
+                                    if (dx**2+dy**2+dz**2) < EPSLON:
+                                        cb = cb - c0
+                                cb = cb / np.real(ndb)
+                            r[j]  = cb
+                            rr[j] = r[j]
+
+    # Set the unbiasedness constraint:
+                        if ktype == 1:
+                            for i in range(0,na):
+                                iin = iin + 1
+                                a[iin] = unbias
+                            iin      = iin + 1
+                            a[iin]   = 0.0
+                            r[neq-1]  = unbias
+                            rr[neq-1] = r[neq]
+
+    # Solve the Kriging System:
+    #                    print('NDB' + str(ndb))
+    #                    print('NEQ' + str(neq) + ' Left' + str(a) + ' Right' + str(r))
+    #                    stop
+                        s = ksol_numpy(neq,a,r)
+                        ising = 0 # need to figure this out
+    #                    print('weights' + str(s))
+    #                    stop
+                    
+                
+    # Write a warning if the matrix is singular:
+                        if ising != 0:
+                            print('WARNING KB2D: singular matrix')
+                            print('              for block' + str(ix) + ',' + str(iy)+ ' ')
+                            est  = UNEST
+                            estv = UNEST
+                        else:
+
+    # Compute the estimate and the kriging variance:
+                            est  = 0.0
+                            estv = cbb
+                            sumw = 0.0
+                            if ktype == 1: 
+                                estv = estv #- (s[na])*unbias
+                            for i in range(0,na):                          
+                                sumw = sumw + s[i]
+                                est  = est  + s[i]*vra[i]
+                                estv = estv - s[i]*rr[i]
+                            if ktype == 0: 
+                                est = est + (1.0-sumw)*skmean   
+                kmap[iz,ny-iy-1,ix] = est
+                vmap[iz,ny-iy-1,ix] = estv
+                
+                if est > UNEST:
+                    nk = nk + 1
+                    ak = ak + est
+                    vk = vk + est*est
 
 # END OF MAIN LOOP OVER ALL THE BLOCKS:
 
@@ -2770,6 +3159,316 @@ def ik2d(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,nx,xm
                  print('TBD')
     return ikout  
 
+
+def ik3d(df,
+         xcol,ycol,zcol,vcol,
+         ivtype,koption,ncut,thresh,gcdf,trend,
+         tmin,tmax,
+         nx,xmn,xsiz,
+         ny,ymn,ysiz,
+         nz,zmn,zsiz,
+         ndmin,ndmax,
+         radius_h,radius_v,
+         ktype,vario):
+          
+    """A 2D version of GSLIB's IK3D Indicator Kriging program (Deutsch and Journel, 1998) converted from the
+    original Fortran to Python by Michael Pyrcz, the University of Texas at
+    Austin (March, 2019).
+    :param df: pandas DataFrame with the spatial data
+    :param xcol: name of the x coordinate column
+    :param ycol: name of the y coordinate column
+    :param vcol: name of the property column (cateogorical or continuous - note continuous is untested)
+    :param ivtype: variable type, 0 - categorical, 1 - continuous
+    :param koption: kriging option, 0 - estimation, 1 - cross validation (under construction)
+    :param ncut: number of categories or continuous thresholds
+    :param thresh: an ndarray with the category labels or continuous thresholds
+    :param gcdf: global CDF, not used if trend is present
+    :param trend: an ndarray [ny,ny,ncut] with the local trend proportions or cumulative CDF values
+    :param tmin: property trimming limit
+    :param tmax: property trimming limit
+    :param nx: definition of the grid system (x axis)
+    :param xmn: definition of the grid system (x axis)
+    :param xsiz: definition of the grid system (x axis)
+    :param ny: definition of the grid system (y axis)
+    :param ymn: definition of the grid system (y axis)
+    :param ysiz: definition of the grid system (y axis)
+    :param nxdis: number of discretization points for a block
+    :param nydis: number of discretization points for a block
+    :param ndmin: minimum number of data points to use for kriging a block
+    :param ndmax: maximum number of data points to use for kriging a block
+    :param radius: maximum isotropic search radius
+    :param ktype: kriging type, 0 - simple kriging and 1 - ordinary kriging
+    :param vario: list with all of the indicator variograms (sill of 1.0) in consistent order with above parameters
+    :return:
+    """
+        
+# Find the needed paramters:
+    PMX = 9999.9
+    MAXSAM = ndmax + 1
+    MAXEQ = MAXSAM + 1
+    mik = 0  # full indicator kriging
+    use_trend = False
+    if trend.shape[0] == nx and trend.shape[1] == ny and trend.shape[2] == ncut: use_trend = True
+    
+# load the variogram
+    MAXNST = 2
+    nst = np.zeros(ncut,dtype=int); c0 = np.zeros(ncut); cc = np.zeros((MAXNST,ncut)) 
+    aa = np.zeros((MAXNST,ncut),dtype=int); it = np.zeros((MAXNST,ncut),dtype=int) 
+    ang = np.zeros((MAXNST,ncut)); ang_dip = np.zeros((MAXNST,ncut));
+    anis = np.zeros((MAXNST,ncut)); anis_v = np.zeros((MAXNST,ncut))
+
+    for icut in range(0,ncut):
+        nst[icut] = int(vario[icut]['nst'])
+        c0[icut] = vario[icut]['nug']; cc[0,icut] = vario[icut]['cc1']; it[0,icut] = vario[icut]['it1']; 
+        ang[0,icut] = vario[icut]['azi1']; 
+        ang_dip[0,icut] = vario[icut]['dip1']; 
+        aa[0,icut] = vario[icut]['hmax1']; 
+        anis[0,icut] = vario[icut]['hmed1']/vario[icut]['hmax1']
+        anis_v[0,icut] = vario[icut]['hmin1']/vario[icut]['hmax1']
+        if nst[icut] == 2:
+            cc[1,icut] = vario[icut]['cc2']; it[1,icut] = vario[icut]['it2']; 
+            ang[1,icut] = vario[icut]['azi2']; 
+            ang_dip[1,icut] = vario[icut]['dip2']; 
+            aa[1,icut] = vario[icut]['hmaj2']; 
+            anis[1,icut] = vario[icut]['hmin2']/vario[icut]['hmaj2']
+            anis_v[1,icut] = vario[icut]['hmin2']/vario[icut]['hmaj2']
+
+# Load the data
+    df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]    # trim values outside tmin and tmax
+    MAXDAT = len(df_extract)
+    MAXCUT = ncut
+    MAXNST = 2
+    MAXROT = MAXNST*MAXCUT+ 1
+    maxcov = np.zeros(ncut)
+    nd = MAXDAT
+
+    # Allocate the needed memory:   
+    xa = np.zeros(MAXSAM)
+    ya = np.zeros(MAXSAM)
+    za = np.zeros(MAXSAM)
+    vra = np.zeros(MAXSAM)
+    dist = np.zeros(MAXSAM)
+    nums = np.zeros(MAXSAM)
+    r = np.zeros(MAXEQ)
+    rr = np.zeros(MAXEQ)
+    s = np.zeros(MAXEQ)
+    a = np.zeros(MAXEQ*MAXEQ)
+    vr = np.zeros((MAXDAT,MAXCUT+1))
+    
+    nviol = np.zeros(MAXCUT)
+    aviol = np.zeros(MAXCUT)
+    xviol = np.zeros(MAXCUT)
+    
+    ccdf = np.zeros(ncut)
+    ccdfo = np.zeros(ncut)
+    ikout = np.zeros((nz,ny,nx,ncut))
+    
+    x = df_extract[xcol].values
+    y = df_extract[ycol].values
+    z = df_extract[zcol].values
+    v = df_extract[vcol].values
+    
+# The indicator data are constructed knowing the thresholds and the
+# data value.
+    
+    if ivtype == 0:
+        for icut in range(0,ncut): 
+            vr[:,icut] = np.where((v <= thresh[icut] + 0.5) & (v > thresh[icut] - 0.5), 1, 0)
+    else:
+        for icut in range(0,ncut): 
+            vr[:,icut] = np.where(v <= thresh[icut], 1, 0)
+    # vr[:,ncut] = v
+
+# Make a KDTree for fast search of nearest neighbours   
+    search_radius_ani_ratio = radius_v / radius_h 
+    data_locs = np.column_stack((z/search_radius_ani_ratio,y,x))
+    tree = sp.cKDTree(data_locs, leafsize=16, compact_nodes=True, copy_data=False, balanced_tree=True)
+    
+# Summary statistics of the input data
+    
+    avg = vr[:,ncut].mean()
+    stdev = vr[:,ncut].std()
+    ss = stdev**2.0
+    vrmin = vr[:,ncut].min()
+    vrmax = vr[:,ncut].max()
+    print('Data for IK3D: Variable column ' + str(vcol))
+    print('  Number   = ' + str(MAXDAT))
+        
+    actloc = np.zeros(MAXDAT, dtype = int)
+    for i in range(1,MAXDAT):
+        actloc[i] = i
+    
+# Set up the rotation/anisotropy matrices that are needed for the
+# variogram and search:
+
+    print('Setting up rotation matrices for variogram and search')
+    rotmat = []
+    for ic in range(0,ncut):  
+        rotmat_temp, maxcov[ic] = setup_rotmat_3D(c0[ic],int(nst[ic]),it[:,ic],cc[:,ic],ang[:,ic],ang_dip[:,ic],9999.9)
+        rotmat.append(rotmat_temp)    
+# Initialize accumulators:  # not setup yet
+    nk = 0
+    for icut in range (0,ncut):
+        nviol[icut] =  0
+        aviol[icut] =  0.0
+        xviol[icut] = -1.0
+    nxyz   = nx*ny*nz
+    print('Working on the kriging')
+
+# Report on progress from time to time:
+    if koption == 0: 
+        nloop = nxyz
+        irepo = max(1,min((nxyz/10),10000))
+    else:
+        nloop = 10000000
+        irepo = max(1,min((nd/10),10000))
+    
+# MAIN LOOP OVER ALL THE BLOCKS IN THE GRID:
+    index = 0
+    for ix, iy, iz in itertools.product(range(nx),range(ny),range(nz)):
+        index += 1
+        if (int(index/irepo)*irepo) == index: 
+            print(f'   currently on estimate @ {index}')
+    
+        if koption == 0:
+            xloc = xmn + (ix)*xsiz
+            yloc = ymn + (iy)*ysiz
+            zloc = zmn + (iz)*zsiz
+        else:
+            ddh = 0.0
+            # TODO: pass the cross validation value
+
+# Find the nearest samples within each octant: First initialize the counter arrays:
+        na = -1   # accounting for 0 as first index
+        dist.fill(1.0e+20)
+        nums.fill(-1)
+        current_node = (zloc/search_radius_ani_ratio, yloc, xloc)
+        dist, close = tree.query(current_node,ndmax) # use kd tree for fast nearest data search
+        # remove any data outside search radius
+        close = close[dist<radius_h]
+        dist = dist[dist<radius_h] 
+        nclose = len(dist) 
+
+# Is there enough samples?
+
+        if nclose < ndmin:   # accounting for min index of 0
+            for i in range(0,ncut):
+                ccdfo[i] = np.nan
+            print('UNEST (nan) at ' + str(ix) + ',' + str(iy) + ',' + str(iz))
+        else:         
+
+# Loop over all the thresholds/categories:
+            for ic in range(0,ncut):
+                krig = True
+                if mik == 1 and ic >= 1: krig = False
+
+# Identify the close data (there may be a different number of data at
+# each threshold because of constraint intervals); however, if
+# there are no constraint intervals then this step can be avoided.
+                nca = -1
+                for ia in range(0,nclose):
+                    j  = int(close[ia]+0.5)
+                    ii = actloc[j]
+                    accept = True
+                    if koption != 0 and (abs(x[j]-xloc) + abs(y[j]-yloc) + abs(z[j]-zloc)).lt.EPSLON: 
+                        accept = False
+                    if accept:
+                        nca = nca + 1
+                        vra[nca] = vr[ii,ic]
+                        xa[nca]  = x[j]
+                        ya[nca]  = y[j]
+                        za[nca]  = z[j]
+
+# If there are no samples at this threshold then use the global cdf:
+                if nca == -1:
+                    if use_trend:
+                        ccdf[ic] = trend[ny-iy-1,ix,ic]
+                    else:
+                        ccdf[ic] = gcdf[ic]
+                else:
+            
+# Now, only load the variogram, build the matrix,... if kriging:
+                    neq = nclose + ktype
+                    na = nclose
+
+# Set up kriging matrices:
+                    iin=-1 # accounting for first index of 0
+                    for j in range(0,na):
+# Establish Left Hand Side Covariance Matrix:
+                        for i in range(0,na):  # was j - want full matrix                    
+                            iin = iin + 1
+                            a[iin] = cova3(xa[i],ya[i],za[i],
+                                           xa[j],ya[j],za[j],
+                                           nst[ic],c0[ic],PMX,cc[:,ic],aa[:,ic],it[:,ic],
+                                           anis[:,ic],anis_v[:,ic],
+                                           rotmat[ic],maxcov[ic]) 
+                        if ktype == 1:
+                            iin = iin + 1
+                            a[iin] = maxcov[ic]            
+                        r[j] = cova3(xloc,yloc,zloc,
+                                     xa[j],ya[j],za[j],
+                                     nst[ic],c0[ic],PMX,cc[:,ic],aa[:,ic],it[:,ic],
+                                     anis[:,ic],anis_v[:,ic],
+                                     rotmat[ic],maxcov[ic]) 
+    
+# Set the unbiasedness constraint:
+                    if ktype == 1:
+                        for i in range(0,na):
+                            iin = iin + 1
+                            a[iin] = maxcov[ic]
+                        iin      = iin + 1
+                        a[iin]   = 0.0
+                        r[neq-1]  = maxcov[ic]
+                        rr[neq-1] = r[neq]
+# Solve the system:
+                    if neq == 1:
+                        ising = 0.0
+                        s[0]  = r[0] / a[0]
+                    else:
+                        s = ksol_numpy(neq,a,r)
+
+# Finished kriging (if it was necessary):
+
+# Compute Kriged estimate of cumulative probability:
+                    sumwts   = 0.0
+                    ccdf[ic] = 0.0
+                    for i in range(0,nclose):
+                        ccdf[ic] = ccdf[ic] + vra[i]*s[i]
+                        sumwts   = sumwts   + s[i]
+                    if ktype == 0: 
+                        if use_trend == True:
+                            ccdf[ic] = ccdf[ic] + (1.0-sumwts)*trend[ny-iy-1,ix,ic]
+                        else:
+                            ccdf[ic] = ccdf[ic] + (1.0-sumwts)*gcdf[ic]
+
+# Keep looping until all the thresholds are estimated:
+ 
+# Correct and write the distribution to the output file:
+            nk = nk + 1
+            ccdfo = ordrel(ivtype,ncut,ccdf)
+        
+# Write the IK CCDF for this grid node:
+            if koption == 0:
+                 ikout[iz,ny-iy-1,ix,:] = ccdfo
+            else:
+                 print('TBD')
+    return ikout  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtcol,zmin,zmax,ltail,ltpar,utail,utpar,nsim,
           nx,xmn,xsiz,ny,ymn,ysiz,seed,ndmin,ndmax,nodmax,mults,nmult,noct,radius,radius1,sang1,
           mxctx,mxcty,ktype,colocorr,sec_map,vario):
@@ -2876,9 +3575,9 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
         if ismooth == 1:
             dftrans_extract = dftrans.loc[(dftrans[tcol] >= tmin) & (dftrans[tcol] <= tmax)]  
             ntr = len(dftrans_extract)
-            vrtr = dftrans_extrac[tcol].values
+            vrtr = dftrans_extract[tcol].values
             if twtcol > -1: 
-                vrgtr = dftrans_extrac[tcol].values
+                vrgtr = dftrans_extract[tcol].values
             else:
                 vrgtr = np.ones(ntr) 
         else:
@@ -2975,8 +3674,8 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
         if ktype == 3:
             for idd in range(0,nd): 
                 if sec[i] != UNEST:
-                    ix = getindx(nx,xmn,xsiz,x[idd])
-                    iy = getindx(ny,ymn,ysiz,y[idd])
+                    ix = getindex(nx,xmn,xsiz,x[idd])
+                    iy = getindex(ny,ymn,ysiz,y[idd])
                     ind = ix + (iy)*nx
                     sec[ind] = lvm[ind]
 
