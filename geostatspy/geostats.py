@@ -1,6 +1,6 @@
 """
 This file includes the reimplementations of GSLIB functionality in Python. While
-this code will not be as well-tested and robust as the original GSLIB, it does
+this code will not be as well-tested and robust as the original GSLIBctabel it does
 provide the opportunity to build 2D spatial modeling projects in Python without
 the need to rely on compiled Fortran code from GSLIB. If you want to use the
 GSLIB compiled code called from Python workflows use the functions available
@@ -17,7 +17,7 @@ the University of Texas at Austin.
 
 import math  # for trig functions etc.
 from bisect import bisect  # for maintaining array elements sorted
-
+from tqdm import tqdm # progress bar
 import numpy as np  # for ndarrays
 import numpy.linalg as linalg  # for linear algebra
 import scipy.spatial as sp  # for fast nearest neighbor search
@@ -553,6 +553,7 @@ def setrot(ang1,ang2,sang1,anis1,anis2,sanis1,nst,MAXROT):
 # Return to calling program:
     return rotmat
 
+@jit(nopython=True)
 def ksol_numpy(neq, a, r):
     """Find solution of a system of linear equations.
     :param neq: number of equations
@@ -564,34 +565,30 @@ def ksol_numpy(neq, a, r):
     a = np.reshape(a, (neq, neq))  # reshape to 2D
     ainv = linalg.inv(a)  # invert matrix
     r = r[0: neq]  # trim the array
-    s = np.matmul(ainv, r)  # matrix multiplication
+    #s = np.matmul(ainv, r)  # matrix multiplication
+    s = ainv@r  # matrix multiplication
     return s
 
 def ctable(MAXNOD,MAXCXY,MAXCTX,MAXCTY,MAXXYZ,xsiz,ysiz,isrot,nx,ny,nst,c0,cc,aa,it,ang,anis,global_rotmat,radsqd):
     """GSLIB's CTABLE subroutine (Deutsch and Journel, 1998) converted from the
     original Fortran to Python by Michael Pyrcz, the University of Texas at
     Austin (March, 2019).
-    Note this was simplified to 2D only, WARNING: only spiral search setup works currently.
+    Note this was simplified to 2D only, WARNING: only spiral search setup works currently. Corrected for any table size, Mar.21, 2024
     """
 # Declare constants
     TINY = 1.0e-10
     PMX = 9999.9
     MAXROT=2
-# Size of the look-up table:
-    tmp = np.zeros(MAXXYZ)
-    MAXORD = MAXXYZ
-    if (nx*ny)  < MAXCXY: 
-        MAXORD = MAXCXY
-     
-    order = np.zeros(MAXORD)
-    nctx = int(min(((MAXCTX-1)/2),(nx-1)))
-    ncty = int(min(((MAXCTY-1)/2),(ny-1)))
+    nctx = int(((MAXCTX-1)/2))
+    ncty = int(((MAXCTY-1)/2))
+    tmp = np.zeros(MAXCTX*MAXCTY)
+    order = np.zeros(MAXCTX*MAXCTY)
     
 #    print('CTable check')
 #    print('nctx ' + str(nctx) + ', ncty ' + str(ncty))
     
-    ixnode = np.zeros(MAXXYZ)
-    iynode = np.zeros(MAXXYZ)
+    ixnode = np.zeros(MAXCTX*MAXCTY)
+    iynode = np.zeros(MAXCTX*MAXCTY)
     covtab = np.zeros((MAXCTX,MAXCTY))
 # Initialize the covariance subroutine and cbb at the same time:
     rotmat, maxcov = setup_rotmat2(c0,nst,it,cc,ang)
@@ -606,7 +603,6 @@ def ctable(MAXNOD,MAXCXY,MAXCTX,MAXCTY,MAXXYZ,xsiz,ysiz,isrot,nx,ny,nst,c0,cc,aa
         for j in range(-ncty,ncty+1):   # cover entire range      
             yy = j * ysiz
             jc = ncty + j
-
             covtab[ic,jc] = cova2(0.0,0.0,xx,yy,nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
 #            print('cov table offset'); print(xx,yy); print(covtab[ic,jc])
             hsqd = sqdist(0.0,0.0,0.0,xx,yy,0.0,MAXROT,global_rotmat)
@@ -615,13 +611,13 @@ def ctable(MAXNOD,MAXCXY,MAXCTX,MAXCTY,MAXXYZ,xsiz,ysiz,isrot,nx,ny,nst,c0,cc,aa
 
 # We want to search by closest variogram distance (and use the
 # anisotropic Euclidean distance to break ties:
+                #print('nlooku ' + str(nlooku) + ' ic = ' + str(ic) + ' jc ' + str(jc))
                 tmp[nlooku]   = - (covtab[ic,jc] - TINY*hsqd)
                 order[nlooku] = (jc)*MAXCTX+ic
 #    print('populated presort'); print(tmp,order) 
 # Finished setting up the look-up table, now order the nodes such
 # that the closest ones, according to variogram distance, are searched
-# first. Note: the "loc" array is used because I didn't want to make
-# special allowance for 2 byte integers in the sorting subroutine:
+# first. 
                               
     nlooku = nlooku + 1
 #    print('nlooku' + str(nlooku)); print('MAXCTX' + str(MAXCTX))
@@ -2280,8 +2276,8 @@ def kb2d(
     rr = np.zeros(MAXKD)
     s = np.zeros(MAXKD)
     a = np.zeros(MAXKRG)
-    kmap = np.zeros((nx,ny))
-    vmap = np.zeros((nx,ny))
+    kmap = np.zeros((ny,nx))
+    vmap = np.zeros((ny,nx))
 
 # Load the data
     df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]    # trim values outside tmin and tmax
@@ -2489,6 +2485,354 @@ def kb2d(
                 ak = ak + est
                 vk = vk + est*est
 
+# END OF MAIN LOOP OVER ALL THE BLOCKS:
+
+    if nk >= 1:
+        ak = ak / float(nk)
+        vk = vk/float(nk) - ak*ak
+        print('  Estimated   ' + str(nk) + ' blocks ')
+        print('      average   ' + str(ak) + '  variance  ' + str(vk))
+
+    return kmap, vmap
+
+def kb3d(df,xcol,ycol,zcol,vcol,tmin,tmax,
+    nx,xmn,xsiz,ny,ymn,ysiz,nz,zmn,zsiz,
+    nxdis,nydis,nzdis,ndmin,ndmax,radius_hori,radius_vert,ktype,skmean,vario3D):
+    """GSLIB's KB2D program (Deutsch and Journel, 1998) converted from the
+    original Fortran to Python by Honggeun Jo of Inha University, South Korea and
+    Michael Pyrcz, the University of Texas at Austin (June, 2024).
+    :param df: pandas DataFrame with the spatial data
+    :param xcol: name of the x coordinate column
+    :param ycol: name of the y coordinate column
+    :param vcol: name of the property column
+    :param tmin: property trimming limit
+    :param tmax: property trimming limit
+    :param nx: definition of the grid system (x axis)
+    :param xmn: definition of the grid system (x axis)
+    :param xsiz: definition of the grid system (x axis)
+    :param ny: definition of the grid system (y axis)
+    :param ymn: definition of the grid system (y axis)
+    :param ysiz: definition of the grid system (y axis)
+    :param nxdis: number of discretization points for a block
+    :param nydis: number of discretization points for a block
+    :param ndmin: minimum number of data points to use for kriging a block
+    :param ndmax: maximum number of data points to use for kriging a block
+    :param radius: maximum isotropic search radius
+    :param ktype:
+    :param skmean:
+    :param vario:
+    :return:
+    """
+    
+# Constants
+    UNEST = -999.
+    EPSLON = 1.0e-10
+    VERSION = 2.907
+    first = True
+    PMX = 9999.0    
+    MAXSAM = ndmax + 1
+    MAXDIS = nxdis * nydis
+    MAXKD = MAXSAM + 1
+    MAXKRG = MAXKD * MAXKD
+    vario3D_array = variogram3D2ndarray(vario3D)    
+    maxcov = vario3D['nug']+vario3D['cc'][0]+vario3D['cc'][1] # assume the sill as maxcov
+    #rotmat3D = setrot3D(vario3D) # rotation matrix with anisotropy ratios
+    rotmat3D = setrot3D_array(vario3D_array) # rotation matrix with anisotropy ratios    
+# Allocate the needed memory:   
+    xdb = np.zeros(MAXDIS); ydb = np.zeros(MAXDIS); zdb = np.zeros(MAXDIS)
+    xa = np.zeros(MAXSAM); ya = np.zeros(MAXSAM); za = np.zeros(MAXSAM)
+    vra = np.zeros(MAXSAM)
+    dist = np.zeros(MAXSAM)
+    nums = np.zeros(MAXSAM)
+    r = np.zeros(MAXKD)
+    rr = np.zeros(MAXKD)
+#    s = np.zeros(MAXKD) - overwritten by ksol, now use a variable if only 1 data
+#     print(s)
+    a = np.zeros(MAXKRG)
+    kmap = np.zeros((nz,ny,nx)); vmap = np.zeros((nz,ny,nx))
+
+# Load the data
+    df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]    # trim values outside tmin and tmax
+    nd = len(df_extract)
+    ndmax = min(ndmax,nd)
+    x = df_extract[xcol].values; y = df_extract[ycol].values; z = df_extract[zcol].values
+    vr = df_extract[vcol].values
+    
+# Make a 3D KDTree for fast search of nearest neighbours   
+#     dp = list((z[i],y[i],x[i]) for i in range(0,nd))
+#     data_locs = np.column_stack((z,y,x))
+#     tree = sp.cKDTree(data_locs, leafsize=16, compact_nodes=True, copy_data=False, balanced_tree=True) # TBA integrate geometric anisotropy by expanding the points
+
+    search_radius_ani_ratio = radius_vert / radius_hori 
+    data_locs = np.column_stack((z/search_radius_ani_ratio,y,x)) 
+    tree = sp.cKDTree(data_locs, leafsize=64, compact_nodes=True, copy_data=True, balanced_tree=True)  
+
+# Summary statistics for the data after trimming
+    avg = vr.mean()
+    stdev = vr.std()
+    ss = stdev**2.0
+    vrmin = vr.min()
+    vrmax = vr.max()
+
+# Set up the discretization points per block.  Figure out how many
+# are needed, the spacing, and fill the xdb and ydb arrays with the
+# offsets relative to the block center (this only gets done once):
+    ndb  = nxdis * nydis
+    #print(ndb)
+    if ndb > MAXDIS: 
+        print('ERROR KB3D: Too many discretization points ')
+        print('            Increase MAXDIS or lower n[xy]dis')
+        return kmap
+                
+    xdis = xsiz  / max(float(nxdis),1.0)
+    ydis = ysiz  / max(float(nydis),1.0)
+    zdis = zsiz  / max(float(nzdis),1.0)         
+    i = -1  # accounting for 0 as lowest index
+    xloc = -0.5*(xsiz+xdis)
+    for ix in range(0,nxdis):  
+        xloc = xloc + xdis
+        #print(xloc)
+        yloc = -0.5*(ysiz+ydis)
+        for iy in range(0,nydis):  
+            yloc = yloc + ydis
+            zloc = -0.5*(zsiz+zdis)
+            for iz in range(0,nzdis): 
+                zloc = zloc + zdis
+                i = i+1
+                zdb[i] = zloc
+                ydb[i] = yloc
+                xdb[i] = xloc
+    
+# Initialize accumulators:
+    cbb  = 0.0
+    #rad2 = radius*radius
+
+# Calculate Block Covariance. Check for point kriging.
+    #rotmat = setrot3(ang1,ang2,ang3,anis1,anis2,ind,rotmat):
+    #rotmat, maxcov = setup_rotmat(c0,nst,it,cc,ang,PMX)
+    cov = cova3_array(xdb[0],ydb[0],zdb[0],xdb[0],ydb[0],zdb[0],vario3D_array,rotmat3D,maxcov)
+# Keep this value to use for the unbiasedness constraint:
+    unbias = cov
+    first  = False
+    if ndb <= 1:
+        cbb = cov
+    else:
+        for i in range(0,ndb): 
+            for j in range(0,ndb): 
+                cov = cova3_array(xdb[i],ydb[i],zdb[i],xdb[j],ydb[j],zdb[j],vario3D_array,rotmat3D,maxcov)
+            if i == j: 
+                cov = cov - c0
+            cbb = cbb + cov
+        cbb = cbb/real(ndb*ndb)
+
+# MAIN LOOP OVER ALL THE BLOCKS IN THE GRID:
+    nk = 0
+    ak = 0.0
+    vk = 0.0
+    #print(s)
+    for iz in tqdm(range(0,nz)):
+        zloc = zmn + (iz-0)*zsiz
+        for iy in range(0,ny):
+            yloc = ymn + (iy-0)*ysiz 
+            #print(ysiz)
+            for ix in range(0,nx):
+                xloc = xmn + (ix-0)*xsiz
+                
+                #print(zloc)
+                current_node = (zloc,yloc,xloc)
+                current_node_search = (zloc/search_radius_ani_ratio, yloc, xloc)
+                #print(yloc,xloc,zloc)
+        
+# Find the nearest samples within each octant: First initialize
+# the counter arrays:
+                na = -1   # accounting for 0 as first index
+                dist.fill(1.0e+20)
+                nums.fill(-1)
+                #dist, nums = tree.query(current_node,ndmax) # use kd tree for fast nearest data search
+                #print('before' + str(s))
+                dist, nums = tree.query(current_node_search,ndmax) # use kd tree for fast nearest data search
+                #print('after' + str(s))
+                # remove any data outside search radius
+#                 nums = nums[dist<radius]
+#                 dist = dist[dist<radius] 
+                na = len(dist)
+                #print(nums)
+                #print(na)
+
+    
+# Is there enough samples?
+                if na < ndmin:   
+                    est  = UNEST
+                    estv = UNEST
+                    print('UNEST at ' + str(ix) + ',' + str(iy))
+                else:
+
+# Put coordinates and values of neighborhood samples into xa,ya,vra:
+                    for ia in range(0,na):
+                        jj = int(nums[ia])
+                        xa[ia]  = x[jj]
+                        ya[ia]  = y[jj]
+                        za[ia]  = z[jj]
+                        vra[ia] = vr[jj]
+
+#                     if iz == 9 and iy == 11 and ix == 9: 
+#                         print('dist - ' + str(dist))
+#                         print('xloc,yloc,zloc' + str(xloc) + ',' + str(yloc) + ',' + str(zloc))
+#                         print('xwell,ywell,zwell' + str(xa) + ',' + str(ya) + ',' + str(za))                        
+
+                    #if iz == 1 and iy == 5 and ix == 5:
+                        #print('data' + str(xa) + ', ' + str(ya) + ', ' + str(za) + ', ' +str(vra))
+                        
+# Handle the situation of only one sample:
+                    if na == 0: # no data
+                        est  = skmean
+                        estv = cbb
+                    elif na == 1: # one data
+                        #print('here')
+                        cb1 = cova3_array(xa[0],ya[0],za[0],xa[0],ya[0],za[0],vario3D_array,rotmat3D,maxcov)
+                        xx  = xa[0] - xloc; yy  = ya[0] - yloc; zz  = za[0] - zloc
+# Establish Right Hand Side Covariance:
+                        if ndb <= 1:
+                            cb = cova3_array(xx,yy,zz,xdb[0],ydb[0],zdb[0],vario3D_array,rotmat3D,maxcov)
+                            #print(cb)
+                            #print(xdb[0],ydb[0],zdb[0])
+                            #print(xdb)
+                        else:
+                            cb  = 0.0
+                            for i in range(0,ndb):                  
+                                cb = cb + cova3_array(xx,yy,zz,xdb[i],ydb[i],zdb[i],vario3D_array,rotmat3D,maxcov)
+                                #print(xdb[i],ydb[i],zdb[i])
+                                dx = xx - xdb(i); dy = yy - ydb(i); dz = zz - zdb(i)
+                                if (dx*dx+dy*dy+dz*dz) < EPSLON:
+                                    cb = cb - c0
+                                cb = cb / real(ndb)
+                        if ktype == 0:
+                            #print(cbb)
+                            #print(s)
+                            sone = cb/cbb
+                            #print(s[0])
+                            est  = sone*vra[0] + (1.0-sone)*skmean
+                            #print(skmean)
+                            #print(est)
+                            
+                            #est = s[0] # write out the weight
+                            
+                            estv = cbb - s[0] * cb
+                        else:
+                            est  = vra[0]
+                            estv = cbb - 2.0*cb + cb1
+                    else: # more than one data
+
+# Solve the Kriging System with more than one sample:
+                        neq = na + ktype # accounting for first index of 0
+#                        print('NEQ' + str(neq))
+                        nn  = (neq + 1)*neq/2
+    
+# Set up kriging matrices:
+                        iin=-1 # accounting for first index of 0
+                        for j in range(0,na):
+    
+# Establish Left Hand Side Covariance Matrix:
+                            for i in range(0,na):  # was j - want full matrix                    
+                                iin = iin + 1
+                                a[iin] = cova3_array(xa[i],ya[i],za[i],xa[j],ya[j],za[j],vario3D_array,rotmat3D,maxcov)                    
+                            if ktype == 1:
+                                iin = iin + 1
+                                a[iin] = unbias
+                            xx = xa[j] - xloc
+                            yy = ya[j] - yloc
+                            zz = za[j] - zloc
+                            
+                            #if iz == 1 and iy == 5 and ix == 5: 
+                            #    print(xloc,yloc,zloc)
+                            #    print(xx,yy,zz)
+                            #    print('left hand side' + str(a))
+
+# Establish Right Hand Side Covariance:
+                            if ndb <= 1:
+                                #print(zz,zdb[0])
+                                cb = cova3_array(xx,yy,zz,xdb[0],ydb[0],zdb[0],vario3D_array,rotmat3D,maxcov) 
+                                #print(cb)
+                            else:
+                                cb  = 0.0
+                                for j1 in range(0,ndb):    
+                                    cb = cb + cova3_array(xx,yy,zz,xdb[j1],ydb[j1],zdb[j1],vario3D_array,rotmat3D,maxcov) 
+                                    dx = xx - xdb[j1]
+                                    dy = yy - ydb[j1]
+                                    dz = zz - zdb[j1]
+                                    if (dx*dx+dy*dy+dz*dz) < EPSLON:
+                                        cb = cb - c0
+                                cb = cb / real(ndb)
+                            r[j]  = cb
+                            rr[j] = r[j]
+                            
+                            #if iz == 9 and iy == 5 and ix == 5:
+                            #    print('righthand side ' + str(r))
+
+# Set the unbiasedness constraint:
+                        if ktype == 1:
+                            for i in range(0,na):
+                                iin = iin + 1
+                                a[iin] = unbias
+                            iin      = iin + 1
+                            a[iin]   = 0.0
+                            r[neq-1]  = unbias
+                            rr[neq-1] = r[neq]
+
+# Solve the Kriging System:
+#                        print('NDB' + str(ndb))
+#                        print('NEQ' + str(neq) + ' Left' + str(a) + ' Right' + str(r))
+#                        stop
+                        #print('before ksol' + str(s) + ' ix,iy,iz = ' + str(ix) + ',' + str(iy) + ',' + str(iz))
+                        #if ix ==0 and iy == 0 and iz == 0:                
+                        #    print('neq =' + str(neq))
+                        #    print('na =' + str(na))
+        
+                        s = ksol_numpy(neq,a,r)
+                        #print('after ksol' + str(s))
+                        #if iz == 1 and iy == 5 and ix == 5:
+                        #   print('weights' + str(s))
+                        ising = 0 # need to figure this out
+#                        print('weights' + str(s))
+#                        stop
+                    
+            
+# Write a warning if the matrix is singular:
+                        if ising != 0:
+                            print('WARNING KB3D: singular matrix')
+                            print('              for block' + str(ix) + ',' + str(iy)+ ' ')
+                            est  = UNEST
+                            estv = UNEST
+                        else:
+    
+# Compute the estimate and the kriging variance:
+                            est  = 0.0
+                            estv = cbb             
+                            sumw = 0.0
+                            if ktype == 1: 
+                                estv = estv - (s[na])*unbias
+                            for i in range(0,na):                          
+                                sumw = sumw + s[i]
+                                est  = est  + s[i]*vra[i]
+                                estv = estv - s[i]*rr[i]
+                            if ktype == 0: 
+                                est = est + (1.0-sumw)*skmean
+#                 if iz == 9 and iy == 9 and ix == 9: 
+#                     print('Est, Est Var ' + str(est) + ', ' + str(estv))
+                
+                kmap[nz-iz-1,ny-iy-1,ix] = est
+                #kmap[nz-iz-1,ny-iy-1,ix] = zloc 
+                    
+                vmap[nz-iz-1,ny-iy-1,ix] = estv
+                
+                #kmap[nz-iz-1,ny-iy-1,ix] = est     
+                #vmap[nz-iz-1,ny-iy-1,ix] = estv
+                #print(nz-iz-1,ny-iy-1,ix)
+                if est > UNEST:
+                    nk = nk + 1
+                    ak = ak + est
+                    vk = vk + est*est
+    
 # END OF MAIN LOOP OVER ALL THE BLOCKS:
 
     if nk >= 1:
@@ -2771,9 +3115,23 @@ def ik2d(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,nx,xm
     return ikout  
 
 def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtcol,zmin,zmax,ltail,ltpar,utail,utpar,nsim,
-          nx,xmn,xsiz,ny,ymn,ysiz,seed,ndmin,ndmax,nodmax,mults,nmult,noct,radius,radius1,sang1,
-          mxctx,mxcty,ktype,colocorr,sec_map,vario):
+          nx,xmn,xsiz,ny,ymn,ysiz,seed,ndmin,ndmax,nodmax,mults,nmult,noct,ktype,colocorr,sec_map,vario):
     
+# Hard Code Some Parameters for Ease of Use, Fixed Covariance Table - Added Mar. 21, 2024, 
+    radius = max(vario['hmaj1'],vario['hmaj2'])
+    radius1 = max(vario['hmin1'],vario['hmin2'])
+    if vario['hmaj2'] > vario['hmaj1']:
+        sang1 = vario['azi2'] # use the angle for the longest range
+    else:
+        sang1 = vario['azi1']
+    mxctx = int(radius/min(xsiz,ysiz))*2 + 1
+    mxcty = int(radius/min(xsiz,ysiz))*2 + 1
+    if ltail == 1:
+        ltpar = zmin
+    if utail == 1:
+        utpar == zmax
+    
+    sim_out = np.zeros((nsim,ny,nx))
 # Parameters from sgsim.inc    
     MAXNST=2; MAXROT=2; UNEST=-99.0; EPSLON=1.0e-20; VERSION=2.907
     KORDEI=12; MAXOP1=KORDEI+1; MAXINT=2**30
@@ -3019,11 +3377,12 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
     tree = sp.cKDTree(data_locs, leafsize=16, compact_nodes=True, copy_data=False, balanced_tree=True)
               
 # Set up the covariance table and the spiral search:
+    #print('MXY = ' + str(MXY))
     cov_table,tmp,order,ixnode,iynode,nlooku,nctx,ncty = ctable(MAXNOD,MAXCXY,MAXCTX,MAXCTY,MXY,
                                 xsiz,ysiz,isrot,nx,ny,nst,c0,cc,aa,it,ang,anis,rotmat,radsqd)
        
 #    print('Covariance Table'); print(cov_table)
-# MAIN LOOP OVER ALL THE SIMULAUTIONS:
+# MAIN LOOP OVER ALL THE SIMULATIONS:
     for isim in range(0,nsim):
           
 # Work out a random path for this realization:
@@ -3214,11 +3573,10 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
         print('                                   variance = ' + str(round(ss,4)) + ' (close to gammabar(V,V)? approx. 1.0)')
 
 # END MAIN LOOP OVER SIMULATIONS:
-        sim_out = np.zeros((ny,nx))
         for ind in range(0,nxy):
             iy   = int((ind)/nx) 
             ix   = ind - (iy)*nx
-            sim_out[ny-iy-1,ix] = sim[ind]
+            sim_out[isim,ny-iy-1,ix] = sim[ind]
     return sim_out
 
 def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,nx,xmn,xsiz,ny,ymn,ysiz,seed,ndmin,
@@ -3998,7 +4356,8 @@ def sqdist3(x1,y1,z1,x2,y2,z2,ind,rotmat):
         sqdist += cont**2
     return sqdist
 
-def setrot3(ang1,ang2,ang3,anis1,anis2,ind,rotmat):
+#@jit(nopython=True) # all NumPy array operations included in this function for precompile with NumBa
+def setrot3D(vario3D):
     """Sets up an Anisotropic Rotation Matrix - 3D
     
     Sets up the matrix to transform cartesian coordinates to coordinates
@@ -4025,33 +4384,105 @@ def setrot3(ang1,ang2,ang3,anis1,anis2,ind,rotmat):
           theta   Angle of rotation of minor axis about the major axis
                   of the ellipsoid."""
     
-    DEG2RAD=np.pi/180.0; EPSLON=1e-20
-    if (ang1 >= 0.0)&(ang1<270.0):
-        alpha = (90.0 - ang1) * DEG2RAD
-    else:
-        alpha = (450.0 - ang1) * DEG2RAD
-    beta = -1.0 * ang2 *DEG2RAD
-    theta = ang3 * DEG2RAD
+    for ist in range(0,vario3D["nst"]):
+        anis_hori = vario3D["hmin"][ist] / vario3D["hmaj"][ist]
+        anis_vert = vario3D["hvert"][ist] / vario3D["hmaj"][ist]
+        ang_azi = vario3D["azi"][ist]
+        ang_dip = vario3D["dip"][ist]
+        
+        DEG2RAD=np.pi/180.0; EPSLON=1e-20
+        if (ang_azi >= 0.0)&(ang_azi<270.0):
+            alpha = (90.0 - ang_azi) * DEG2RAD
+        else:
+            alpha = (450.0 - ang_azi) * DEG2RAD
+        beta = -1.0 * ang_dip *DEG2RAD
+        theta = 0.0 * DEG2RAD # assume 0 plunge
+        
+        sina = np.sin(alpha)
+        sinb = np.sin(beta)
+        sint = np.sin(theta)
+        cosa = np.cos(alpha)
+        cosb = np.cos(beta)
+        cost = np.cos(theta)
+        ### Construct the rotation matrix in the required memory
+        
+        afac1 = 1.0/max(anis_hori, EPSLON)
+        afac2 = 1.0/max(anis_vert, EPSLON)
+        rotmat = np.zeros((2,3,3))
+        rotmat[ist,0,0] = cosb * cosa
+        rotmat[ist,0,1] = cosb * sina
+        rotmat[ist,0,2] = -sinb
+        rotmat[ist,1,0] = afac1*(-cost*sina + sint*sinb*cosa)
+        rotmat[ist,1,1] = afac1*(cost*cosa + sint*sinb*sina)
+        rotmat[ist,1,2] = afac1*( sint * cosb)
+        rotmat[ist,2,0] = afac2*(sint*sina + cost*sinb*cosa)
+        rotmat[ist,2,1] = afac2*(-sint*cosa + cost*sinb*sina)
+        rotmat[ist,2,2] = afac2*(cost * cosb)  
     
-    sina = np.sin(alpha)
-    sinb = np.sin(beta)
-    sint = np.sin(theta)
-    cosa = np.cos(alpha)
-    cosb = np.cos(beta)
-    cost = np.cos(theta)
-    ### Construct the rotation matrix in the required memory
+    return rotmat
+
+@jit(nopython=True) # all NumPy array operations included in this function for precompile with NumBa
+def setrot3D_array(vario3D_array):
+    """Sets up an Anisotropic Rotation Matrix - 3D
     
-    afac1 = 1.0/max(anis1, EPSLON)
-    afac2 = 1.0/max(anis2, EPSLON)
-    rotmat[ind,0,0] = cosb * cosa
-    rotmat[ind,0,1] = cosb * sina
-    rotmat[ind,0,2] = -sinb
-    rotmat[ind,1,0] = afac1*(-cost*sina + sint*sinb*cosa)
-    rotmat[ind,1,1] = afac1*(cost*cosa + sint*sinb*sina)
-    rotmat[ind,1,2] = afac1*( sint * cosb)
-    rotmat[ind,2,0] = afac2*(sint*sina + cost*sinb*cosa)
-    rotmat[ind,2,1] = afac2*(-sint*cosa + cost*sinb*sina)
-    rotmat[ind,2,2] = afac2*(cost * cosb)
+    Sets up the matrix to transform cartesian coordinates to coordinates
+    accounting for angles and anisotropy
+    
+    Converted from original fortran GSLIB (Deutsch and Journel, 1998) to Python by Wendi Liu, University of Texas at Austin
+    
+    INPUT PARAMETERS:
+
+    ang1             Azimuth angle for principal direction
+    ang2             Dip angle for principal direction
+    ang3             Third rotation angle
+    anis1            First anisotropy ratio
+    anis2            Second anisotropy ratio
+    ind              matrix indicator to initialize
+    rotmat           rotation matrices
+    
+    Converts the input angles to three angles which make more mathematical sense:
+
+          alpha   angle between the major axis of anisotropy and the
+                  E-W axis. Note: Counter clockwise is positive.
+          beta    angle between major axis and the horizontal plane.
+                  (The dip of the ellipsoid measured positive down)
+          theta   Angle of rotation of minor axis about the major axis
+                  of the ellipsoid."""
+    
+    for ist in range(0,vario3D_array[1]):
+        anis_hori = vario3D_array[ist*7+2+5] / vario3D_array[ist*7+2+4]
+        anis_vert = vario3D_array[ist*7+2+6] / vario3D_array[ist*7+2+4]
+        ang_azi = vario3D_array[ist*7+2+2]
+        ang_dip = vario3D_array[ist*7+2+3]
+        
+        DEG2RAD=np.pi/180.0; EPSLON=1e-20
+        if (ang_azi >= 0.0)&(ang_azi<270.0):
+            alpha = (90.0 - ang_azi) * DEG2RAD
+        else:
+            alpha = (450.0 - ang_azi) * DEG2RAD
+        beta = -1.0 * ang_dip *DEG2RAD
+        theta = 0.0 * DEG2RAD # assume 0 plunge
+        
+        sina = np.sin(alpha)
+        sinb = np.sin(beta)
+        sint = np.sin(theta)
+        cosa = np.cos(alpha)
+        cosb = np.cos(beta)
+        cost = np.cos(theta)
+        ### Construct the rotation matrix in the required memory
+        
+        afac1 = 1.0/max(anis_hori, EPSLON)
+        afac2 = 1.0/max(anis_vert, EPSLON)
+        rotmat = np.zeros((2,3,3))
+        rotmat[ist,0,0] = cosb * cosa
+        rotmat[ist,0,1] = cosb * sina
+        rotmat[ist,0,2] = -sinb
+        rotmat[ist,1,0] = afac1*(-cost*sina + sint*sinb*cosa)
+        rotmat[ist,1,1] = afac1*(cost*cosa + sint*sinb*sina)
+        rotmat[ist,1,2] = afac1*( sint * cosb)
+        rotmat[ist,2,0] = afac2*(sint*sina + cost*sinb*cosa)
+        rotmat[ist,2,1] = afac2*(-sint*cosa + cost*sinb*sina)
+        rotmat[ist,2,2] = afac2*(cost * cosb)  
     
     return rotmat
 
@@ -4107,6 +4538,84 @@ def gammabar(xsiz, ysiz, zsiz,nst,c0,it,cc,hmaj,hmin,hvert):
                             gb += maxcov-cov
     gb = gb/((nx*ny*nz)**2)
     return gb
+
+def gam_1D(array, tmin, tmax, xsiz, ixd, nlag, isill):
+    """GSLIB's GAM program for 1D only (Deutsch and Journel, 1998) converted from the
+    original Fortran to Python by Michael Pyrcz, the University of Texas at
+    Austin (Oct., 2021).
+    :param array: 2D gridded data / model
+    :param tmin: property trimming limit
+    :param tmax: property trimming limit
+    :param xsiz: grid cell extents in x direction
+    :param ixd: lag offset in grid cells
+    :param nlag: number of lags to calculate
+    :param isill: 1 for standardize sill
+    :return: TODO
+    """
+
+    if array.ndim == 1:
+        nx = len(array)
+    else:
+        print('Error: gam_1D only accepts 1D ndarrays')
+
+    nvarg = 1  # for multiple variograms repeat the program
+    mxdlv = nlag
+
+    # Allocate the needed memory
+    lag = np.zeros(mxdlv)
+    vario = np.zeros(mxdlv)
+    hm = np.zeros(mxdlv)
+    tm = np.zeros(mxdlv)
+    hv = np.zeros(mxdlv)  # TODO: not used
+    npp = np.zeros(mxdlv)
+    ivtail = np.zeros(nvarg + 2)
+    ivhead = np.zeros(nvarg + 2)
+    ivtype = np.zeros(nvarg + 2)
+    ivtail[0] = 0
+    ivhead[0] = 0
+    ivtype[0] = 0
+
+    # Summary statistics for the data after trimming
+    inside = (array > tmin) & (array < tmax)
+    avg = array[(array > tmin) & (array < tmax)].mean()  # TODO: not used
+    stdev = array[(array > tmin) & (array < tmax)].std()
+    var = stdev ** 2.0
+    vrmin = array[(array > tmin) & (array < tmax)].min()  # TODO: not used
+    vrmax = array[(array > tmin) & (array < tmax)].max()  # TODO: not used
+    num = ((array > tmin) & (array < tmax)).sum()  # TODO: not used
+
+    # For the fixed seed point, loop through all directions
+    for ix in range(0, nx):
+        if inside[ix]:
+            vrt = array[ix]
+            ixinc = ixd
+            ix1 = ix
+            for il in range(0, nlag):
+                ix1 = ix1 + ixinc
+                if 0 <= ix1 < nx:
+                    if inside[ix1]:
+                        vrh = array[ix1]
+                        npp[il] = npp[il] + 1
+                        tm[il] = tm[il] + vrt
+                        hm[il] = hm[il] + vrh
+                        vario[il] = vario[il] + ((vrh - vrt) ** 2.0)
+
+    # average values for gam, hm, tm, hv, and tv, then compute the correct "variogram" measure
+    for il in range(0, nlag):
+        if npp[il] > 0:
+            rnum = npp[il]
+            lag[il] = ixd * xsiz * il
+            vario[il] = vario[il] / float(rnum)
+            hm[il] = hm[il] / float(rnum)
+            tm[il] = tm[il] / float(rnum)
+
+            # Standardize by the sill
+            if isill == 1:
+                vario[il] = vario[il] / var
+
+            # Semivariogram
+            vario[il] = 0.5 * vario[il]
+    return lag, vario, npp
 
 def gam_3D(array, tmin, tmax, xsiz, ysiz, zsiz, ixd, iyd, izd, nlag, isill):
     """GSLIB's GAM program (Deutsch and Journel, 1998) converted from the
@@ -4202,24 +4711,23 @@ def gam_3D(array, tmin, tmax, xsiz, ysiz, zsiz, ixd, iyd, izd, nlag, isill):
             vario[il] = 0.5 * vario[il]
     return lag, vario, npp
 
-
-def make_variogram_3D(
+def make_variogram3D(
     nug,
     nst,
     it1,
     cc1,
     azi1,
     dip1,
-    hmax1,
-    hmed1,
+    hmaj1,
     hmin1,
+    hvert1,
     it2=1,
     cc2=0,
     azi2=0,
     dip2=0,
-    hmax2=0,
-    hmed2=0,
+    hmaj2=0,
     hmin2=0,
+    hvert2=0,
 ):
     """Make a dictionary of variogram parameters for application with spatial
     estimation and simulation.
@@ -4230,70 +4738,73 @@ def make_variogram_3D(
     :param cc1: Contribution of 2nd variogram
     :param azi1: Azimuth of 1st variogram
     :param dip1: Dip of 1st variogram
-    :param hmax1: Range in major direction (Horizontal)
-    :param hmed1: Range in minor direction (Horizontal)
-    :param hmin1: Range in vertical direction
+    :param hmaj1: Range in major direction (Horizontal)
+    :param hmin1: Range in minor direction (Horizontal)
+    :param hvert1: Range in vertical direction
     :param it2: Structure of 2nd variogram (1: Spherical, 2: Exponential, 3: Gaussian)
     :param cc2: Contribution of 2nd variogram
     :param azi2: Azimuth of 2nd variogram
     :param dip1: Dip of 2nd variogram
-    :param hmax2: Range in major direction (Horizontal)
-    :param hmed2: Range in minor direction (Horizontal)
-    :param hmin2: Range in vertical direction
+    :param hmaj2: Range in major direction (Horizontal)
+    :param hmin2: Range in minor direction (Horizontal)
+    :param hvert2: Range in vertical direction
     :return: TODO
     """
+    
     if cc2 == 0:
         nst = 1
     var = dict(
         [
             ("nug", nug),
             ("nst", nst),
-            ("it1", it1),
-            ("cc1", cc1),
-            ("azi1", azi1),
-            ("dip1", dip1),
-            ("hmax1", hmax1),
-            ("hmed1", hmed1),
-            ("hmin1", hmin1),
-            ("it2", it2),
-            ("cc2", cc2),
-            ("azi2", azi2),
-            ("dip2", dip2),
-            ("hmax2", hmax2),
-            ("hmed2", hmed2),
-            ("hmin2", hmin2),
+            ("it", np.array([it1,it2])),
+            ("cc", np.array([cc1,cc2])),
+            ("azi", np.array([azi1,azi2])),
+            ("dip", np.array([dip1,dip2])),
+            ("hmaj", np.array([hmaj1,hmaj2])),
+            ("hmin", np.array([hmin1,hmin2])),
+            ("hvert", np.array([hvert1,hvert2])),
         ]
     )
-    if nug + cc1 + cc2 != 1:
+    if var['nug'] + var['cc'][0] + var['cc'][1] != 1:
+        print("\x1b[0;30;41m make_variogram Warning: "
+            "sill does not sum to 1.0, do not use in simulation \x1b[0m")
+    if (var['cc'][0] < 0 or var['cc'][1] < 0 or var['nug'] < 0 or var['hmaj'][0] < 0 or var['hmaj'][1] < 0 or var['hmin'][0] < 0 
+        or var['hmin'][1] < 0 or var['hvert'][0] < 0 or var['hvert'][1] < 0):
         print(
             "\x1b[0;30;41m make_variogram Warning: "
-            "sill does not sum to 1.0, do not use in simulation \x1b[0m"
-        )
-    if (
-        cc1 < 0
-        or cc2 < 0
-        or nug < 0
-        or hmax1 < 0
-        or hmax2 < 0
-        or hmin1 < 0
-        or hmin2 < 0
-    ):
+            "contributions and ranges must be all positive \x1b[0m")
+    if (var['hmaj'][0] < var['hmin'][0] or var['hmaj'][1] < var['hmin'][1]):
         print(
             "\x1b[0;30;41m make_variogram Warning: "
-            "contributions and ranges must be all positive \x1b[0m"
-        )
-    if hmax1 < hmed1 or hmax2 < hmed2:
-        print(
-            "\x1b[0;30;41m make_variogram Warning: "
-            "major range should be greater than minor range \x1b[0m"
-        )
+            "major range should be greater than minor range \x1b[0m")
     return var
+
+def variogram3D2ndarray(vario3D): # for use with Numba because dictionaries are not compliant
+    vario3D_array = np.zeros(16)
+    vario3D_array[0] = vario3D['nug']
+    vario3D_array[1] = vario3D['nst']
+    vario3D_array[2] = vario3D['it'][0]
+    vario3D_array[3] = vario3D['cc'][0]
+    vario3D_array[4] = vario3D['azi'][0]
+    vario3D_array[5] = vario3D['dip'][0]
+    vario3D_array[6] = vario3D['hmaj'][0]
+    vario3D_array[7] = vario3D['hmin'][0]
+    vario3D_array[8] = vario3D['hvert'][0]
+    vario3D_array[9] = vario3D['it'][1]
+    vario3D_array[10] = vario3D['cc'][1]
+    vario3D_array[11] = vario3D['azi'][1]
+    vario3D_array[12] = vario3D['dip'][1]
+    vario3D_array[13] = vario3D['hmaj'][1]
+    vario3D_array[14] = vario3D['hmin'][1]
+    vario3D_array[15] = vario3D['hvert'][1]
+    return vario3D_array   
 
 def vmodel_3D(
     nlag,
     xlag,
-    azm,
-	dip,
+    mazm,
+    mdip,
     vario
 ):
     """GSLIB's VMODEL program (Deutsch and Journel, 1998) converted from the
@@ -4313,7 +4824,7 @@ def vmodel_3D(
     MAXROT=MAXNST+1
     EPSLON = 1.0e-20
     VERSION= 1.01
-  
+
 # Declare arrays
     index = np.zeros(nlag+1)
     h = np.zeros(nlag+1)
@@ -4326,47 +4837,35 @@ def vmodel_3D(
     cc = np.zeros(nst)
     aa = np.zeros(nst)
     it = np.zeros(nst)
-    ang_azi = np.zeros(nst)
-    ang_dip = np.zeros(nst)
+    azi = np.zeros(nst)
+    dip = np.zeros(nst)
     anis = np.zeros(nst)
     anis_v = np.zeros(nst)
-    
-    c0 = vario["nug"]
-    cc[0] = vario["cc1"]
-    it[0] = vario["it1"]
-    ang_azi[0] = vario["azi1"]
-    ang_dip[0] = vario["dip1"]
-    aa[0] = vario["hmax1"]
-    anis[0] = vario["hmed1"] / vario["hmax1"]
-    anis_v[0] = vario["hmin1"] / vario["hmax1"]
-    if nst == 2:
-        cc[1] = vario["cc2"]	 
-        it[1] = vario["it2"]
-        ang_azi[1] = vario["azi2"]
-        ang_dip[1] = vario["dip2"]
-        aa[1] = vario["hmax2"]
-        anis[1] = vario["hmed2"] / vario["hmax2"]
-        anis_v[1] = vario["hmin2"] / vario["hmax2"]
-                    
-    xoff = math.sin(DEG2RAD*azm)*math.cos(DEG2RAD*dip)*xlag
-    yoff = math.cos(DEG2RAD*azm)*math.cos(DEG2RAD*dip)*xlag
-    zoff = math.sin(DEG2RAD*dip)*xlag
-	
-    print(' x,y,z offsets = ' + str(xoff) + ',' + str(yoff) + ',' + str(zoff))
-    rotmat, maxcov = setup_rotmat_3D(c0, nst, it, cc, ang_azi, ang_dip, 99999.9)   
-    
+   
+    cc = vario['cc']
+    it = vario['it']
+    azi = vario['azi']
+    dip = vario['dip']
+    aa = vario['hmaj']
+    anis_hori = vario["hmin"] / vario["hmin"]
+    anis_vert = vario["hvert"] / vario["hmin"]                
+    xoff = math.sin(DEG2RAD*mazm)*math.cos(DEG2RAD*mdip)*xlag
+    yoff = math.cos(DEG2RAD*mazm)*math.cos(DEG2RAD*mdip)*xlag
+    zoff = math.sin(DEG2RAD*mdip)*xlag
+    print(' x,y,z offsets = ' + str(xoff) + ',' + str(yoff) + ',' + str(zoff)) 
+    rotmat = setrot3D(vario) 
+    maxcov = vario['nug'] + np.sum(vario['cc'])
     xx = 0.0; yy = 0.0; zz = 0.0;
-	
     for il in range(0,nlag+1):
         index[il] = il
-        cov[il] = cova3(0.0,0.0,0.0,xx,yy,zz,nst,c0,9999.9,cc,aa,it,anis, anis_v, rotmat, maxcov)
-        gam[il] = maxcov - cov[il]
-        ro[il]  = cov[il]/maxcov
+        cov[il] = cov[il] + cova3(0.0,0.0,0.0,xx,yy,zz,vario,rotmat,maxcov)
         h[il]   = math.sqrt(max((xx*xx + yy*yy + zz*zz),0.0))
         xx = xx + xoff
         yy = yy + yoff
         zz = zz + zoff
-
+        gam[il] = maxcov - cov[il]
+        ro[il]  = cov[il]/maxcov
+        
 # finished
     return index,h,gam,cov,ro
 
@@ -4407,8 +4906,8 @@ def setup_rotmat_3D(c0, nst, it, cc, ang_azi, ang_dip, pmx):
             maxcov = maxcov + cc[js]
     return rotmat, maxcov
 
-@jit(nopython=True)
-def cova3(x1, y1, z1, x2, y2, z2, nst, c0, pmx, cc, aa, it, anis, anis_v, rotmat, maxcov):
+#@jit(nopython=True)
+def cova3(x1, y1, z1, x2, y2, z2, vario3D, rotmat, maxcov):
     """Calculate the covariance associated with a variogram model specified by a
     nugget effect and nested variogram structures.
     :param x1: x coordinate of first point
@@ -4425,7 +4924,7 @@ def cova3(x1, y1, z1, x2, y2, z2, nst, c0, pmx, cc, aa, it, anis, anis_v, rotmat
     :param it: TODO
     :param ang: TODO: not used
     :param anis: Horizontal aspect ratio
-	:param anis_v: Vertical aspect ratio
+    :param anis_v: Vertical aspect ratio
     :param rotmat: rotation matrices
     :param maxcov: TODO
     :return: TODO
@@ -4444,35 +4943,109 @@ def cova3(x1, y1, z1, x2, y2, z2, nst, c0, pmx, cc, aa, it, anis, anis_v, rotmat
 
     # Non-zero distance, loop over all the structures
     cova3_ = 0.0
-    for js in range(0, nst):
+    for ist in range(0, vario3D['nst']):
+        anis_hori = vario3D["hmin"][ist] / vario3D["hmaj"][ist]
+        anis_vert = vario3D["hvert"][ist] / vario3D["hmaj"][ist]
+        it = vario3D['it'][ist]
         # Compute the appropriate structural distance
-        dx1 = dx * rotmat[0, js] + dy * rotmat[1, js] + dz * rotmat[2, js]
-        dy1 = (dx * rotmat[3, js] + dy * rotmat[4, js] + dz * rotmat[5, js] ) / anis[js]
-        dz1 = (dx * rotmat[6, js] + dy * rotmat[7, js] + dz * rotmat[8, js] ) / anis_v[js]
-		
-		
+#        dx1 = dx * rotmat[ist,0,0] + dy * rotmat[ist,0,1] + dz * rotmat[ist,0,2]
+#        dy1 = (dx * rotmat[ist,1,0] + dy * rotmat[ist,1,1] + dz * rotmat[ist,1,2] ) / anis_hori
+#        dz1 = (dx * rotmat[ist,2,0] + dy * rotmat[ist,2,1] + dz * rotmat[ist,2,2] ) / anis_vert
+        
+        dx1 = dx * rotmat[ist,0,0] + dy * rotmat[ist,0,1] + dz * rotmat[ist,0,2]
+        dy1 = (dx * rotmat[ist,1,0] + dy * rotmat[ist,1,1] + dz * rotmat[ist,1,2] )
+        dz1 = (dx * rotmat[ist,2,0] + dy * rotmat[ist,2,1] + dz * rotmat[ist,2,2] ) 
         h = math.sqrt(max((dx1 * dx1 + dy1 * dy1 + dz1 * dz1 ), 0.0))
-        if it[js] == 1:
+#         print(dx,dy,dz)
+#         print(dx1,dy1,dz1)
+#         print(dx1 * dx1 + dy1 * dy1 + dz1 * dz1)
+#         print(h,anis_vert,dz1)
+#         print(dz * rotmat[ist,2,2])
+#         print(dx * rotmat[ist,2,0] + dy * rotmat[ist,2,1] + dz * rotmat[ist,2,2] )
+        if it == 1:
             # Spherical model
-            hr = h / aa[js]
+            hr = h / vario3D["hmaj"][ist]
             if hr < 1.0:
-                cova3_ = cova3_ + cc[js] * (1.0 - hr * (1.5 - 0.5 * hr * hr))
-        elif it[js] == 2:
+                cova3_ = cova3_ + vario3D['cc'][ist] * (1.0 - hr * (1.5 - 0.5 * hr * hr))
+        elif it == 2:
             # Exponential model
-            cova3_ = cova3_ + cc[js] * np.exp(-3.0 * h / aa[js])
-        elif it[js] == 3:
+            cova3_ = cova3_ + vario3D['cc'][ist] * np.exp(-3.0 * h / vario3D["hmaj"][ist])
+        elif it == 3:
             # Gaussian model
-            hh = -3.0 * (h * h) / (aa[js] * aa[js])
-            cova3_ = cova3_ + cc[js] * np.exp(hh)
-        elif it[js] == 4:
-            # Power model
-            cov1 = pmx - cc[js] * (h ** aa[js])
-            cova3_ = cova3_ + cov1
-    return cova3_	
-	
+            hh = -3.0 * (h * h) / (vario3D["hmaj"][ist] * vario3D["hmaj"][ist])
+            cova3_ = cova3_ + vario3D["cc"][ist] * np.exp(hh)
+    return cova3_
 
+@jit(nopython=True)
+def cova3_array(x1, y1, z1, x2, y2, z2, vario3D_array, rotmat, maxcov):
+    """Calculate the covariance associated with a variogram model specified by a
+    nugget effect and nested variogram structures.
+    :param x1: x coordinate of first point
+    :param y1: y coordinate of first point
+    :param z1: z coordinate of first point
+    :param x2: x coordinate of second point
+    :param y2: y coordinate of second point
+    :param z2: z coordinate of second point
+    :param nst: number of nested structures (maximum of 4)
+    :param c0: isotropic nugget constant (TODO: not used)
+    :param pmx: TODO
+    :param cc: multiplicative factor of each nested structure
+    :param aa: parameter `a` of each nested structure
+    :param it: TODO
+    :param ang: TODO: not used
+    :param anis: Horizontal aspect ratio
+    :param anis_v: Vertical aspect ratio
+    :param rotmat: rotation matrices
+    :param maxcov: TODO
+    :return: TODO
+    """
+    """ Revised from Wendi Liu's code """
 
-	
+    EPSLON = 0.000001
+
+    # Check for very small distance
+    dx = x2 - x1
+    dy = y2 - y1
+    dz = z2 - z1
+    if (dx * dx + dy * dy + dz * dz) < EPSLON:
+        cova3_ = maxcov
+        return cova3_
+
+    # Non-zero distance, loop over all the structures
+    cova3_ = 0.0
+    for ist in range(0,vario3D_array[1]):
+        anis_hori = vario3D_array[ist*7+2+5] / vario3D_array[ist*7+2+4]
+        anis_vert = vario3D_array[ist*7+2+6] / vario3D_array[ist*7+2+4]
+        it = vario3D_array[ist*7+2+0]
+    
+        # Compute the appropriate structural distance
+#        dx1 = dx * rotmat[ist,0,0] + dy * rotmat[ist,0,1] + dz * rotmat[ist,0,2]
+#        dy1 = (dx * rotmat[ist,1,0] + dy * rotmat[ist,1,1] + dz * rotmat[ist,1,2] ) / anis_hori
+#        dz1 = (dx * rotmat[ist,2,0] + dy * rotmat[ist,2,1] + dz * rotmat[ist,2,2] ) / anis_vert
+        
+        dx1 = dx * rotmat[ist,0,0] + dy * rotmat[ist,0,1] + dz * rotmat[ist,0,2]
+        dy1 = (dx * rotmat[ist,1,0] + dy * rotmat[ist,1,1] + dz * rotmat[ist,1,2] )
+        dz1 = (dx * rotmat[ist,2,0] + dy * rotmat[ist,2,1] + dz * rotmat[ist,2,2] ) 
+        h = math.sqrt(max((dx1 * dx1 + dy1 * dy1 + dz1 * dz1 ), 0.0))
+#         print(dx,dy,dz)
+#         print(dx1,dy1,dz1)
+#         print(dx1 * dx1 + dy1 * dy1 + dz1 * dz1)
+#         print(h,anis_vert,dz1)
+#         print(dz * rotmat[ist,2,2])
+#         print(dx * rotmat[ist,2,0] + dy * rotmat[ist,2,1] + dz * rotmat[ist,2,2] )
+        if it == 1:
+            # Spherical model
+            hr = h / vario3D_array[ist*7+2+4]
+            if hr < 1.0:
+                cova3_ = cova3_ + vario3D_array[ist*7+2+1] * (1.0 - hr * (1.5 - 0.5 * hr * hr))
+        elif it == 2:
+            # Exponential model
+            cova3_ = cova3_ + vario3D_array[ist*7+2+1] * np.exp(-3.0 * h / vario3D_array[ist*7+2+4])
+        elif it == 3:
+            # Gaussian model
+            hh = -3.0 * (h * h) / (vario3D_array[ist*7+2+4] * vario3D_array[ist*7+2+4])
+            cova3_ = cova3_ + vario3D_array[ist*7+2+1] * np.exp(hh)
+    return cova3_
 	
 def gamv_3D(
     df,

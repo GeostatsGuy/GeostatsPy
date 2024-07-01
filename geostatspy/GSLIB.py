@@ -31,9 +31,8 @@ from scipy import signal
 image_type = "tif"
 dpi = 600
 
-
-def ndarray2GSLIB(array, data_file, col_name):
-    """Convert 1D or 2D numpy ndarray to a GSLIB Geo-EAS file for use with
+def ndarray2GSLIB_3D(array, data_file, col_name):
+    """Convert 1D or 2D or 3D numpy ndarray to a GSLIB Geo-EAS file for use with
     GSLIB methods.
 
     :param array: input array
@@ -42,14 +41,22 @@ def ndarray2GSLIB(array, data_file, col_name):
     :return: None
     """
 
-    if array.ndim not in [1, 2]:
-        raise ValueError("must use a 2D array")
+    if array.ndim not in [1, 2,3]:
+        raise ValueError("must use a 3D array")
 
     with open(data_file, "w") as f:
         f.write(data_file + "\n")
         f.write("1 \n")
         f.write(col_name + "\n")
 
+        if array.ndim == 3:
+            nz, ny, nx = array.shape
+
+            for iz in range(nz):
+                for iy in range(ny):
+                    for ix in range(nx):
+                        f.write(str(array[nz - 1 - iz,ny - 1 - iy, ix]) + "\n")
+        
         if array.ndim == 2:
             ny, nx = array.shape
 
@@ -98,6 +105,51 @@ def GSLIB2ndarray(data_file, kcol, nx, ny):
                 array[ix] = head.split()[kcol]
     return array, col_name
 
+def GSLIB2ndarray_3D(data_file, kcol,nreal, nx, ny, nz):
+    """Convert GSLIB Geo-EAS file to a 1D or 2D numpy ndarray for use with
+    Python methods
+
+    :param data_file: file name
+    :param kcol: name of column which contains property
+    :param nreal: Number of realizations
+    :param nx: shape along x dimension
+    :param ny: shape along y dimension
+    :param nz: shape along z dimension
+    :return: ndarray, column name
+    """
+    if nz > 1 and ny > 1:
+        array = np.ndarray(shape = (nreal, nz, ny, nx), dtype=float, order="F")
+    elif ny > 1:
+        array = np.ndarray(shape=(nreal, ny, nx), dtype=float, order="F")
+    else:
+        array = np.zeros(nreal, nx)
+
+    with open(data_file) as f:
+        head = [next(f) for _ in range(2)]  # read first two lines
+        line2 = head[1].split()
+        ncol = int(line2[0])  # get the number of columns
+
+        for icol in range(ncol):  # read over the column names
+            head = next(f)
+            if icol == kcol:
+                col_name = head.split()[0]
+        for ineal in range(nreal):
+            if nz > 1 and ny > 1:
+                for iz in range(nz):
+                    for iy in range(ny):
+                        for ix in range(nx):
+                            head = next(f)
+                            array[ineal][nz - 1 - iz][ny - 1 - iy][ix] = head.split()[kcol]
+            elif ny > 1:
+                for iy in range(ny):
+                    for ix in range(0, nx):
+                        head = next(f)
+                        array[ineal][ny - 1 - iy][ix] = head.split()[kcol]
+            else:
+                for ix in range(nx):
+                    head = next(f)
+                    array[ineal][ix] = head.split()[kcol]
+    return array, col_name
 
 def Dataframe2GSLIB(data_file, df):
     """Convert pandas DataFrame to a GSLIB Geo-EAS file for use with GSLIB
@@ -164,20 +216,28 @@ def hist(array, xmin, xmax, log, cumul, bins, weights, xlabel, title, fig_name):
     :return: None
     """
     plt.figure(figsize=(8, 6))
+    density = False; edgecolor = 'black'
+    if cumul == True: density = True; edgecolor = None
     plt.hist(
         array,
-        alpha=0.2,
-        color="red",
-        edgecolor="black",
+        alpha=0.9,
+        color="darkorange",
+        edgecolor=edgecolor,
         bins=bins,
         range=[xmin, xmax],
         weights=weights,
         log=log,
         cumulative=cumul,
+        density=density
     )
     plt.title(title)
     plt.xlabel(xlabel)
-    plt.ylabel("Frequency")
+    if cumul == False: 
+        plt.ylabel("Frequency") 
+    else:
+        plt.ylabel("Cumulative Probability")
+        plt.ylim([0.0,1.0])
+    plt.xlim([xmin,xmax])
     plt.savefig(fig_name + "." + image_type, dpi=dpi)
     plt.show()
 
@@ -198,22 +258,29 @@ def hist_st(array, xmin, xmax, log, cumul, bins, weights, xlabel, title):
     :param title: title
     :return: None
     """
+    density = False; edgecolor = 'black'
+    if cumul == True: density = True; edgecolor = None
     plt.hist(
         array,
-        alpha=0.2,
-        color="red",
-        edgecolor="black",
+        alpha=0.9,
+        color="darkorange",
+        edgecolor=edgecolor,
         bins=bins,
         range=[xmin, xmax],
         weights=weights,
         log=log,
         cumulative=cumul,
+        density=density
     )
     plt.title(title)
     plt.xlabel(xlabel)
-    plt.ylabel("Frequency")
-
-
+    if cumul == False: 
+        plt.ylabel("Frequency") 
+    else:
+        plt.ylabel("Cumulative Probability")
+        plt.ylim([0.0,1.0])
+    plt.xlim([xmin,xmax])
+    
 def locmap(
     df,
     xcol,
@@ -1946,50 +2013,3 @@ def sgsim_3D(nreal, df, xcol, ycol, zcol, vcol, nx, ny, nz, hsiz, vsiz, seed, va
     os.system("sgsim.exe sgsim.par")
     sim_array = GSLIB2ndarray_3D(output_file, 0, nreal, nx, ny, nz)
     return sim_array[0]
-
-
-def GSLIB2ndarray_3D(data_file, kcol,nreal, nx, ny, nz):
-    """Convert GSLIB Geo-EAS file to a 1D or 2D numpy ndarray for use with
-    Python methods
-
-    :param data_file: file name
-    :param kcol: name of column which contains property
-    :param nreal: Number of realizations
-    :param nx: shape along x dimension
-    :param ny: shape along y dimension
-    :param nz: shape along z dimension
-    :return: ndarray, column name
-    """
-    if nz > 1 and ny > 1:
-        array = np.ndarray(shape = (nreal, ny, nx, nz), dtype=float, order="F")
-    elif ny > 1:
-        array = np.ndarray(shape=(nreal, ny, nx), dtype=float, order="F")
-    else:
-        array = np.zeros(nreal, nx)
-
-    with open(data_file) as f:
-        head = [next(f) for _ in range(2)]  # read first two lines
-        line2 = head[1].split()
-        ncol = int(line2[0])  # get the number of columns
-
-        for icol in range(ncol):  # read over the column names
-            head = next(f)
-            if icol == kcol:
-                col_name = head.split()[0]
-        for ineal in range(nreal):		
-            if nz > 1 and ny > 1:
-                for iz in range(nz):
-                    for iy in range(ny):
-                        for ix in range(nx):
-                            head = next(f)
-                            array[ineal][ny - 1 - iy][ix][iz] = head.split()[kcol]    					
-            elif ny > 1:
-                for iy in range(ny):
-                    for ix in range(0, nx):
-                        head = next(f)
-                        array[ineal][ny - 1 - iy][ix] = head.split()[kcol]
-            else:
-                for ix in range(nx):
-                    head = next(f)
-                    array[ineal][ix] = head.split()[kcol]
-    return array, col_name
