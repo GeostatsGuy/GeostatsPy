@@ -17,6 +17,18 @@ I created the GeostatsPy Package to support my students in my **Data Analytics**
 
 Finally, I like to code. I have over 25 years of experience in FORTRAN, C++ and Visual Basic programing. This includes frontend (Qt interfaces in C++) and backend development with small and at times very large engineering and geoscience projects. 
 
+### What's New with Version 0.33
+
+Professor Honggeun Jo's (Inha University, South Korea) lead the implimentation of 3D methods to GeostatsPy. This include:
+
+* 3D variogram calculation (gam_3D), modeling (make_variogram_3D) and visualization (vmodel_3D)
+* kriging (kb3d)
+* note, Prof. Jo has already completed a 3D indicator kriging algorithm that I will test and add shortly.
+
+Note, GeostatsPy follows the NumPy standard and assumes 3D arrays indexed as my_array[nz,ny,nx] with both y and z reversed. I will add a few well-documented demonstrations to my GitHub shortly.
+
+Michael
+
 ### What's Included
 
 This package contains 2 parts:
