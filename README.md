@@ -125,8 +125,11 @@ Numerical methods in GSLIB (Deutsch and Journel, 1998) translated to Python:
 36. **varmapv** - GSLIB's VARMAP program reimplimented for irregularly spaced spatial data in 2D 
 37. **vmodel** - GSLIB's VMODEL program reimplimented for visualization of nested variogram models in 2D
 38. **nscore** - GSLIB's NSCORE program reimplimented for normal score distribution transformation
-39. **kb2d** - GSLIB's KB2D program reimplimented for 2D spaitial estimation
+39. **kb2d** - GSLIB's KB2D program reimplimented for 2D kriging-based spatial estimation
 40. **ik2d** - GSLIB's IK3D program reimplimented for 2D indicator-based kriging estimation
+41. **kb3d** - GSLIB's kt3d program reimplimented for 3D kriging-based spatial kriging estimation
+42. **sgsim** - GSLIB's sgsim program reimplimented for 2D spatial simulation
+43. **postsim** - GSLIB's postsim program reimplimented for summarizing over multiple realizations
 
 More functionality will be added soon.
 
