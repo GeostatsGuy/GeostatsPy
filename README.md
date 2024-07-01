@@ -142,7 +142,9 @@ The functions rely on the following packages:
 3. **numpy.linalg** - for linear algebra
 4. **numba** - for numerical speed up
 5. **scipy** - for fast nearest neighbor search
-6. **matplotlib.pyplot** - for plotting	                          
+6. **matplotlib.pyplot** - for plotting
+7. **tqdm** - for progress bar
+8. **statsmodels** - for weighted (debiased) statistics                
 
 These packages should be available with any modern Python distribution (e.g. https://www.anaconda.com/download/).
 
