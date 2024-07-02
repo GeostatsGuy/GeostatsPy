@@ -29,6 +29,10 @@ Note, GeostatsPy follows the NumPy standard and assumes 3D arrays indexed as my_
 
 Michael
 
+### What's New with Version 0.27
+
+Finally got to those bugs in sequential Gaussian simulation! We now have improved reproduction of the variogram and a big simplication of the inputs.
+
 ### What's Included
 
 This package contains 2 parts:
