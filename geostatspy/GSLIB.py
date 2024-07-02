@@ -1967,7 +1967,8 @@ def sgsim_3D(nreal, df, xcol, ycol, zcol, vcol, nx, ny, nz, hsiz, vsiz, seed, va
     max_range_v = max(hmin1, hmin2) * 10
     hmn = hsiz * 0.5
     zmn = vsiz * 0.5
-    hctab = int(max_range / hsiz) * 2 + 1
+    hctab_h = int(max_range / hsiz) * 2 + 1
+    hctab_v = int(max_range_v / vsiz) * 2 + 1
 
     with open("sgsim.par", "w") as f:
         f.write("              Parameters for SGSIM                                         \n")
@@ -2000,7 +2001,7 @@ def sgsim_3D(nreal, df, xcol, ycol, zcol, vcol, nx, ny, nz, hsiz, vsiz, seed, va
         f.write("0                             -maximum data per octant (0=not used)        \n")
         f.write(str(max_range) + " " + str(max_range) +" "+ str(max_range_v) + " -maximum search  (hmax,hmin,vert) \n")
         f.write(str(azi1) + "   0.0   0.0       -angles for search ellipsoid                 \n")
-        f.write(str(hctab) + " " + str(hctab) + " 1 -size of covariance lookup table        \n")
+        f.write(str(hctab_h) + " " + str(hctab_h) + " " + str(hctab_v) + " -size of covariance lookup table        \n")
         f.write("1     0.60   1.0              - ktype: 0=SK,1=OK,2=LVM,3=EXDR,4=COLC        \n")
         f.write("none.dat                      -  file with LVM, EXDR, or COLC variable     \n")
         f.write("4                             -  column for secondary variable             \n")
