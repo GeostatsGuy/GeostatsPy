@@ -1864,8 +1864,8 @@ def declus_kriging(
     rad2 = radius*radius
 
 # Calculate Block Covariance. Check for point kriging.
-    rotmat, maxcov = geostats.setup_rotmat(c0,nst,it,cc,ang,PMX)
-    cov = geostats.cova2(xdb[0],ydb[0],xdb[0],ydb[0],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
+    rotmat, maxcov = setup_rotmat(c0,nst,it,cc,ang,PMX)
+    cov = cova2(xdb[0],ydb[0],xdb[0],ydb[0],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
 # Keep this value to use for the unbiasedness constraint:
     unbias = cov
     first  = False
@@ -1918,13 +1918,13 @@ def declus_kriging(
                     
 # Handle the situation of only one sample:
                 if na == 0:  # accounting for min index of 0 - one sample case na = 0
-                    cb1 = geostats.cova2(xa[0],ya[0],xa[0],ya[0],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
+                    cb1 = cova2(xa[0],ya[0],xa[0],ya[0],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
                     xx  = xa[0] - xloc
                     yy  = ya[0] - yloc
 
 # Establish Right Hand Side Covariance:
                     if ndb <= 1:
-                        cb = geostats.cova2(xx,yy,xdb[0],ydb[0],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
+                        cb = cova2(xx,yy,xdb[0],ydb[0],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
                     else:
                         cb  = 0.0
                         for i in range(0,ndb):                  
@@ -1962,7 +1962,7 @@ def declus_kriging(
 # Establish Left Hand Side Covariance Matrix:
                         for i in range(0,na):  # was j - want full matrix                    
                             iin = iin + 1
-                            a[iin] = geostats.cova2(xa[i],ya[i],xa[j],ya[j],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov) 
+                            a[iin] = cova2(xa[i],ya[i],xa[j],ya[j],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov) 
                         if ktype == 1:
                             iin = iin + 1
                             a[iin] = unbias
@@ -1971,7 +1971,7 @@ def declus_kriging(
 
 # Establish Right Hand Side Covariance:
                         if ndb <= 1:
-                            cb = geostats.cova2(xx,yy,xdb[0],ydb[0],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
+                            cb = cova2(xx,yy,xdb[0],ydb[0],nst,c0,PMX,cc,aa,it,ang,anis,rotmat,maxcov)
                         else:
                             cb  = 0.0
                             for j1 in range(0,ndb):    
@@ -2050,7 +2050,6 @@ def declus_kriging(
         sum_wts = np.ones(nd)
     else:
         sum_wts = sum_wts/sum_sum_wts*nd
-        
     return sum_wts
 
 def gam(array, tmin, tmax, xsiz, ysiz, ixd, iyd, nlag, isill):
