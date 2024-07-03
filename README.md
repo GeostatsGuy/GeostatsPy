@@ -17,6 +17,10 @@ I created the GeostatsPy Package to support my students in my **Data Analytics**
 
 Finally, I like to code. I have over 25 years of experience in FORTRAN, C++ and Visual Basic programing. This includes frontend (Qt interfaces in C++) and backend development with small and at times very large engineering and geoscience projects. 
 
+### Getting Started
+
+I have built out many well-documented workflow in Jupyter Notebooks using GeostatsPy functions to complete common workflows in spatial data analytics and geostatistics. They are available in my [GeostatsPy_Demos Repository](https://github.com/GeostatsGuy/GeostatsPy_Demos). I hope these are helpful!
+
 ### What's New with Version 0.33
 
 Professor Honggeun Jo's (Inha University, South Korea) lead the implimentation of 3D methods to GeostatsPy. This include:
