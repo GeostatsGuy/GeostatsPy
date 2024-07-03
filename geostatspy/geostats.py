@@ -1998,7 +1998,7 @@ def declus_kriging(
 #                    print('NDB' + str(ndb))
 #                    print('NEQ' + str(neq) + ' Left' + str(a) + ' Right' + str(r))
 #                    stop
-                    s = geostats.ksol_numpy(neq,a,r)
+                    s = ksol_numpy(neq,a,r)
                     ising = 0 # need to figure this out
 #                    print('weights' + str(s))
 #                    stop
