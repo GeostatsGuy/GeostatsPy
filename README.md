@@ -179,24 +179,7 @@ Numerical methods in GSLIB (Deutsch and Journel, 1998) translated to Python:
 42. **sgsim** - GSLIB's sgsim program reimplimented for 2D spatial simulation
 43. **postsim** - GSLIB's postsim program reimplimented for summarizing over multiple realizations
 
-More functionality will be added soon.
-
-#### Package Dependencies
-
-The functions rely on the following packages:
-
-1. **numpy** - for ndarrays
-2. **pandas** - for DataFrames
-3. **numpy.linalg** - for linear algebra
-4. **numba** - for numerical speed up
-5. **scipy** - for fast nearest neighbor search
-6. **matplotlib.pyplot** - for plotting
-7. **tqdm** - for progress bar
-8. **statsmodels** - for weighted (debiased) statistics                
-
-These packages should be available with any modern Python distribution (e.g. https://www.anaconda.com/download/).
-
-If you get a package import error, you may have to first install some of these packages. This can usually be accomplished by opening up a command window on Windows and then typing 'python -m pip install [package-name]'. More assistance is available with the respective package docs.  
+More functionality will continue to be added.
 
 #### Explanation of GeostatsPy
 
