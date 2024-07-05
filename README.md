@@ -105,11 +105,11 @@ This package is being developed at The University of Texas in the Texas Center f
 
 * **Javier Santos, Ph.D.** - while a Ph.D. student working with Michael Pyrcz at The University of Texas at Austin. Author of the post processing algorithm for summarizing over multiple realizations. Thank you, Javier!
 
-## Package Inventory
+#### Package Inventory
 
 Here's a list and some details on each of the functions available.
 
-### geostatspy.GSLIB Functions
+##### geostatspy.GSLIB Functions
 
 Utilities to support moving between Python DataFrames and ndarrays, Data Tables, Gridded Data and Models in Geo-EAS file format (standard to GSLIB):
 
@@ -159,7 +159,7 @@ Spatial Model Resampling
 29. **random_sample** - extract random samples from a 2D spatial model  
 30. **DataFrame2ndarray** - convent spatial point data in a DataFrame to a sparse ndarray grid
 
-### geostatspy.geostats Functions
+##### geostatspy.geostats Functions
 
 Numerical methods in GSLIB (Deutsch and Journel, 1998) translated to Python:
 
@@ -179,7 +179,7 @@ Numerical methods in GSLIB (Deutsch and Journel, 1998) translated to Python:
 
 More functionality will be added soon.
 
-### Package Dependencies
+#### Package Dependencies
 
 The functions rely on the following packages:
 
@@ -196,13 +196,13 @@ These packages should be available with any modern Python distribution (e.g. htt
 
 If you get a package import error, you may have to first install some of these packages. This can usually be accomplished by opening up a command window on Windows and then typing 'python -m pip install [package-name]'. More assistance is available with the respective package docs.  
 
-### Explanation of GeostatsPy
+#### Explanation of GeostatsPy
 
 GeostatsPy includes functions that run 2D workflows from GSLIB in Python (i.e. low tech wrappers), Python translations and reimplementations of GSLIB methods, along with utilities to move between GSLIB's Geo-EAS data sets and Pandas DataFrames, and grids and 2D NumPy ndarrays respectively and other useful operations such as resampling from regular datasets and rescaling distributions.  
 
 The reimplementations as of now include NSCORE, GAM, GAMV, VMODEL, DECLUS, KB2D, IK2D and SGSIM etc. and most of the visualizations using the standard GSLIB parametric inputs and matplotlib back end. The low tech wrappers simply write the GSLIB parameters, run the GSLIB executables and then read in the GSLIB output. This allows for construction of Python workflows with the very robust GSLIB programs.
 
-#### Why make this package? 
+##### Why make this package? 
 
 I wanted a set of functions to utilize the very robust and numerically efficient GSLIB: Geostatistical Library (Deutsch and Journel, 1998) in Python. While there are other current solutions in Python, I found that these solutions are either proprietary (not open source), not maintained or missing vital functionality; therefore, I have not been able to use these other solutions to teach modeling workflows to students with little or no programming experience. Imagine getting 55 undergraduate students to resort back to a previous version of Python because a single dependency of an available package is not available in a current Python version. Image a student about to submit an assignment, and the code won't run immediately before submission because of an update to a dependency. I need methods for my students that just work, are reliable and do not require students to complete a more complicated environment setup.
 
@@ -222,17 +222,13 @@ The graphical / visualization methods have 2 variants. '_ST' specifies that func
 
 Found an issue (I'm sure there are issues!)? Got a new idea? Want to work on this? Let me know, submit revisions, I'm happy to collaborate.
 
-### Package Examples
+***
 
-There are many example workflow examples available on my GitHub account at https://github.com/GeostatsGuy/, specifically the GeostatsPy https://github.com/GeostatsGuy/GeostatsPy and PythonNumericalDemos  https://github.com/GeostatsGuy/PythonNumericalDemos repositories. Most of these examples simply placed the code for the required functions directly in the Jupyter notebook. These were made before this Package was made as I was developing all the functions individually. To use these examples just make these modifications:
+#### Package Examples
 
-1. install geostatspy with the command *pip install geostatspy*. I used the terminal Anaconda Navigator under the environments tab to make sure the package was accessible to Jupyter Notebooks.  
-2. add *import geostatspy.GSLIB as GSLIB* and *import geostatspy.geostats as geostats* to the top of the workflow 
-3. add *GSLIB.* or *geostats.* as a 'prefex to the GeostatsPy functions based on which set they belong to.
-
-Over the next month I will update all workflows to use the geostatspy package instead of pasting code into the workflows. 
-
-Here's a simple exaple of declustering with the geostatspy package. It looks long because we include making a synthetic dataset, dropping samples to impose a sampling bias, declustering and all the visualization and diagnostics.
+I built out over 40 well-documented demonstration workflows that apply GeostatsPy to accomplish common spatial modeling tasks to support my students in my **Data Analytics and Geostatistics**, **Spatial Data Analytics** and **Machine Learning** courses and anyone else learning data analytics and machine learning. These are all available in the [GeostatsPyDemos Repository](https://github.com/GeostatsGuy/GeostatsPyDemos).
+ 
+Here's a simple example of declustering with the GeostatsPy package. It looks a bit long because we include making a synthetic dataset, dropping samples to impose a sampling bias, declustering and all the visualization and diagnostics.
 
 ```python
 import geostatspy.GSLIB as GSLIB                          # GSLIB utilities, viz and wrapped functions
@@ -299,7 +295,8 @@ plt.subplots_adjust(left=0.0, bottom=0.0, right=2.0, top=3.5, wspace=0.2, hspace
 plt.show()
 
 ```
-I also have various lecture notes, demonstrations and example workflows on GitHub (see link below), and some tutorials on my YouTube channel (see link below). I will continue to add more.  I'm just getting started,
+
+I also have various lecture notes, demonstrations and example workflows on GitHub (see link below), and lectures and tutorials on my YouTube channel (see link below). I hope that this is helpful,
 
 *Michael*
 
