@@ -23,6 +23,7 @@ import numpy.linalg as linalg  # for linear algebra
 import scipy.spatial as sp  # for fast nearest neighbor search
 from numba import jit  # for numerical speed up
 from statsmodels.stats.weightstats import DescrStatsW
+import random # random sampling
 
 def backtr(df,vcol,vr,vrg,zmin,zmax,ltail,ltpar,utail,utpar):   
     """Back transform an entire DataFrame column with a provided transformation table and tail extrapolation.
@@ -5813,3 +5814,14 @@ def ESMDA(OBS, en_Mean, en_static_, en_data_, num_static, alpha, stdErrOfDynamic
     Cy2 = np.linalg.norm(CY_.flatten(),2)
     
     return en_static_new, Cy, Cy2
+
+def bootstrap(zdata,nreal,stat):
+    zreal = np.zeros(nreal)               # declare an empty list to store the bootstrap realizations
+    for l in range(0,nreal):              # loop over the L bootstrap realizations
+        samples = random.choices(zdata, k=len(zdata)) # n Monte Carlo simulations, sample with replacement
+        zreal[l] = stat(samples)       # calculate the realization of the statistic and append to list
+    return zreal                          # return the list of realizations of the statistic
+
+
+
+
