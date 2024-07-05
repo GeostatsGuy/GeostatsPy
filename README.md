@@ -10,11 +10,11 @@
 
 [![Documentation Status](https://readthedocs.org/projects/geostatspy/badge/?version=latest)](https://geostatspy.readthedocs.io/en/latest/?badge=latest)
 
-### Cite As:
+#### Cite As:
 
 Pyrcz, M.J., Jo. H., Kupenko, A., Liu, W., Gigliotti, A.E., Salomaki, T., and Santos, J., 2021, GeostatsPy Python Package, PyPI, Python Package Index, https://pypi.org/project/geostatspy/.
 
-# GeostatsPy Python Package 
+#### GeostatsPy Python Package 
 
 The GeostatsPy Package brings GSLIB: Geostatistical Library (Deutsch and Journel, 1998) functions to Python. GSLIB is a practical and extremely robust set of code for building spatial modeling workflows. 
 
@@ -38,15 +38,38 @@ I have built out many well-documented workflow in Jupyter Notebooks using Geosta
 A minimum environment includes:
 
 * Python 3.7.10 - due to the depdendency of GeostatsPy on the Numba package for code acceleration
-* MatPlotLib - plotting
-* NumPy - gridded data and array math
-* Numba - runtime acceleration
-* Pandas - tabulated data
-* SciPy - statistics module
-* StatsModels - weighted statistics
 
-The required datasets are available in the [GeoDataSets](https://github.com/GeostatsGuy/GeoDataSets) repository and linked in the workflows.
+***
 
+#### Installing GeostatsPy
+
+Firstly, if you haven't installed GeostatsPy, here's the GitHub repository [GeostatsPy GitHub](https://github.com/GeostatsGuy/GeostatsPy/tree/master). GeostatsPy is available on the Python Package Index (PyPI) [GeostatsPy PyPI](https://pypi.org/project/geostatspy/).
+
+To install GeostatsPy, use pip
+
+```console
+pip install geostatspy
+```
+***
+
+#### GeostatsPy Package Dependencies
+
+The functions rely on the following packages:
+
+1. **numpy** - for ndarrays
+2. **pandas** - for DataFrames
+3. **numpy.linalg** - for linear algebra
+4. **numba** - for numerical speed up
+5. **scipy** - for fast nearest neighbor search
+6. **matplotlib.pyplot** - for plotting
+7. **tqdm** - for progress bar
+8. **statsmodels** - for weighted (debiased) statistics                
+
+These packages should be available with any modern Python distribution (e.g. https://www.anaconda.com/download/).
+
+If you get a package import error, you may have to first install some of these packages. This can usually be accomplished by opening up a command window on Windows and then typing 'python -m pip install [package-name]'. More assistance is available with the respective package docs.  
+
+***
 
 ### What's New with Version 0.33
 
