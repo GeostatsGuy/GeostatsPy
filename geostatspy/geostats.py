@@ -5815,10 +5815,12 @@ def ESMDA(OBS, en_Mean, en_static_, en_data_, num_static, alpha, stdErrOfDynamic
     
     return en_static_new, Cy, Cy2
 
-def bootstrap(zdata,nreal,stat):
+def bootstrap(zdata,weights,nreal,stat):
     zreal = np.zeros(nreal)               # declare an empty list to store the bootstrap realizations
+    if weights == None:
+	weights = np.ones((len(zdata))
     for l in range(0,nreal):              # loop over the L bootstrap realizations
-        samples = random.choices(zdata, k=len(zdata)) # n Monte Carlo simulations, sample with replacement
+        samples = random.choices(zdata, k=len(zdata),weights=weights) # n Monte Carlo simulations, sample with replacement
         zreal[l] = stat(samples)       # calculate the realization of the statistic and append to list
     return zreal                          # return the list of realizations of the statistic
 
