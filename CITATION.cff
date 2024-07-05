@@ -22,7 +22,7 @@ authors:
   - family-names: Javier
     given-names: Santos
     # orcid:
-title: "GeostatsPy: Geostatistical Library in Python"
-# version: 1.0.0
+title: "GeostatsPy Python Package: Open-source Spatial Data Analytics and Geostatistics"
+# version: 0.0.46
 # doi: 10.5281/zenodo.
-# date-released: 2021-10-13
+# date-released: 2024-7-05
