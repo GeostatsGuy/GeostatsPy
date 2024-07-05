@@ -4,7 +4,7 @@
 
 [![Documentation Status](https://readthedocs.org/projects/geostatspy/badge/?version=latest)](https://geostatspy.readthedocs.io/en/latest/?badge=latest)
 
-<h1 align="center">GeostatsPy Python Package: Open Source Spatial Data Analytics and Geostatistics</h1>
+<h1 align="center">GeostatsPy Python Package: Open-source Spatial Data Analytics and Geostatistics</h1>
 
 <h3 align="center"></h3>
 
