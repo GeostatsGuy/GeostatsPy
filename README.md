@@ -1,7 +1,12 @@
-  
-<p>
+<h1 align="center"<p>
     <img src="https://github.com/GeostatsGuy/GeostatsPy/blob/master/geostatspy_logo.png?raw=true" width="200" height="200" />
-</p>
+</p></h1>
+
+[![Documentation Status](https://readthedocs.org/projects/geostatspy/badge/?version=latest)](https://geostatspy.readthedocs.io/en/latest/?badge=latest)
+
+<h1 align="center">GeostatsPy Python Package: Open Source Spatial Data Analytics and Geostatistics</h1>
+
+<h3 align="center"></h3>
 
 [![Documentation Status](https://readthedocs.org/projects/geostatspy/badge/?version=latest)](https://geostatspy.readthedocs.io/en/latest/?badge=latest)
 
@@ -27,6 +32,21 @@ This package contains 2 parts:
 ### Getting Started
 
 I have built out many well-documented workflow in Jupyter Notebooks using GeostatsPy functions to complete common workflows in spatial data analytics and geostatistics. They are available in my [GeostatsPy_Demos Repository](https://github.com/GeostatsGuy/GeostatsPy_Demos). I hope these are helpful!
+
+#### Setup
+
+A minimum environment includes:
+
+* Python 3.7.10 - due to the depdendency of GeostatsPy on the Numba package for code acceleration
+* MatPlotLib - plotting
+* NumPy - gridded data and array math
+* Numba - runtime acceleration
+* Pandas - tabulated data
+* SciPy - statistics module
+* StatsModels - weighted statistics
+
+The required datasets are available in the [GeoDataSets](https://github.com/GeostatsGuy/GeoDataSets) repository and linked in the workflows.
+
 
 ### What's New with Version 0.33
 
