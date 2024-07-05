@@ -29,7 +29,8 @@ This package contains 2 parts:
 1. **geostatspy.geostats** includes GSLIB functions rewritten in Python. This currently includes all the variogram, distribution transformations, and spatial estimation and simulation methods. I will continue adding functions to support modeling operations for practical subsurface model cosntruction. 
 
 2. **geostatspy.GSLIB** includes reimplimentation of the GSLIB visualizations and low tech wrappers of the numerical methods (note: the low-tech wrapper require access to GSLIB executables).
-### Getting Started
+
+#### Getting Started
 
 I have built out many well-documented workflow in Jupyter Notebooks using GeostatsPy functions to complete common workflows in spatial data analytics and geostatistics. They are available in my [GeostatsPy_Demos Repository](https://github.com/GeostatsGuy/GeostatsPy_Demos). I hope these are helpful!
 
@@ -50,6 +51,7 @@ To install GeostatsPy, use pip
 ```console
 pip install geostatspy
 ```
+
 ***
 
 #### GeostatsPy Package Dependencies
