@@ -73,7 +73,11 @@ If you get a package import error, you may have to first install some of these p
 
 ***
 
-### What's New with Version 0.33
+#### Recent Updates
+
+Here's some highlights from recent updates:
+
+##### What's New with Version 0.33
 
 Professor Honggeun Jo's (Inha University, South Korea) lead the implimentation of 3D methods to GeostatsPy. This include:
 
@@ -83,13 +87,13 @@ Professor Honggeun Jo's (Inha University, South Korea) lead the implimentation o
 
 Note, GeostatsPy follows the NumPy standard and assumes 3D arrays indexed as my_array[nz,ny,nx] with both y and z reversed. I will add a few well-documented demonstrations to my GitHub shortly.
 
-Michael
-
-### What's New with Version 0.27
+##### What's New with Version 0.27
 
 Finally got to those bugs in sequential Gaussian simulation! We now have improved reproduction of the variogram and a big simplication of the inputs.
 
-### The Authors
+***
+
+#### The Authors
 
 This package is being developed at The University of Texas in the Texas Center for Geostatistics.
 
