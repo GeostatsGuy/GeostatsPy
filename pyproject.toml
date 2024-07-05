@@ -22,15 +22,12 @@ classifiers = [
 ]
 requires-python = ">=3.7"
 dependencies = [
-    "bisect",
-    "math",
     "matplotlib",
     "numpy",
     "numba",
     "pandas",
     "scipy",
     "statsmodels",
-    "tqdm",
 ]
 
 [project.urls]
