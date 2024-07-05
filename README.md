@@ -15,7 +15,7 @@ The GeostatsPy Package brings GSLIB: Geostatistical Library (Deutsch and Journel
 
 I created the GeostatsPy Package to support my students in my **Data Analytics**, **Geostatistics** and **Machine Learning** courses. I find my students benefit from hands-on opportunities, in fact it is hard to imagine teaching these topics without providing the opportunity to handle the numerical methods and build workflows. Last year, I tried to have them use the original FORTRAN executables and even with support and worked out examples, it was an uphill battle. In addition, all my students and I are now working in Python for our research. Thus, having access to geostatistical methods in Python directly impacts and facilitates the research of my group. This package retains the spirit of GSLIB:
 
-* **modularity** - a collection of standalone functions that may be applied in sequence to flexibily build workflows.
+* **modularity** - a collection of standalone functions that may be applied in sequence for maximum flexibility for building workflows
 * **minimalistic** - the simplist possible code to support the "look at the code" approach to learning
 * **fundamental** - based on the well-established geostatistical theory by avoiding ad hoc methods and assumptions
 
