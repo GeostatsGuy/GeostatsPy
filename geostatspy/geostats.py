@@ -5958,30 +5958,34 @@ def bootstrap(zdata,weights,nreal,stat):
     return zreal                          # return the list of realizations of the statistic
 
 def local_expectation(realizations):                      # calculate the local expectation / average realization
+    ny,nx = realizations.shape[1:]
     cond_exp = np.zeros((ny,nx))
     for iy in tqdm(range(0,ny)):
         for ix in range(0,nx): 
-            cond_exp[iy,ix] = np.average(a = realizations[iy,ix,:])  
+            cond_exp[iy,ix] = np.average(a = realizations[:,iy,ix])  
     return cond_exp
 
 def local_standard_deviation(realizations):               # calculate the local standard deviation of realizations
+    ny,nx = realizations.shape[1:]
     local_stdev = np.zeros((ny,nx))
     for iy in tqdm(range(0,ny)):
         for ix in range(0,nx): 
-            local_stdev[iy,ix] = np.std(a = realizations[iy,ix,:])  
+            local_stdev[iy,ix] = np.std(a = realizations[:,iy,ix])  
     return local_stdev
  
 def local_percentile(realizations,p_value):               # calculate the local percentile of realizations
+    ny,nx = realizations.shape[1:]
     percentile = np.zeros((ny,nx))
     for iy in tqdm(range(0,ny)):
         for ix in range(0,nx): 
-            percentile[iy,ix] = np.percentile(a = realizations[iy,ix,:], q = p_value)  
+            percentile[iy,ix] = np.percentile(a = realizations[:,iy,ix], q = p_value)  
     return percentile
 
 def local_probability_exceedance(realizations,threshold): # calculate the local probability of exceeding a threshold 
+    nreal,ny,nx = realizations.shape
     prob_exceed = np.zeros((ny,nx))
     for iy in tqdm(range(0,ny)):
         for ix in range(0,nx): 
-            prob_exceed[iy,ix] = np.sum(realizations[iy,ix,:] >= threshold)/realizations[0,0,:].size 
+            prob_exceed[iy,ix] = np.sum(realizations[:,iy,ix] >= threshold)/nreal 
     return prob_exceed
 
