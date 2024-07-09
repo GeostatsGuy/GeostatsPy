@@ -5957,6 +5957,31 @@ def bootstrap(zdata,weights,nreal,stat):
         zreal[l] = stat(samples)       # calculate the realization of the statistic and append to list
     return zreal                          # return the list of realizations of the statistic
 
+def local_expectation(realizations):                      # calculate the local expectation / average realization
+    cond_exp = np.zeros((ny,nx))
+    for iy in range(0,ny): 
+        for ix in range(0,nx): 
+            cond_exp[iy,ix] = np.average(a = realizations[iy,ix,:])  
+    return cond_exp
 
+def local_standard_deviation(realizations):               # calculate the local standard deviation of realizations
+    local_stdev = np.zeros((ny,nx))
+    for iy in range(0,ny): 
+        for ix in range(0,nx): 
+            local_stdev[iy,ix] = np.std(a = realizations[iy,ix,:])  
+    return local_stdev
+ 
+def local_percentile(realizations,p_value):               # calculate the local percentile of realizations
+    percentile = np.zeros((ny,nx))
+    for iy in range(0,ny): 
+        for ix in range(0,nx): 
+            percentile[iy,ix] = np.percentile(a = realizations[iy,ix,:], q = p_value)  
+    return percentile
 
+def local_probability_exceedance(realizations,threshold): # calculate the local probability of exceeding a threshold 
+    prob_exceed = np.zeros((ny,nx))
+    for iy in range(0,ny): 
+        for ix in range(0,nx): 
+            prob_exceed[iy,ix] = np.sum(realizations[iy,ix,:] >= threshold)/realizations[0,0,:].size 
+    return prob_exceed
 
