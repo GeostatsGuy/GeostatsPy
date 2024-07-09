@@ -1451,7 +1451,7 @@ def correct_trend(trend):
     ny = trend.shape[0]
     nx = trend.shape[1]
     ncut = trend.shape[2]
-    for iy in range(0,ny):
+    for iy in tqdm(range(0,ny)):
         for ix in range(0,nx):
             sum = 0.0
             for ic in range(0,ncut):
@@ -1573,7 +1573,7 @@ def declus(df, xcol, ycol, vcol, iminmax, noff, ncell, cmin, cmax):
 
     # Main loop over cell sizes
     # 0 index is the 0.0 cell, note n + 1 in Fortran
-    for lp in range(1, ncell + 2):
+    for lp in tqdm(range(1, ncell + 2)):
         xcs = xcs + xinc
         ycs = ycs + yinc
 
@@ -1707,7 +1707,7 @@ def polygonal_declus(
     nk = 0
     ak = 0.0
     vk = 0.0
-    for iy in range(0,ny):
+    for iy in tqdm(range(0,ny)):
         yloc = ymn + (iy-0)*ysiz  
         for ix in range(0,nx):
             xloc = xmn + (ix-0)*xsiz
@@ -1885,7 +1885,7 @@ def declus_kriging(
     nk = 0
     ak = 0.0
     vk = 0.0
-    for iy in range(0,ny):
+    for iy in tqdm(range(0,ny)):
         yloc = ymn + (iy-0)*ysiz  
         for ix in range(0,nx):
             xloc = xmn + (ix-0)*xsiz
@@ -2139,7 +2139,6 @@ def gam(array, tmin, tmax, xsiz, ysiz, ixd, iyd, nlag, isill):
             vario[il] = 0.5 * vario[il]
     return lag, vario, npp
 
-
 def gamv(
     df,
     xcol,
@@ -2209,7 +2208,6 @@ def gamv(
         vario[il] = 0.5 * vario[il]
 
     return dis, vario, npp
-
 
 @jit(nopython=True)
 def variogram_loop(x, y, vr, xlag, xltol, nlag, azm, atol, bandwh):
@@ -2598,6 +2596,141 @@ def nscore(
 
     return ns, vr, wt_ns
 
+def invdist(
+    df,
+    xcol,
+    ycol,
+    vcol,
+    tmin,
+    tmax,
+    nx,
+    xmn,
+    xsiz,
+    ny,
+    ymn,
+    ysiz,
+    ndmin,
+    ndmax,
+    radius,
+    power
+):
+    """ Inverse Distance to Python by Michael Pyrcz, the University of Texas at
+    Austin (April, 2020).  Based on modification of the GSLIB kb2d program by Deutsch and Journel (1997)
+    :param df: pandas DataFrame with the spatial data
+    :param xcol: name of the x coordinate column
+    :param ycol: name of the y coordinate column
+    :param vcol: name of the property column
+    :param tmin: property trimming limit
+    :param tmax: property trimming limit
+    :param nx: definition of the grid system (x axis)
+    :param xmn: definition of the grid system (x axis)
+    :param xsiz: definition of the grid system (x axis)
+    :param ny: definition of the grid system (y axis)
+    :param ymn: definition of the grid system (y axis)
+    :param ysiz: definition of the grid system (y axis)
+    :param ndmin: minimum number of data points to use for kriging a block
+    :param ndmax: maximum number of data points to use for kriging a block
+    :param radius: maximum isotropic search radius
+    :param power: the inverse distance power
+    :return:
+    """
+    
+# Constants
+    UNEST = -999.
+    EPSLON = 1.0e-10
+    VERSION = 0.1
+        
+# Load the data
+    df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]    # trim values outside tmin and tmax
+    nd = len(df_extract)
+    ndmax = min(ndmax,nd)
+    x = df_extract[xcol].values
+    y = df_extract[ycol].values
+    vr = df_extract[vcol].values
+    
+# Allocate the needed memory:   
+    xa = np.zeros(ndmax)
+    ya = np.zeros(ndmax)
+    vra = np.zeros(ndmax)
+    dist = np.zeros(ndmax)
+    nums = np.zeros(ndmax)
+    s = np.zeros(ndmax)
+    estmap = np.zeros((nx,ny))
+    
+# Make a KDTree for fast search of nearest neighbours   
+    dp = list((y[i], x[i]) for i in range(0,nd))
+    data_locs = np.column_stack((y,x))
+    tree = sp.cKDTree(data_locs, leafsize=16, compact_nodes=True, copy_data=False, balanced_tree=True)
+
+# Summary statistics for the data after trimming
+    avg = vr.mean()
+    stdev = vr.std()
+    ss = stdev**2.0
+    vrmin = vr.min()
+    vrmax = vr.max()
+
+# Initialize accumulators:
+    rad2 = radius*radius
+
+# MAIN LOOP OVER ALL THE BLOCKS IN THE GRID:
+    nk = 0
+    ak = 0.0
+    vk = 0.0
+    for iy in tqdm(range(0,ny)):
+        yloc = ymn + (iy-0)*ysiz  
+        for ix in range(0,nx):
+            xloc = xmn + (ix-0)*xsiz
+            current_node = (yloc,xloc)
+        
+# Find the nearest samples within each octant: First initialize
+# the counter arrays:
+            na = -1   # accounting for 0 as first index
+            dist.fill(1.0e+20)
+            nums.fill(-1)
+            dist, nums = tree.query(current_node,ndmax) # use kd tree for fast nearest data search
+            # remove any data outside search radius
+            nums = nums[dist<radius]
+            dist = dist[dist<radius] 
+            nd = len(dist)        
+            
+# Is there enough samples?
+            if nd < ndmin:   # accounting for min index of 0
+                est  = UNEST
+#                print('UNEST at ' + str(ix) + ',' + str(iy))  # option to include this error
+            else:
+
+# Put coordinates and values of neighborhood samples into xa,ya,vra:
+                for ia in range(0,nd):
+                    jj = int(nums[ia])
+                    xa[ia]  = x[jj]
+                    ya[ia]  = y[jj]
+                    vra[ia] = vr[jj]
+                    
+# Solve for weights
+                dist = np.sqrt((xa-xloc)*(xa-xloc) + (ya-yloc)*(ya-yloc)) 
+                s = 1/((dist + EPSLON)**power)        # calculate inverse weights
+                s = s / np.sum(s)             # constrain sum of the weights to 1.0 for unbiasedness
+                est = 0.0                
+                for ia in range(0,nd):
+                    est = est + s[ia] * vra[ia]
+                
+            estmap[ny-iy-1,ix] = est
+
+# Track the estimates
+            if est > UNEST:
+                nk = nk + 1
+                ak = ak + est
+                vk = vk + est*est
+
+# END OF MAIN LOOP OVER ALL THE BLOCKS:
+
+    if nk >= 1:
+        ak = ak / float(nk)
+        vk = vk/ float(nk) - ak*ak
+        print('  Estimated   ' + str(nk) + ' blocks ')
+        print('      average   ' + str(ak) + '  variance  ' + str(vk))
+
+    return estmap
 
 def kb2d(
     df,
@@ -2751,7 +2884,7 @@ def kb2d(
     nk = 0
     ak = 0.0
     vk = 0.0
-    for iy in range(0,ny):
+    for iy in tqdm(range(0,ny)):
         yloc = ymn + (iy-0)*ysiz  
         for ix in range(0,nx):
             xloc = xmn + (ix-0)*xsiz
