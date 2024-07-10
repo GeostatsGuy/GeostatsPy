@@ -866,6 +866,34 @@ def locpix_log_st(
     cbar.set_label(vlabel, rotation=270, labelpad=20)
     return cs
 
+def conditioning_check(model,nx,xmn,xsiz,ny,ymn,ysiz,df,xcol,ycol,vcol,vname,vmin,vmax):
+    iix = np.zeros(len(df),dtype = int); iiy = np.zeros(len(df),dtype = int)
+    for idata in range(0,len(df)):                                # find the model ix, iy cells at data x, y
+        iix[idata] = max(0,min(int((df.loc[idata,xcol] - xmin)/xsiz),nx-1))
+        iiy[idata] = ny - max(0,min(int((df.loc[idata,ycol] - ymin)/ysiz),ny-1))-1
+        
+    real_por = np.zeros(len(df))
+    all_data = np.zeros(len(df)*nreal)
+    all_real = np.zeros(len(df)*nreal)
+    
+    i = 0
+    for ireal in tqdm(range(0,nreal)):                            # make an array of all realizations paired to data values
+        for idata in range(0,len(df)): 
+            real_por[idata] = model[ireal,iiy[idata],iix[idata]]  
+            all_data[i] = df.loc[idata,vcol]
+            all_real[i] = real_por[idata]
+            i = i + 1
+        df['Real' + str(ireal+1)] = real_por 
+    
+    df_vstack = pd.DataFrame(np.vstack((all_data, all_real)).T,columns = ['Data','Real']) # convert to a DataFrame
+        
+    plt.subplot(111)                                               # scatter and density plot simulated vs. data 
+    plt.scatter(all_data,all_real,alpha=0.2,color='black',s=5)
+    plt.plot([vmin,vmax],[vmin,vmax],color='black',linestyle='--')
+    plt.ylabel('Simulated Realizations - ' + vname); plt.xlabel('Data Values - ' + vname); plt.title('Data Reproduction Check - ' + vname)
+    plt.grid(True); plt.xlim([vmin,vmax]); plt.ylim([vmin,vmax])
+    plt.subplots_adjust(left=0.0, bottom=0.0, right=1.0, top=1.1, wspace=0.2, hspace=0.2);
+    return df_vstack
 
 def affine(array, tmean, tstdev):
     """Affine distribution correction reimplemented in Python with numpy
