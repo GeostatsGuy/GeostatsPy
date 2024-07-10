@@ -910,23 +910,23 @@ def distribution_check(df,vcol,model,nx,ny,nreal,dreal,vname,vmin,vmax):
     axs[0].boxplot(refdist,labels = [''],whis=True,showmeans=True,widths=0.3,notch=True,boxprops=boxprops, whiskerprops=whiskerprops,meanprops=meanprops,flierprops=flierprops,medianprops=medianprops)
     axs[0].set_ylim([0,28]); axs[0].set_ylabel('vname'); axs[0].set_xlabel('Input Data'); axs[0].set_title('')
     axs[0].grid(True,alpha=0.3,axis='y'); axs[0].set_xlim([1-0.4,1+0.4])
-    axs[0].plot([1-0.4,1+0.4],[np.percentile(por,75),np.percentile(por,75)],color='black',alpha=0.2,linestyle='--',linewidth=2)
-    axs[0].plot([1-0.4,1+0.4],[np.percentile(por,50),np.percentile(por,50)],color='black',alpha=0.2,linestyle='--',linewidth=2)
-    axs[0].plot([1-0.4,1+0.4],[np.percentile(por,25),np.percentile(por,25)],color='black',alpha=0.2,linestyle='--',linewidth=2)
+    axs[0].plot([1-0.4,1+0.4],[np.percentile(refdist,75),np.percentile(refdist,75)],color='black',alpha=0.2,linestyle='--',linewidth=2)
+    axs[0].plot([1-0.4,1+0.4],[np.percentile(refdist,50),np.percentile(refdist,50)],color='black',alpha=0.2,linestyle='--',linewidth=2)
+    axs[0].plot([1-0.4,1+0.4],[np.percentile(refdist,25),np.percentile(refdist,25)],color='black',alpha=0.2,linestyle='--',linewidth=2)
     axs[0].yaxis.set_minor_locator(plt.MultipleLocator(20))   
-    axs[0].plot([1-0.4,1+0.4],[np.average(por),np.average(por)],color='red',alpha=0.2,linestyle='--',linewidth=2)
+    axs[0].plot([1-0.4,1+0.4],[np.average(refdist),np.average(refdist)],color='red',alpha=0.2,linestyle='--',linewidth=2)
     
     axs[0].yaxis.grid(True, which='major',linewidth = 2.0); axs[0].yaxis.grid(True, which='minor',linewidth = 0.1) # add y grids
     axs[0].tick_params(which='major',length=7); axs[0].tick_params(which='minor', length=4)
     axs[0].yaxis.set_minor_locator(AutoMinorLocator()) # turn on minor ticks
-    tarray = por_sim.reshape(nreal,ny*nx).T
+    tarray = model.reshape(nreal,ny*nx).T
     axs[1].boxplot(tarray[:,:dreal],whis=True,showmeans=True,widths=0.2,notch=True,boxprops=boxprops, whiskerprops=whiskerprops,meanprops=meanprops,flierprops=flierprops,medianprops=medianprops)
     axs[1].set_ylim([vmin,vmax]); axs[1].set_ylabel(''); axs[1].set_xlabel('Realizations'); axs[1].set_title('Check Global ' + vname + ' Distribution - Summary Statistics')
     axs[1].grid(True,alpha=0.3,axis='y'); axs[1].set_xlim([1-0.2,dreal+0.2])
-    axs[1].plot([1-0.2,dreal+0.2],[np.percentile(por,75),np.percentile(por,75)],color='black',alpha=0.2,linestyle='--',linewidth=2)
-    axs[1].plot([1-0.2,dreal+0.2],[np.percentile(por,50),np.percentile(por,50)],color='black',alpha=0.2,linestyle='--',linewidth=2)
-    axs[1].plot([1-0.2,dreal+0.2],[np.percentile(por,25),np.percentile(por,25)],color='black',alpha=0.2,linestyle='--',linewidth=2)
-    axs[1].plot([1-0.2,dreal+0.2],[np.average(por),np.average(por)],color='red',alpha=0.2,linestyle='--',linewidth=2)
+    axs[1].plot([1-0.2,dreal+0.2],[np.percentile(refdist,75),np.percentile(refdist,75)],color='black',alpha=0.2,linestyle='--',linewidth=2)
+    axs[1].plot([1-0.2,dreal+0.2],[np.percentile(refdist,50),np.percentile(refdist,50)],color='black',alpha=0.2,linestyle='--',linewidth=2)
+    axs[1].plot([1-0.2,dreal+0.2],[np.percentile(refdist,25),np.percentile(refdist,25)],color='black',alpha=0.2,linestyle='--',linewidth=2)
+    axs[1].plot([1-0.2,dreal+0.2],[np.average(refdist),np.average(refdist)],color='red',alpha=0.2,linestyle='--',linewidth=2)
     
     axs[1].yaxis.grid(True, which='major',linewidth = 2.0); axs[1].yaxis.grid(True, which='minor',linewidth = 0.1) # add y grids
     axs[1].tick_params(which='major',length=7); axs[1].tick_params(which='minor', length=4)
