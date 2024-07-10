@@ -23,6 +23,7 @@ import random as rand  # for random numbers
 
 import matplotlib
 import matplotlib.pyplot as plt  # for plotting
+from matplotlib.ticker import (MultipleLocator, AutoMinorLocator) # control of axes ticks
 import numpy as np  # for ndarrays
 import pandas as pd  # for DataFrames
 from scipy import signal
@@ -887,13 +888,48 @@ def conditioning_check(model,nx,xmn,xsiz,ny,ymn,ysiz,df,xcol,ycol,vcol,vname,vmi
     
     df_vstack = pd.DataFrame(np.vstack((all_data, all_real)).T,columns = ['Data','Real']) # convert to a DataFrame
         
-    plt.subplot(111)                                               # scatter and density plot simulated vs. data 
     plt.scatter(all_data,all_real,alpha=0.2,color='black',s=5)
     plt.plot([vmin,vmax],[vmin,vmax],color='black',linestyle='--')
     plt.ylabel('Simulated Realizations - ' + vname); plt.xlabel('Data Values - ' + vname); plt.title('Data Reproduction Check - ' + vname)
     plt.grid(True); plt.xlim([vmin,vmax]); plt.ylim([vmin,vmax])
-    plt.subplots_adjust(left=0.0, bottom=0.0, right=1.0, top=1.1, wspace=0.2, hspace=0.2);
     return df_vstack
+
+def distribution_check(df,vcol,model,nx,ny,nreal,dreal,vname,vmin,vmax):
+    boxprops = dict(linewidth=1.0, color='black')
+    whiskerprops = dict(linestyle='-',linewidth=1.0, color='black')
+    medianprops = dict(linestyle='--',linewidth=1.0, color='black')
+    meanprops={"marker":'_', 'markersize': 15,"markerfacecolor":"red", "markeredgecolor":'red'}
+    flierprops={'marker': 'o', 'markersize': 4, 'markerfacecolor': 'grey','markeredgecolor':'black'}
+    
+    refdist = df[vcol].values
+    
+    fig, axs = plt.subplots(1,2,figsize=(16,5), gridspec_kw={'width_ratios': [1, 10]}, sharey = True)
+    
+    axs[0].boxplot(refdist,labels = [''],whis=True,showmeans=True,widths=0.3,notch=True,boxprops=boxprops, whiskerprops=whiskerprops,meanprops=meanprops,flierprops=flierprops,medianprops=medianprops)
+    axs[0].set_ylim([0,28]); axs[0].set_ylabel('vname'); axs[0].set_xlabel('Input Data'); axs[0].set_title('')
+    axs[0].grid(True,alpha=0.3,axis='y'); axs[0].set_xlim([1-0.4,1+0.4])
+    axs[0].plot([1-0.4,1+0.4],[np.percentile(por,75),np.percentile(por,75)],color='black',alpha=0.2,linestyle='--',linewidth=2)
+    axs[0].plot([1-0.4,1+0.4],[np.percentile(por,50),np.percentile(por,50)],color='black',alpha=0.2,linestyle='--',linewidth=2)
+    axs[0].plot([1-0.4,1+0.4],[np.percentile(por,25),np.percentile(por,25)],color='black',alpha=0.2,linestyle='--',linewidth=2)
+    axs[0].yaxis.set_minor_locator(plt.MultipleLocator(20))   
+    axs[0].plot([1-0.4,1+0.4],[np.average(por),np.average(por)],color='red',alpha=0.2,linestyle='--',linewidth=2)
+    
+    axs[0].yaxis.grid(True, which='major',linewidth = 2.0); axs[0].yaxis.grid(True, which='minor',linewidth = 0.1) # add y grids
+    axs[0].tick_params(which='major',length=7); axs[0].tick_params(which='minor', length=4)
+    axs[0].yaxis.set_minor_locator(AutoMinorLocator()) # turn on minor ticks
+    tarray = por_sim.reshape(nreal,ny*nx).T
+    axs[1].boxplot(tarray[:,:dreal],whis=True,showmeans=True,widths=0.2,notch=True,boxprops=boxprops, whiskerprops=whiskerprops,meanprops=meanprops,flierprops=flierprops,medianprops=medianprops)
+    axs[1].set_ylim([vmin,vmax]); axs[1].set_ylabel(''); axs[1].set_xlabel('Realizations'); axs[1].set_title('Check Global ' + vname + ' Distribution - Summary Statistics')
+    axs[1].grid(True,alpha=0.3,axis='y'); axs[1].set_xlim([1-0.2,dreal+0.2])
+    axs[1].plot([1-0.2,dreal+0.2],[np.percentile(por,75),np.percentile(por,75)],color='black',alpha=0.2,linestyle='--',linewidth=2)
+    axs[1].plot([1-0.2,dreal+0.2],[np.percentile(por,50),np.percentile(por,50)],color='black',alpha=0.2,linestyle='--',linewidth=2)
+    axs[1].plot([1-0.2,dreal+0.2],[np.percentile(por,25),np.percentile(por,25)],color='black',alpha=0.2,linestyle='--',linewidth=2)
+    axs[1].plot([1-0.2,dreal+0.2],[np.average(por),np.average(por)],color='red',alpha=0.2,linestyle='--',linewidth=2)
+    
+    axs[1].yaxis.grid(True, which='major',linewidth = 2.0); axs[1].yaxis.grid(True, which='minor',linewidth = 0.1) # add y grids
+    axs[1].tick_params(which='major',length=7); axs[1].tick_params(which='minor', length=4)
+    axs[1].yaxis.set_minor_locator(AutoMinorLocator()) # turn on minor ticks
+    return
 
 def affine(array, tmean, tstdev):
     """Affine distribution correction reimplemented in Python with numpy
