@@ -27,6 +27,7 @@ from matplotlib.ticker import (MultipleLocator, AutoMinorLocator) # control of a
 import numpy as np  # for ndarrays
 import pandas as pd  # for DataFrames
 from scipy import signal
+from tqdm import tqdm # progress bar
 
 # Hard coded image file output
 image_type = "tif"
