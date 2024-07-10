@@ -867,7 +867,7 @@ def locpix_log_st(
     cbar.set_label(vlabel, rotation=270, labelpad=20)
     return cs
 
-def conditioning_check(model,nx,xmn,xsiz,ny,ymn,ysiz,df,xcol,ycol,vcol,vname,vmin,vmax):
+def conditioning_check(model,nx,xmn,xsiz,ny,ymn,ysiz,nreal,df,xcol,ycol,vcol,vname,vmin,vmax):
     
     iix = np.zeros(len(df),dtype = int); iiy = np.zeros(len(df),dtype = int)
     for idata in range(0,len(df)):                                # find the model ix, iy cells at data x, y
