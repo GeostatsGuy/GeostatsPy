@@ -868,10 +868,11 @@ def locpix_log_st(
     return cs
 
 def conditioning_check(model,nx,xmn,xsiz,ny,ymn,ysiz,df,xcol,ycol,vcol,vname,vmin,vmax):
+    
     iix = np.zeros(len(df),dtype = int); iiy = np.zeros(len(df),dtype = int)
     for idata in range(0,len(df)):                                # find the model ix, iy cells at data x, y
-        iix[idata] = max(0,min(int((df.loc[idata,xcol] - xmin)/xsiz),nx-1))
-        iiy[idata] = ny - max(0,min(int((df.loc[idata,ycol] - ymin)/ysiz),ny-1))-1
+        iix[idata] = max(0,min(geostats.getindex(nx,xmn,xsiz,df.loc[idata,xcol]),nx-1))
+        iiy[idata] = ny - max(0,min(geostats.getindex(ny,ymn,ysiz,df.loc[idata,ycol]),nx-1)) - 1
         
     real_por = np.zeros(len(df))
     all_data = np.zeros(len(df)*nreal)
