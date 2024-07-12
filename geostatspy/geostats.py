@@ -4119,7 +4119,7 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
     return sim_out
 
 def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,nx,xmn,xsiz,ny,ymn,ysiz,seed,ndmin,
-          ndmax,nodmax,mults,nmult,noct,radius,ktype,vario):
+          ndmax,nodmax,mults,nmult,noct,ktype,vario):
           
     """A 2D version of GSLIB's SISIM Indicator Simulation program (Deutsch and Journel, 1998) converted from the
     original Fortran to Python by Michael Pyrcz, the University of Texas at
@@ -4158,6 +4158,21 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
     if xcol == "" or ycol == "":
         print('ERROR - must have x and y column in the DataFrame')
         return sim_out
+	    
+# Hard Code Some Parameters for Ease of Use, Fixed Covariance Table - Added Mar. 21, 2024, 
+    radius = max(vario['hmaj1'],vario['hmaj2'])
+    radius1 = max(vario['hmin1'],vario['hmin2'])
+    if vario['hmaj2'] > vario['hmaj1']:
+        sang1 = vario['azi2'] # use the angle for the longest range
+    else:
+        sang1 = vario['azi1']
+    mxctx = int(radius/min(xsiz,ysiz))*2 + 1
+    mxcty = int(radius/min(xsiz,ysiz))*2 + 1
+    if ltail == 1:
+        ltpar = zmin
+    if utail == 1:
+        utpar == zmax
+	    
 # Set parameters from the include
     UNEST = -99.0
     EPSLON = 1.0e-20
@@ -4196,7 +4211,7 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
     sang1 = 0 # using isotropic search now
     sanis1 = 1.0
 # No covariance lookup table
-    mxctx = int(radius/xsiz)*2+1; mxcty = int(radius/xsiz)*2+1
+#    mxctx = int(radius/xsiz)*2+1; mxcty = int(radius/xsiz)*2+1
 #    print('cov table / spiral search nx, ny '); print(mxctx); print(mxcty)
     MAXCTX = mxctx
     MAXCTY = mxcty
