@@ -908,7 +908,7 @@ def distribution_check(df,vcol,model,nx,ny,nreal,dreal,vname,vmin,vmax):
     fig, axs = plt.subplots(1,2,figsize=(16,5), gridspec_kw={'width_ratios': [1, 10]}, sharey = True)
     
     axs[0].boxplot(refdist,labels = [''],whis=True,showmeans=True,widths=0.3,notch=True,boxprops=boxprops, whiskerprops=whiskerprops,meanprops=meanprops,flierprops=flierprops,medianprops=medianprops)
-    axs[0].set_ylim([0,28]); axs[0].set_ylabel('vname'); axs[0].set_xlabel('Input Data'); axs[0].set_title('')
+    axs[0].set_ylim([0,28]); axs[0].set_ylabel(vname); axs[0].set_xlabel('Input Data'); axs[0].set_title('')
     axs[0].grid(True,alpha=0.3,axis='y'); axs[0].set_xlim([1-0.4,1+0.4])
     axs[0].plot([1-0.4,1+0.4],[np.percentile(refdist,75),np.percentile(refdist,75)],color='black',alpha=0.2,linestyle='--',linewidth=2)
     axs[0].plot([1-0.4,1+0.4],[np.percentile(refdist,50),np.percentile(refdist,50)],color='black',alpha=0.2,linestyle='--',linewidth=2)
@@ -931,7 +931,7 @@ def distribution_check(df,vcol,model,nx,ny,nreal,dreal,vname,vmin,vmax):
     axs[1].yaxis.grid(True, which='major',linewidth = 2.0); axs[1].yaxis.grid(True, which='minor',linewidth = 0.1) # add y grids
     axs[1].tick_params(which='major',length=7); axs[1].tick_params(which='minor', length=4)
     axs[1].yaxis.set_minor_locator(AutoMinorLocator()) # turn on minor ticks
-    return
+    return axs
 
 def affine(array, tmean, tstdev):
     """Affine distribution correction reimplemented in Python with numpy
