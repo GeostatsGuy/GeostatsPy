@@ -4160,12 +4160,14 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
         return sim_out
 	    
 # Hard Code Some Parameters for Ease of Use, Fixed Covariance Table - Added Mar. 21, 2024, 
-    radius = max(vario['hmaj1'],vario['hmaj2'])
-    radius1 = max(vario['hmin1'],vario['hmin2'])
-    if vario['hmaj2'] > vario['hmaj1']:
-        sang1 = vario['azi2'] # use the angle for the longest range
-    else:
-        sang1 = vario['azi1']
+    radius = 0.0; radius1 = 0.0
+    for icut in range(0,ncut):
+        radius = max(vario[icut]['hmaj1'],vario[icut]['hmaj2'],radius)
+        radius1 = max(vario[icut]['hmin1'],vario[icut]['hmin2'],radius1)
+        if vario[icut]['hmaj2'] > vario[icut]['hmaj1']:
+            sang1 = vario[icut]['azi2'] # use the angle for the longest range
+        else:
+            sang1 = vario[icut]['azi1']
     mxctx = int(radius/min(xsiz,ysiz))*2 + 1
     mxcty = int(radius/min(xsiz,ysiz))*2 + 1
     if ltail == 1:
