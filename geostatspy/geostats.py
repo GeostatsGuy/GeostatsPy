@@ -4118,7 +4118,7 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
             sim_out[isim,ny-iy-1,ix] = sim[ind]
     return sim_out
 
-def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,nx,xmn,xsiz,ny,ymn,ysiz,seed,ndmin,
+def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,nreal,nx,xmn,xsiz,ny,ymn,ysiz,seed,ndmin,
           ndmax,nodmax,mults,nmult,noct,ktype,vario):
           
     """A 2D version of GSLIB's SISIM Indicator Simulation program (Deutsch and Journel, 1998) converted from the
@@ -4174,7 +4174,9 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
         ltpar = zmin
     if utail == 1:
         utpar == zmax
-	    
+
+    sim_out = np.zeros((nreal,ny,nx))
+		  
 # Set parameters from the include
     UNEST = -99.0
     EPSLON = 1.0e-20
@@ -4259,8 +4261,6 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
                 
 #        print('check loaded cov model- icut '); print(icut)
 #        print(cc[icut],aa[icut],it[icut],ang[icut],anis[icut])
-    
-    
     
 # Load the data
     df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]    # trim values outside tmin and tmax
@@ -4357,8 +4357,7 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
     
     cov_table,tmp2,order,ixnode,iynode,nlooku,nctx,ncty = ctable(MAXNOD,MAXCXY,MAXCTX,MAXCTY,MXY,
                                 xsiz,ysiz,isrot,nx,ny,nst[0],c0[0],cc[0],aa[0],it[0],ang[0],anis[0],global_rotmat,radsqd)        
-   
-   
+      
 #    print('spiral search number nodes '); print(nlooku)
 #    print('ixnode,iynode'); print(ixnode,iynode)
 # Initialize accumulators:  # not setup yet
@@ -4383,91 +4382,88 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
     ddh = 0.0
  
 # MAIN LOOP OVER ALL THE SIMULAUTIONS:
-#    for isim in range(0,nsim): # will add multiple realizations soon
+    for ireal in range(0,nreal):
           
 # Work out a random path for this realization:
-    sim = np.random.rand(nx*ny)
-    order = np.zeros(nxy)
-    ind = 0
-    for ixy in range(0,nxy): 
-        order[ixy] = ind  
-        ind = ind + 1
-        
+        sim = np.random.rand(nx*ny)
+        order = np.zeros(nxy)
+        ind = 0
+        for ixy in range(0,nxy): 
+            order[ixy] = ind  
+            ind = ind + 1
 # Multiple grid search works with multiples of 4 (yes, that is
 # soat arbitrary):
 
-    if mults == 1:
-        for imult in range(0,nmult): 
-            nny = int(max(1,ny/((imult+1)*4)))
-            nnx = int(max(1,nx/((imult+1)*4)))
+        if mults == 1:
+            for imult in range(0,nmult): 
+                nny = int(max(1,ny/((imult+1)*4)))
+                nnx = int(max(1,nx/((imult+1)*4)))
 #            print('multi grid - nnx, nny'); print(nnx,nny)
-            jy  = 1
-            jx  = 1
-            for iy in range(0,nny): 
-                if nny > 0: jy = iy*(imult+1)*4
-                for ix in range(0,nnx):
-                    if nnx > 0: jx = ix*(imult+1)*4
-                    index = jx + (jy-1)*nx
-                    sim[index] = sim[index] - (imult+1)
+                jy  = 1
+                jx  = 1
+                for iy in range(0,nny): 
+                    if nny > 0: jy = iy*(imult+1)*4
+                    for ix in range(0,nnx):
+                        if nnx > 0: jx = ix*(imult+1)*4
+                        index = jx + (jy-1)*nx
+                        sim[index] = sim[index] - (imult+1)
 
-    
 # Inlize the simulation:
-    sim, order = dsortem(0,nxy,sim,2,b=order)
-    sim.fill(UNEST)
-    tmp.fill(0.0)
-    print('Working on a single realization, seed ' + str(seed))
-#    print('Random Path'); print(order)
+        sim, order = dsortem(0,nxy,sim,2,b=order)
+        sim.fill(UNEST)
+        tmp.fill(0.0)
+        print('Working on realization ' + str(ireal))
+#        print('Random Path'); print(order)
     
 # As the data to the closest grid node:
 
-    TINY = 0.0001
-    for idd in range(0,nd):
+        TINY = 0.0001
+        for idd in range(0,nd):
 #        print('data'); print(x[idd],y[idd])
-        ix = getindex(nx,xmn,xsiz,x[idd])
-        iy = getindex(ny,ymn,ysiz,y[idd])
-        ind = ix + (iy-1)*nx 
-        xx  = xmn + (ix)*xsiz
-        yy  = ymn + (iy)*ysiz
+            ix = getindex(nx,xmn,xsiz,x[idd])
+            iy = getindex(ny,ymn,ysiz,y[idd])
+            ind = ix + (iy-1)*nx 
+            xx  = xmn + (ix)*xsiz
+            yy  = ymn + (iy)*ysiz
 #        print('xx, yy' + str(xx) + ',' + str(yy))
-        test = abs(xx-x[idd]) + abs(yy-y[idd])
+            test = abs(xx-x[idd]) + abs(yy-y[idd])
 
 # As this data to the node (unless there is a closer data):
-        if sstrat == 1 or (sstrat == 0 and test <= TINY): 
-            if sim[ind] > UNEST:
-                id2 = int(sim[ind]+0.5)
-                test2 = abs(xx-x[id2]) + abs(yy-y[id2])
-                if test <= test2: 
+            if sstrat == 1 or (sstrat == 0 and test <= TINY): 
+                if sim[ind] > UNEST:
+                    id2 = int(sim[ind]+0.5)
+                    test2 = abs(xx-x[id2]) + abs(yy-y[id2])
+                    if test <= test2: 
+                        sim[ind] = idd
+                else:
                     sim[ind] = idd
-            else:
-                sim[ind] = idd
-
+			
 # As a flag so that this node does not get simulated:
-        
 
 # Another data values into the simulated grid:
-    for ind in range(0,nxy):              
-        idd = int(sim[ind]+0.5)
-        if idd > 0: 
-            sim[ind] = vr[idd]
-        else: 
-            tmp[ind] = sim[ind]
-            sim[ind] = UNEST
-    irepo = max(1,min((nxy/10),10000))          
+        for ind in range(0,nxy):              
+            idd = int(sim[ind]+0.5)
+            if idd > 0: 
+                sim[ind] = vr[idd]
+            else: 
+                tmp[ind] = sim[ind]
+                sim[ind] = UNEST
+        irepo = max(1,min((nxy/10),10000))          
 
 # LOOP OVER ALL THE NODES:
-    for ind in range(0,nxy):  
-        if (int(ind/irepo)*irepo) == ind:
-            print('   currently on node ' + str(ind))
+        for ind in range(0,nxy):  
+            if (int(ind/irepo)*irepo) == ind:
+                print('   currently on node ' + str(ind))
           
 # Find the index on the random path, check if assigned data and get location
 
-        index = int(order[ind]+0.5)
-        if (sim[index] > (UNEST+EPSLON)) or (sim[index] < (UNEST*2.0)): continue
-        iy   = int((index)/nx) 
-        ix   = index - (iy)*nx
-        xx = xmn + (ix)*xsiz
-        yy = ymn + (iy)*ysiz   
-        current_node = (yy,xx)
+            index = int(order[ind]+0.5)
+            if (sim[index] > (UNEST+EPSLON)) or (sim[index] < (UNEST*2.0)): continue
+            iy   = int((index)/nx) 
+            ix   = index - (iy)*nx
+            xx = xmn + (ix)*xsiz
+            yy = ymn + (iy)*ysiz   
+            current_node = (yy,xx)
 #        print('Current_node'); print(current_node)
 
 # Now we'll simulate the point ix,iy,iz.  First, get the close data
@@ -4475,23 +4471,23 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
 # we'll only keep the closest "ndmax" data, and look for previously
 # simulated grid nodes:
 
-        if sstrat == 0:
+            if sstrat == 0:
 #            print('searching for nearest data')
-            na = -1   # accounting for 0 as first index
-            if ndmax == 1:
-                dist = np.zeros(1); nums = np.zeros(1)
-                dist[0], nums[0] = tree.query(current_node,ndmax) # use kd tree for fast nearest data search
-            else:
-                dist, nums = tree.query(current_node,ndmax)
+                na = -1   # accounting for 0 as first index
+                if ndmax == 1:
+                    dist = np.zeros(1); nums = np.zeros(1)
+                    dist[0], nums[0] = tree.query(current_node,ndmax) # use kd tree for fast nearest data search
+                else:
+                    dist, nums = tree.query(current_node,ndmax)
             # remove any data outside search radius
             
 #            print('nums'); print(nums)
 #            print('dist'); print(dist)
-            na = len(dist)
-            nums = nums[dist<radius]
-            dist = dist[dist<radius] 
-            na = len(dist) 
-            if na < ndmin: continue     # bail if not enough data
+                na = len(dist)
+                nums = nums[dist<radius]
+                dist = dist[dist<radius] 
+                na = len(dist) 
+                if na < ndmin: continue     # bail if not enough data
 #            print('Found ' + str(na) + 'neighbouring data')            
                 
 #        print('node search inputs')
@@ -4500,74 +4496,70 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
     
 # Indicator transform the nearest node data
 #        print('start node search')
-        ncnode, icnode, cnodev, cnodex, cnodey = srchnd(ix,iy,nx,ny,xmn,ymn,xsiz,ysiz,sim,noct,nodmax,ixnode,iynode,nlooku,nctx,ncty,UNEST)
-  
-        if ncnode > 0:
-            for icut in range(0,ncut): 
-                cnodeiv[icut,:] = np.where((cnodev <= thresh[icut] + 0.5) & (cnodev > thresh[icut] - 0.5), '1', '0')
-        else:
-            for icut in range(0,ncut): 
-                cnodeiv[icut,:] = np.where(cnodev <= thresh[icut], '1', '0')
-        cnodeiv[ncut,:] = cnodev
+            ncnode, icnode, cnodev, cnodex, cnodey = srchnd(ix,iy,nx,ny,xmn,ymn,xsiz,ysiz,sim,noct,nodmax,ixnode,iynode,nlooku,nctx,ncty,UNEST)
+            if ncnode > 0:
+                for icut in range(0,ncut): 
+                    cnodeiv[icut,:] = np.where((cnodev <= thresh[icut] + 0.5) & (cnodev > thresh[icut] - 0.5), '1', '0')
+            else:
+                for icut in range(0,ncut): 
+                    cnodeiv[icut,:] = np.where(cnodev <= thresh[icut], '1', '0')
+            cnodeiv[ncut,:] = cnodev
 
 #        print('indicator transformed nearest nodes'); print(cnodeiv)
     
 #       print('srchnd'); print(ncnode,icnode,cnodev,cnodex,cnodey)
 #       print('Result of srchnd, cnodex = '); print(cnodex)
-        nclose = na
+            nclose = na
 #        print('*****srch node, nclose ' + str(nclose) + ', ncnode ' + str(ncnode))
 #        print('near data'); print(nums)
 #        print('near data distance'); print(dist)
  #       print('nums'); print(nums)
 
 # What cdf value are we looking for?
-        zval   = UNEST
-        cdfval = np.random.rand()
+            zval   = UNEST
+            cdfval = np.random.rand()
 
 # Use the global distribution?
 # check inputs
  #       print('nst'); print(nst)
 
-    
-    
-        if nclose + ncnode <= 0:
+            if nclose + ncnode <= 0:
 #            print('nclose & ncnode'); print(nclose, ncnode)
-            zval = beyond(ivtype,ncut,thresh,gcdf,ng,gcut,gcdf,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,zval,cdfval)
-        else:
+                zval = beyond(ivtype,ncut,thresh,gcdf,ng,gcut,gcdf,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,zval,cdfval)
+            else:
 #            print('kriging')
 # Estimate the local distribution by indicator kriging:
 #            print('maxcov'); print(maxcov)
-            for ic in range(0,ncut):
+                for ic in range(0,ncut):
 #                print('check kriging cov model- icut '); print(ic)
 #                print('node data values for kriging'); print(cnodev)
 #                print(cc[ic],aa[ic],it[ic],ang[ic],anis[ic],rotmat[ic],maxcov[ic])
                 #ccdf([ic] = krige(ix,iy,iz,xx,yy,zz,ic,cdf(ic),MAXCTX,MAXCTY,MAXCTZ,MAXKR1,ccdf(ic),MAXROT)                             
-                if ktype == 0:
-                    gmean = gcdf[ic]  
-                elif ktype == 2:
-                    gmean = trend1d[index,ic]
-                else:
-                    gmean = 0 # if locally variable mean it is set from trend in ikrige, otherwise not used
+                    if ktype == 0:
+                        gmean = gcdf[ic]  
+                    elif ktype == 2:
+                        gmean = trend1d[index,ic]
+                    else:
+                        gmean = 0 # if locally variable mean it is set from trend in ikrige, otherwise not used
 #                    print('gmean'); print(gmean)
-                ccdf[ic], cstdev = ikrige(ix,iy,nx,ny,xx,yy,ktype,x,y,vr[:,ic],sec,colocorr,gmean,trend[:,ic],nums,cov_table,nctx,ncty,
+                    ccdf[ic], cstdev = ikrige(ix,iy,nx,ny,xx,yy,ktype,x,y,vr[:,ic],sec,colocorr,gmean,trend[:,ic],nums,cov_table,nctx,ncty,
                                       icnode,ixnode,iynode,cnodeiv[ic],cnodex,cnodey,nst[ic],c0[ic],9999.9,cc[ic],aa[ic],it[ic],ang[ic],anis[ic],
                                       rotmat[ic],maxcov[ic],MAXCTX,MAXCTY,MAXKR1,MAXKR2)   
  #           print('ccdf'); print(ccdf)
                     
 # Correct order relations:
-            ccdfo = ordrel(ivtype,ncut,ccdf)
+                ccdfo = ordrel(ivtype,ncut,ccdf)
 # Draw from the local distribution:
-            zval = beyond(ivtype,ncut,thresh,ccdfo,ng,gcut,gcdf,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,zval,cdfval)
-        sim[index] = zval
+                zval = beyond(ivtype,ncut,thresh,ccdfo,ng,gcut,gcdf,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,zval,cdfval)
+            sim[index] = zval
  #       print('zval'); print(zval)
     
 
 # END MAIN LOOP OVER SIMULATIONS:
-    sim_out = np.zeros((ny,nx))
-    for ind in range(0,nxy):
-        iy   = int((ind)/nx) 
-        ix   = ind - (iy)*nx
-        sim_out[ny-iy-1,ix] = sim[ind]
+        for ind in range(0,nxy):
+            iy   = int((ind)/nx) 
+            ix   = ind - (iy)*nx
+            sim_out[ireal,ny-iy-1,ix] = sim[ind]
 
     return sim_out  
     
