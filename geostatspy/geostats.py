@@ -3495,7 +3495,7 @@ def ik2d(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,nx,xm
     ss = stdev**2.0
     vrmin = vr[:,ncut].min()
     vrmax = vr[:,ncut].max()
-    print('Data for IK3D: Variable column ' + str(vcol))
+    print('Data for ik2d: Variable column ' + str(vcol))
     print('  Number   = ' + str(MAXDAT))
     ndh = MAXDAT
     
