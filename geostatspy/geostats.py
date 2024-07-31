@@ -3773,9 +3773,9 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
         if ismooth == 1:
             dftrans_extract = dftrans.loc[(dftrans[tcol] >= tmin) & (dftrans[tcol] <= tmax)]  
             ntr = len(dftrans_extract)
-            vrtr = dftrans_extrac[tcol].values
+            vrtr = dftrans_extract[tcol].values
             if twtcol > -1: 
-                vrgtr = dftrans_extrac[tcol].values
+                vrgtr = dftrans_extract[tcol].values
             else:
                 vrgtr = np.ones(ntr) 
         else:
