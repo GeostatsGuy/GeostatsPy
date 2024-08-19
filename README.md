@@ -14,6 +14,8 @@
 
 Pyrcz, M.J., Jo. H., Kupenko, A., Liu, W., Gigliotti, A.E., Salomaki, T., and Santos, J., 2021, GeostatsPy Python Package, PyPI, Python Package Index, https://pypi.org/project/geostatspy/.
 
+___
+
 #### NEW: Check out the new e-book, Applied Geostatistics in Python: A Hands-on Guide with GeostatsPy, by Michael J. Pyrcz
 
 The goal of this e-book is to teach the application of geostatistics in Python, for those new to geostatistics I provide theory and links to my course content, and for those experienced practitioners I provide example workflows and plots that you can implement.
