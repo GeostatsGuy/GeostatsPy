@@ -14,6 +14,16 @@
 
 Pyrcz, M.J., Jo. H., Kupenko, A., Liu, W., Gigliotti, A.E., Salomaki, T., and Santos, J., 2021, GeostatsPy Python Package, PyPI, Python Package Index, https://pypi.org/project/geostatspy/.
 
+#### NEW: Check out the new e-book, Applied Geostatistics in Python: A Hands-on Guide with GeostatsPy, by Michael J. Pyrcz
+
+The goal of this e-book is to teach the application of geostatistics in Python, for those new to geostatistics I provide theory and links to my course content, and for those experienced practitioners I provide example workflows and plots that you can implement.
+
+e-book citation and link:
+
+Pyrcz, M.J., 2024, Applied Geostatistics in Python: A Hands-on Guide with GeostatsPy, https://geostatsguy.github.io/GeostatsPyDemos_Book.
+
+___
+
 #### GeostatsPy Python Package 
 
 The GeostatsPy Package brings GSLIB: Geostatistical Library (Deutsch and Journel, 1998) functions to Python. GSLIB is a practical and extremely robust set of code for building spatial modeling workflows. 
