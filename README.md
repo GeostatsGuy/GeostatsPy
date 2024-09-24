@@ -12,7 +12,7 @@
 
 #### Cite As:
 
-Pyrcz, M.J., Jo. H., Kupenko, A., Liu, W., Gigliotti, A.E., Salomaki, T., and Santos, J., 2021, GeostatsPy Python Package, PyPI, Python Package Index, https://pypi.org/project/geostatspy/. DOI: /doi/10.5281/zenodo.13835444
+Pyrcz, M.J., Jo. H., Kupenko, A., Liu, W., Gigliotti, A.E., Salomaki, T., and Santos, J., 2021, GeostatsPy Python Package: Open-source Spatial Data Analytics and Geostatistics, DOI: /doi/10.5281/zenodo.13835444.
 
 [![DOI](https://zenodo.org/badge/139197285.svg)](https://zenodo.org/doi/10.5281/zenodo.13835444)
 ___
