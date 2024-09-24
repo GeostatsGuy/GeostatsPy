@@ -12,8 +12,9 @@
 
 #### Cite As:
 
-Pyrcz, M.J., Jo. H., Kupenko, A., Liu, W., Gigliotti, A.E., Salomaki, T., and Santos, J., 2021, GeostatsPy Python Package, PyPI, Python Package Index, https://pypi.org/project/geostatspy/.
+Pyrcz, M.J., Jo. H., Kupenko, A., Liu, W., Gigliotti, A.E., Salomaki, T., and Santos, J., 2021, GeostatsPy Python Package, PyPI, Python Package Index, https://pypi.org/project/geostatspy/. DOI: /doi/10.5281/zenodo.13835444
 
+[![DOI](https://zenodo.org/badge/139197285.svg)](https://zenodo.org/doi/10.5281/zenodo.13835444)
 ___
 
 #### NEW: Check out the new e-book, Applied Geostatistics in Python: A Hands-on Guide with GeostatsPy, by Michael J. Pyrcz
