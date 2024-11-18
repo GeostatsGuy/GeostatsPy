@@ -5998,3 +5998,38 @@ def local_probability_exceedance(realizations,threshold): # calculate the local 
             prob_exceed[iy,ix] = np.sum(realizations[:,iy,ix] >= threshold)/nreal 
     return prob_exceed
 
+def rotate2D(x, y, angle_degrees):
+    angle_radians = np.radians(angle_degrees)
+    rotation_matrix = np.array([
+        [np.cos(angle_radians), -np.sin(angle_radians)],
+        [np.sin(angle_radians),  np.cos(angle_radians)]
+    ])
+    original_point = np.array([x, y])
+    rotated_point = rotation_matrix @ original_point
+    return rotated_point[0], rotated_point[1]
+
+def flatten(top,base,nx,xmn,xsiz,ny,ymn,ysiz,zmin,zmax,dfwell,Xs,Ys,Z): # flatten the z coordinate, assuming proportional stratal correlation style
+    wellfz = np.zeros(len(dfwell))                                   
+    index = 0
+    for idata in range(0,len(dfwell)):
+        ix = getindex(nx,xmn,xsiz,dfwell[Xs][idata])
+        iy = getindex(ny,ymn,ysiz,dfwell[Ys][idata])
+        top_well = top[iy,ix]
+        base_well = base[iy,ix]
+        z = dfwell[Z][idata]
+        wellfz[index] = (z - base_well)/(top_well-base_well)*(zmax - zmin) + zmin
+        index = index + 1
+    return wellfz
+
+def unflatten(top,base,nx,xmn,xsiz,ny,ymn,ysiz,zmin,zmax,dfwell,Xs,Ys,Zf): # unflatten the z coordinate, assuming proportional stratal correlation style
+    wellbz = np.zeros(len(dfwell))
+    index = 0
+    for idata in range(0,len(dfwell)):
+        ix = getindex(nx,xmn,xsiz,dfwell['Xs'][idata])
+        iy = getindex(ny,ymn,ysiz,dfwell['Ys'][idata])
+        top_well = top[iy,ix]
+        base_well = base[iy,ix]
+        zs = dfwell['Zf'][idata]
+        wellbz[index] = (zs - zmin)/(zmax - zmin)*(top_well - base_well) + base_well
+        index = index + 1
+    return wellbz
