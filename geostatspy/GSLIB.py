@@ -33,6 +33,7 @@ from tqdm import tqdm # progress bar
 image_type = "tif"
 dpi = 600
 
+
 def ndarray2GSLIB_3D(array, data_file, col_name):
     """Convert 1D or 2D or 3D numpy ndarray to a GSLIB Geo-EAS file for use with
     GSLIB methods.
@@ -234,8 +235,8 @@ def hist(array, xmin, xmax, log, cumul, bins, weights, xlabel, title, fig_name):
     )
     plt.title(title)
     plt.xlabel(xlabel)
-    if cumul == False: 
-        plt.ylabel("Frequency") 
+    if not cumul:
+        plt.ylabel("Frequency")
     else:
         plt.ylabel("Cumulative Probability")
         plt.ylim([0.0,1.0])
@@ -277,12 +278,12 @@ def hist_st(array, xmin, xmax, log, cumul, bins, weights, xlabel, title):
     plt.title(title)
     plt.xlabel(xlabel)
     if cumul == False: 
-        plt.ylabel("Frequency") 
+        plt.ylabel("Frequency")
     else:
         plt.ylabel("Cumulative Probability")
         plt.ylim([0.0,1.0])
     plt.xlim([xmin,xmax])
-    
+
 def locmap(
     df,
     xcol,
@@ -948,16 +949,19 @@ def affine(array, tmean, tstdev):
     return array
 
 
-def nscore(x):
+def nscore(x, quiet=False, clean=False):
     """Normal score transform, wrapper for nscore from GSLIB (.exe must be
     available in PATH or working directory).
 
     :param x: ndarray
+    :param quiet: if True, suppress terminal output from GSLIB
+    :param clean: if True, remove temporary files after running GSLIB
+
     :return: ndarray
     """
     nx = np.ma.size(x)
     ny = 1
-    ndarray2GSLIB(x, "nscore.dat", "value")
+    ndarray2GSLIB_3D(x, "nscore.dat", "value")
 
     with open("nscore.par", "w") as f:
         f.write("                  Parameters for NSCORE                                    \n")
@@ -973,8 +977,21 @@ def nscore(x):
         f.write("nscore.out               -file for output                                  \n")
         f.write("nscore.trn               -file for output transformation table             \n")
 
-    os.system("nscore.exe nscore.par")
+    command = "nscore.exe nscore.par"
+    # Suppress GSLIB output
+    if quiet:
+        command += ' > %s' % os.devnull
+    os.system(command)
+
     y, name = GSLIB2ndarray("nscore.out", 1, nx, ny)
+
+    # Remove temporary files
+    if clean:
+        os.remove('nscore.par')
+        os.remove('nscore.out')
+        os.remove('nscore.dat')
+        os.remove('nscore.trn')
+
     return y
 
 
@@ -1053,9 +1070,10 @@ def make_variogram(
     return var
 
 
-def gamv_2d(df, xcol, ycol, vcol, nlag, lagdist, azi, atol, bstand):
+def gamv_2d(df, xcol, ycol, vcol, nlag, lagdist, azi, atol, bstand,
+            quiet=False, clean=False):
     """Irregularly sampled variogram, 2D wrapper for gam from GSLIB (.exe must
-    be available in PATH or working directory).
+    be available in PATH, GSLIB_DIR, or working directory).
 
     :param df: dataframe
     :param xcol: TODO
@@ -1066,6 +1084,8 @@ def gamv_2d(df, xcol, ycol, vcol, nlag, lagdist, azi, atol, bstand):
     :param azi: TODO
     :param atol: TODO
     :param bstand: TODO
+    :param quiet: if True, suppress terminal output from GSLIB
+    :param clean: if True, remove temporary files after running GSLIB
     :return: TODO
     """
     lag = []
@@ -1094,7 +1114,12 @@ def gamv_2d(df, xcol, ycol, vcol, nlag, lagdist, azi, atol, bstand):
         f.write("1                                 -number of variograms                    \n")
         f.write("1   1   1                         -tail var., head var., variogram type    \n")
 
-    os.system("gamv.exe gamv.par")
+    command = "gamv.exe gamv.par"
+
+    # Suppress GSLIB output
+    if quiet:
+        command += ' > %s' % os.devnull
+    os.system(command)
 
     with open("gamv.out") as f:
         next(f)  # skip the first line
@@ -1105,11 +1130,19 @@ def gamv_2d(df, xcol, ycol, vcol, nlag, lagdist, azi, atol, bstand):
             gamma.append(float(g))
             npair.append(float(n))
 
+    # Remove temporary files
+    if clean:
+        os.remove('gamv.par')
+        os.remove('gamv.out')
+        os.remove('gamv_out.dat')
+
     return lag, gamma, npair
 
-def gamv_3d(df, xcol, ycol, zcol, vcol, nlag, lagdist,lag_tol, azi, atol, bandh, dip, dtol, bandv, isill):
+
+def gamv_3d(df, xcol, ycol, zcol, vcol, nlag, lagdist, lag_tol, azi, atol, bandh, dip, dtol, bandv, isill,
+            quiet=False, clean=False):
     """Irregularly sampled variogram, 3D wrapper for gam from GSLIB (.exe must
-    be available in PATH or working directory).
+    be available in PATH, GSLIB_DIR, or working directory).
 
     :param df: dataframe
     :param xcol: TODO
@@ -1121,6 +1154,8 @@ def gamv_3d(df, xcol, ycol, zcol, vcol, nlag, lagdist,lag_tol, azi, atol, bandh,
     :param azi: TODO
     :param atol: TODO
     :param bstand: TODO
+    :param quiet: if True, suppress terminal output from GSLIB
+    :param clean: if True, remove temporary files after running GSLIB
     :return: TODO
     """
     lag = []
@@ -1149,7 +1184,12 @@ def gamv_3d(df, xcol, ycol, zcol, vcol, nlag, lagdist,lag_tol, azi, atol, bandh,
         f.write("1                                 -number of variograms                    \n")
         f.write("1   1   1                         -tail var., head var., variogram type    \n")
 
-    os.system("gamv.exe gamv.par")
+    command = "gamv.exe gamv.par"
+    
+    # Suppress GSLIB output
+    if quiet:
+        command += ' > %s' % os.devnull
+    os.system(command)
 
     with open("gamv.out") as f:
         next(f)  # skip the first line
@@ -1160,7 +1200,14 @@ def gamv_3d(df, xcol, ycol, zcol, vcol, nlag, lagdist,lag_tol, azi, atol, bandh,
             gamma.append(float(g))
             npair.append(float(n))
 
+    # Remove temporary files
+    if clean:
+        os.remove('gamv.par')
+        os.remove('gamv.out')
+        os.remove('gamv_out.dat')
+
     return lag, gamma, npair
+
 
 def varmapv_2d(
     df,
@@ -1177,9 +1224,10 @@ def varmapv_2d(
     vlabel,
     cmap,
     fig_name,
-):
+    quiet=False,
+    clean=False):
     """Irregular spaced data, 2D wrapper for varmap from GSLIB (.exe must be
-    available in PATH or working directory).
+    available in PATH, GSLIB_DIR, or working directory).
 
     :param df: dataframe
     :param xcol: TODO
@@ -1195,6 +1243,8 @@ def varmapv_2d(
     :param vlabel: TODO
     :param cmap: colormap
     :param fig_name: figure name
+    :param quiet: if True, suppress terminal output from GSLIB
+    :param clean: if True, remove temporary files after running GSLIB
     :return: TODO
     """
     df_ext = pd.DataFrame(
@@ -1222,7 +1272,13 @@ def varmapv_2d(
         f.write("1                            -number of variograms                         \n")
         f.write("1   1   1                    -tail, head, variogram type                   \n")
 
-    os.system("varmap.exe varmap.par")
+    command = "varmap.exe varmap.par"
+
+    # Suppress GSLIB output
+    if quiet:
+        command += ' > %s' % os.devnull
+    os.system(command)
+
     nnx = nx * 2 + 1
     nny = ny * 2 + 1
     varmap_, name = GSLIB2ndarray("varmap.out", 0, nnx, nny)
@@ -1247,6 +1303,13 @@ def varmapv_2d(
         cmap,
         fig_name
     )
+
+    # Remove temporary files
+    if clean:
+        os.remove('varmap.par')
+        os.remove('varmap.out')
+        os.remove('varmap_out.dat')
+
     return varmap_
 
 
@@ -1264,9 +1327,11 @@ def varmap(
     vlabel,
     cmap,
     fig_name,
+    quiet=False,
+    clean=False,
 ):
     """Regular spaced data, 2D wrapper for varmap from GSLIB (.exe must be
-    available in PATH or working directory).
+    available in PATH, GSLIB_DIR, or working directory).
 
     :param array: ndarray
     :param nx: TODO
@@ -1281,9 +1346,11 @@ def varmap(
     :param vlabel: TODO
     :param cmap: colormap
     :param fig_name: figure name
+    :param quiet: if True, suppress terminal output from GSLIB
+    :param clean: if True, remove temporary files after running GSLIB
     :return: TODO
     """
-    ndarray2GSLIB(array, "varmap_out.dat", "gam.dat")
+    ndarray2GSLIB_3D(array, "varmap_out.dat", "gam.dat")
 
     with open("varmap.par", "w") as f:
         f.write("              Parameters for VARMAP                                        \n")
@@ -1305,7 +1372,13 @@ def varmap(
         f.write("1                            -number of variograms                         \n")
         f.write("1   1   1                    -tail, head, variogram type                   \n")
 
-    os.system("varmap.exe varmap.par")
+    command = "varmap.exe varmap.par"
+
+    # Suppress GSLIB output
+    if quiet:
+        command += ' > %s' % os.devnull
+    os.system(command)
+
     nnx = nlagx * 2 + 1
     nny = nlagy * 2 + 1
     varmap_, name = GSLIB2ndarray("varmap.out", 0, nnx, nny)
@@ -1330,6 +1403,13 @@ def varmap(
         cmap,
         fig_name
     )
+
+    # Remove temporary files
+    if clean:
+        os.remove('varmap.par')
+        os.remove('varmap.out')
+        os.remove('varmap_out.dat')
+
     return varmap_
 
 
@@ -1374,12 +1454,12 @@ def vmodel(
     gamma = []
 
     with open("vmodel.par", "w") as f:
-        f.write("                                                                           \n")
-        f.write("                  Parameters for VMODEL                                    \n")
-        f.write("                  *********************                                    \n")
-        f.write("                                                                           \n")
-        f.write("START OF PARAMETERS:                                                       \n")
-        f.write("vmodel.var                   -file for variogram output                    \n")
+        f.write("\n")
+        f.write("                  Parameters for VMODEL\n")
+        f.write("                  *********************\n")
+        f.write("\n")
+        f.write("START OF PARAMETERS:\n")
+        f.write("vmodel.var                   -file for variogram output\n")
         f.write("1 " + str(nlag) + "          -number of directions and lags                \n")
         f.write(str(azi) + " 0.0 " + str(step) + " -azm, dip, lag distance                  \n")
         f.write(str(nst) + " " + str(nug) + " -nst, nugget effect                           \n")
@@ -1401,9 +1481,9 @@ def vmodel(
     return lag, gamma
 
 
-def declus(df, xcol, ycol, vcol, cmin, cmax, cnum, bmin):
+def declus(df, xcol, ycol, vcol, cmin, cmax, cnum, bmin, quiet=False, clean=False):
     """Cell-based declustering, 2D wrapper for declus from GSLIB (.exe must be
-    available in PATH or working directory).
+    available in PATH, GSLIB_DIR, or working directory).
 
     :param df: dataframe
     :param xcol: TODO
@@ -1413,6 +1493,8 @@ def declus(df, xcol, ycol, vcol, cmin, cmax, cnum, bmin):
     :param cmax: TODO
     :param cnum: TODO
     :param bmin: TODO
+    :param quiet: if True, suppress terminal output from GSLIB
+    :param clean: if True, remove temporary files after running GSLIB
     :return: TODO
     """
     nrow = len(df)
@@ -1447,17 +1529,29 @@ def declus(df, xcol, ycol, vcol, cmin, cmax, cnum, bmin):
         f.write(str(cnum) + " " + str(cmin) + " " + str(cmax) + " -number of cell sizes, min size, max size      \n")
         f.write("5                           -number of origin offsets                      \n")
 
-    os.system("declus.exe declus.par")
+    command = "declus.exe declus.par"
+
+    # Suppress GSLIB output
+    if quiet:
+        command += ' > %s' % os.devnull
+    os.system(command)
+
     df = GSLIB2Dataframe("declus.out")
     for irow in range(nrow):
         weights.append(df.iloc[irow, 3])
 
+    # Remove temporary files
+    if clean:
+        os.remove('declus.par')
+        os.remove('declus.out')
+        os.remove('declus_out.dat')
+
     return weights
 
 
-def sgsim_uncond(nreal, nx, ny, hsiz, seed, var, output_file):
+def sgsim_uncond(nreal, nx, ny, hsiz, seed, var, output_file, quiet=False, clean=False):
     """Sequential Gaussian simulation, 2D unconditional wrapper for sgsim from
-    GSLIB (.exe must be available in PATH or working directory).
+    GSLIB (.exe must be available in PATH, GSLIB_DIR, or working directory).
 
     :param nreal: TODO
     :param nx: TODO
@@ -1466,6 +1560,8 @@ def sgsim_uncond(nreal, nx, ny, hsiz, seed, var, output_file):
     :param seed: TODO
     :param var: TODO
     :param output_file: output file
+    :param quiet: if True, suppress terminal output from GSLIB
+    :param clean: if True, remove temporary files after running GSLIB
     :return: TODO
     """
     nug = var["nug"]
@@ -1525,12 +1621,26 @@ def sgsim_uncond(nreal, nx, ny, hsiz, seed, var, output_file):
         f.write(str(it2) + " " + str(cc2) + " " + str(azi2) + " 0.0 0.0 -it,cc,ang1,ang2,ang3\n")
         f.write(" " + str(hmaj2) + " " + str(hmin2) + " 1.0 - a_hmax, a_hmin, a_vert        \n")
 
-    os.system("sgsim.exe sgsim.par")
+    command = "sgsim.exe sgsim.par"
+
+    # Suppress GSLIB output
+    if quiet:
+        command += ' > %s' % os.devnull
+    os.system(command)
+
     sim_array = GSLIB2ndarray(output_file, 0, nx, ny)
+
+    # Remove temporary files
+    if clean:
+        os.remove('sgsim.par')
+        os.remove(output_file)
+        os.remove('nonw.dbg')
+
     return sim_array[0]
 
 
-def kb2d(df, xcol, ycol, vcol, nx, ny, hsiz, var, output_file):
+def kb2d(df, xcol, ycol, vcol, nx, ny, hsiz, var, output_file,
+         quiet=False, clean=False):
     """Kriging estimation, 2D wrapper for kb2d from GSLIB (.exe must be
     available in PATH or working directory).
 
@@ -1543,6 +1653,8 @@ def kb2d(df, xcol, ycol, vcol, nx, ny, hsiz, var, output_file):
     :param hsiz: TODO
     :param var: TODO
     :param output_file: output file
+    :param quiet: if True, suppress terminal output from GSLIB
+    :param clean: if True, remove temporary files after running GSLIB
     :return: TODO
     """
     df_temp = pd.DataFrame({"X": df[xcol], "Y": df[ycol], "Var": df[vcol]})
@@ -1574,8 +1686,8 @@ def kb2d(df, xcol, ycol, vcol, nx, ny, hsiz, var, output_file):
         f.write("0                                     -debugging level: 0,1,2,3            \n")
         f.write("none.dbg                              -file for debugging output           \n")
         f.write(str(output_file) + "                   -file for kriged output              \n")
-        f.write(str(nx) + " " + str(hmn) + " " + str(hsiz) + "                              \n")
-        f.write(str(ny) + " " + str(hmn) + " " + str(hsiz) + "                              \n")
+        f.write(str(nx) + " " + str(hmn) + " " + str(hsiz) + "                             \n")
+        f.write(str(ny) + " " + str(hmn) + " " + str(hsiz) + "                             \n")
         f.write("1    1                                -x and y block discretization        \n")
         f.write("1    30                               -min and max data for kriging        \n")
         f.write(str(max_range) + "                     -maximum search radius               \n")
@@ -1584,9 +1696,22 @@ def kb2d(df, xcol, ycol, vcol, nx, ny, hsiz, var, output_file):
         f.write(str(it1) + " " + str(cc1) + " " + str(azi1) + " " + str(hmaj1) + " " + str(hmin1) + " -it, c ,azm ,a_max ,a_min \n")
         f.write(str(it2) + " " + str(cc2) + " " + str(azi2) + " " + str(hmaj2) + " " + str(hmin2) + " -it, c ,azm ,a_max ,a_min \n")
 
-    os.system("kb2d.exe kb2d.par")
+    command = "kb2d.exe kb2d.par"
+
+    # Suppress GSLIB output
+    if quiet:
+        command += ' > %s' % os.devnull
+    os.system(command)
+
     est_array = GSLIB2ndarray(output_file, 0, nx, ny)
     var_array = GSLIB2ndarray(output_file, 1, nx, ny)
+
+    # Remove temporary files
+    if clean:
+        os.remove('kb2d.par')
+        os.remove(output_file)
+        os.remove('nonw.dbg')
+
     return est_array[0], var_array[0]
 
 
@@ -1632,23 +1757,23 @@ def sgsim(nreal, df, xcol, ycol, vcol, nx, ny, hsiz, seed, var, output_file):
     hctab = int(max_range / hsiz) * 2 + 1
 
     with open("sgsim.par", "w") as f:
-        f.write("              Parameters for SGSIM                                         \n")
-        f.write("              ********************                                         \n")
-        f.write("                                                                           \n")
+        f.write("              Parameters for SGSIM \n")
+        f.write("              ******************** \n")
+        f.write("\n")
         f.write("START OF PARAMETER:                                                        \n")
-        f.write("data_temp.dat                 -file with data                              \n")
+        f.write("data_temp.dat           - file with data \n")
         f.write("1  2  0  3  0  0              -  columns for X,Y,Z,vr,wt,sec.var.          \n")
-        f.write("-1.0e21 1.0e21                -  trimming limits                           \n")
+        f.write("-1.0e21 1.0e21          - trimming limits \n")
         f.write("1                             -transform the data (0=no, 1=yes)            \n")
-        f.write("none.trn                      -  file for output trans table               \n")
-        f.write("0                             -  consider ref. dist (0=no, 1=yes)          \n")
-        f.write("none.dat                      -  file with ref. dist distribution          \n")
+        f.write("none.trn                - file for output trans table \n")
+        f.write("0                       - consider ref. dist (0=no, 1=yes) \n")
+        f.write("none.dat                - file with ref. dist distribution \n")
         f.write("1  0                          -  columns for vr and wt                     \n")
         f.write(str(var_min) + " " + str(var_max) + "   zmin,zmax(tail extrapolation)       \n")
         f.write("1   " + str(var_min) + "      -  lower tail option, parameter              \n")
         f.write("1   " + str(var_max) + "      -  upper tail option, parameter              \n")
-        f.write("0                             -debugging level: 0,1,2,3                    \n")
-        f.write("nonw.dbg                      -file for debugging output                   \n")
+        f.write("0                       - debugging level: 0,1,2,3 \n")
+        f.write("nonw.dbg                - file for debugging output \n")
         f.write(str(output_file) + "           -file for simulation output                  \n")
         f.write(str(nreal) + "                 -number of realizations to generate          \n")
         f.write(str(nx) + " " + str(hmn) + " " + str(hsiz) + "                              \n")
@@ -1659,13 +1784,13 @@ def sgsim(nreal, df, xcol, ycol, vcol, nx, ny, hsiz, seed, var, output_file):
         f.write("12                            -number of simulated nodes to use            \n")
         f.write("0                             -assign data to nodes (0=no, 1=yes)          \n")
         f.write("1     3                       -multiple grid search (0=no, 1=yes),num      \n")
-        f.write("0                             -maximum data per octant (0=not used)        \n")
+        f.write("0                       - maximum data per octant (0=not used) \n")
         f.write(str(max_range) + " " + str(max_range) + " 1.0 -maximum search  (hmax,hmin,vert) \n")
         f.write(str(azi1) + "   0.0   0.0       -angles for search ellipsoid                 \n")
         f.write(str(hctab) + " " + str(hctab) + " 1 -size of covariance lookup table        \n")
-        f.write("0     0.60   1.0              -ktype: 0=SK,1=OK,2=LVM,3=EXDR,4=COLC        \n")
-        f.write("none.dat                      -  file with LVM, EXDR, or COLC variable     \n")
-        f.write("4                             -  column for secondary variable             \n")
+        f.write("0     0.60   1.0        - ktype: 0=SK,1=OK,2=LVM,3=EXDR,4=COLC \n")
+        f.write("none.dat                - file with LVM, EXDR, or COLC variable \n")
+        f.write("4                       - column for secondary variable \n")
         f.write(str(nst) + " " + str(nug) + "  -nst, nugget effect                          \n")
         f.write(str(it1) + " " + str(cc1) + " " + str(azi1) + " 0.0 0.0 -it,cc,ang1,ang2,ang3\n")
         f.write(" " + str(hmaj1) + " " + str(hmin1) + " 1.0 - a_hmax, a_hmin, a_vert        \n")
@@ -1677,9 +1802,10 @@ def sgsim(nreal, df, xcol, ycol, vcol, nx, ny, hsiz, seed, var, output_file):
     return sim_array[0]
 
 
-def cosgsim_uncond(nreal, nx, ny, hsiz, seed, var, sec, correl, output_file):
+def cosgsim_uncond(nreal, nx, ny, hsiz, seed, var, sec, correl, output_file,
+                   quiet=False, clean=False):
     """Sequential Gaussian simulation, 2D unconditional wrapper for sgsim from
-    GSLIB (.exe must be available in PATH or working directory).
+    GSLIB (.exe must be available in PATH, GSLIB_DIR, or working directory).
 
     :param nreal: TODO
     :param nx: TODO
@@ -1690,6 +1816,8 @@ def cosgsim_uncond(nreal, nx, ny, hsiz, seed, var, sec, correl, output_file):
     :param sec: TODO
     :param correl: TODO
     :param output_file: output file
+    :param quiet: if True, suppress terminal output from GSLIB
+    :param clean: if True, remove temporary files after running GSLIB
     :return: TODO
     """
     nug = var["nug"]
@@ -1709,7 +1837,7 @@ def cosgsim_uncond(nreal, nx, ny, hsiz, seed, var, sec, correl, output_file):
     hmn = hsiz * 0.5
     hctab = int(max_range / hsiz) * 2 + 1
 
-    ndarray2GSLIB(sec, "sec.dat", "sec_dat")
+    ndarray2GSLIB_3D(sec, "sec.dat", "sec_dat")
 
     with open("sgsim.par", "w") as f:
         f.write("              Parameters for SGSIM                                         \n")
@@ -1752,8 +1880,21 @@ def cosgsim_uncond(nreal, nx, ny, hsiz, seed, var, sec, correl, output_file):
         f.write(str(it2) + " " + str(cc2) + " " + str(azi2) + " 0.0 0.0 -it,cc,ang1,ang2,ang3 \n")
         f.write(" " + str(hmaj2) + " " + str(hmin2) + " 1.0 - a_hmax, a_hmin, a_vert        \n")
 
-    os.system("sgsim.exe sgsim.par")
+    command = "sgsim.exe sgsim.par"
+
+    # Suppress GSLIB output
+    if quiet:
+        command += ' > %s' % os.devnull
+    os.system(command)
+
     sim_array = GSLIB2ndarray(output_file, 0, nx, ny)
+
+    if clean:
+        os.remove('sgsim.par')
+        os.remove('sec.dat')
+        os.remove(output_file)
+        os.remove('nonw.dbg')
+
     return sim_array[0]
 
 
@@ -1987,9 +2128,10 @@ def make_variogram_3D(
     return var
 
 
-def sgsim_3D(nreal, df, xcol, ycol, zcol, vcol, nx, ny, nz, hsiz, vsiz, seed, var, output_file):
+def sgsim_3D(nreal, df, xcol, ycol, zcol, vcol, nx, ny, nz, hsiz, vsiz, seed, var, output_file,
+             quiet=False, clean=False):
     """Sequential Gaussian simulation, 2D wrapper for sgsim from GSLIB (.exe
-    must be available in PATH or working directory).
+    must be available in path, GSLIB_DIR, or working directory).
 
     :param nreal: TODO
     :param df: dataframe
@@ -2002,6 +2144,8 @@ def sgsim_3D(nreal, df, xcol, ycol, zcol, vcol, nx, ny, nz, hsiz, vsiz, seed, va
     :param seed: TODO
     :param var: TODO
     :param output_file: output file
+    :param quiet: if True, suppress terminal output from GSLIB
+    :param clean: if True, remove temporary files after running GSLIB
     :return: TODO
     """
     x = df[xcol]
@@ -2077,6 +2221,19 @@ def sgsim_3D(nreal, df, xcol, ycol, zcol, vcol, nx, ny, nz, hsiz, vsiz, seed, va
         f.write(str(it2) + " " + str(cc2) + " 	" + str(azi2) + "		" + str(dip2) +" 0.0 -it,cc,ang1,ang2,ang3\n")
         f.write(" " + str(hmax2) + " " + str(hmed2) +  " " +str(hmin2) + " - a_hmax, a_hmin, a_vert        \n")
 
-    os.system("sgsim.exe sgsim.par")
+    command = "sgsim.exe sgsim.par"
+
+    # Suppress GSLIB output
+    if quiet:
+        command += ' > %s' % os.devnull
+    os.system(command)
+
     sim_array = GSLIB2ndarray_3D(output_file, 0, nreal, nx, ny, nz)
+
+    if clean:
+        os.remove('sgsim.par')
+        os.remove('data_temp.dat')
+        os.remove(output_file)
+        os.remove('nonw.dbg')
+
     return sim_array[0]

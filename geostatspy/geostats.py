@@ -1,6 +1,6 @@
 """
 This file includes the reimplementations of GSLIB functionality in Python. While
-this code will not be as well-tested and robust as the original GSLIBctabel it does
+this code will not be as well-tested and robust as the original GSLIB, it does
 provide the opportunity to build 2D spatial modeling projects in Python without
 the need to rely on compiled Fortran code from GSLIB. If you want to use the
 GSLIB compiled code called from Python workflows use the functions available
@@ -1505,7 +1505,7 @@ def ordrel(ivtype,ncut,ccdf):
 # Return with corrected CDF:
     return ccdfo
 
-def declus(df, xcol, ycol, vcol, iminmax, noff, ncell, cmin, cmax):
+def declus(df, xcol, ycol, vcol, iminmax, noff, ncell, cmin, cmax, verbose=True):
     """GSLIB's DECLUS program (Deutsch and Journel, 1998) converted from the
     original Fortran to Python by Michael Pyrcz, the University of Texas at
     Austin (Jan, 2019).
@@ -1520,6 +1520,7 @@ def declus(df, xcol, ycol, vcol, iminmax, noff, ncell, cmin, cmax):
     :param ncell: number of cell sizes
     :param cmin: min cell size
     :param cmax: max cell size
+    :param verbose: whether to print descriptive statistics
     :return: TODO
     """
     # Load data and set up arrays
@@ -1549,11 +1550,12 @@ def declus(df, xcol, ycol, vcol, iminmax, noff, ncell, cmin, cmax):
     xcs_mat[0] = 0.0
     vrcr_mat[0] = vmean
     vrop = vmean  # include the naive case
-
-    print(f"There are {nd} data with:")
-    print(f"   mean of      {vmean} ")
-    print(f"   min and max  {vmin} and {vmax}")
-    print(f"   standard dev {vstdev} ")
+    
+    if verbose:
+        print(f"There are {nd} data with:")
+        print(f"   mean of      {vmean} ")
+        print(f"   min and max  {vmin} and {vmax}")
+        print(f"   standard dev {vstdev} ")
 
     # Define a "lower" origin to use for the cell sizes
     xo1 = xmin - 0.01
@@ -4357,7 +4359,7 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
     
     cov_table,tmp2,order,ixnode,iynode,nlooku,nctx,ncty = ctable(MAXNOD,MAXCXY,MAXCTX,MAXCTY,MXY,
                                 xsiz,ysiz,isrot,nx,ny,nst[0],c0[0],cc[0],aa[0],it[0],ang[0],anis[0],global_rotmat,radsqd)        
-      
+   
 #    print('spiral search number nodes '); print(nlooku)
 #    print('ixnode,iynode'); print(ixnode,iynode)
 # Initialize accumulators:  # not setup yet
@@ -4385,85 +4387,85 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
     for ireal in range(0,nreal):
           
 # Work out a random path for this realization:
-        sim = np.random.rand(nx*ny)
-        order = np.zeros(nxy)
-        ind = 0
-        for ixy in range(0,nxy): 
-            order[ixy] = ind  
-            ind = ind + 1
+    sim = np.random.rand(nx*ny)
+    order = np.zeros(nxy)
+    ind = 0
+    for ixy in range(0,nxy): 
+        order[ixy] = ind  
+        ind = ind + 1
 # Multiple grid search works with multiples of 4 (yes, that is
 # soat arbitrary):
 
-        if mults == 1:
-            for imult in range(0,nmult): 
-                nny = int(max(1,ny/((imult+1)*4)))
-                nnx = int(max(1,nx/((imult+1)*4)))
+    if mults == 1:
+        for imult in range(0,nmult): 
+            nny = int(max(1,ny/((imult+1)*4)))
+            nnx = int(max(1,nx/((imult+1)*4)))
 #            print('multi grid - nnx, nny'); print(nnx,nny)
-                jy  = 1
-                jx  = 1
-                for iy in range(0,nny): 
-                    if nny > 0: jy = iy*(imult+1)*4
-                    for ix in range(0,nnx):
-                        if nnx > 0: jx = ix*(imult+1)*4
-                        index = jx + (jy-1)*nx
-                        sim[index] = sim[index] - (imult+1)
+            jy  = 1
+            jx  = 1
+            for iy in range(0,nny): 
+                if nny > 0: jy = iy*(imult+1)*4
+                for ix in range(0,nnx):
+                    if nnx > 0: jx = ix*(imult+1)*4
+                    index = jx + (jy-1)*nx
+                    sim[index] = sim[index] - (imult+1)
 
 # Inlize the simulation:
-        sim, order = dsortem(0,nxy,sim,2,b=order)
-        sim.fill(UNEST)
-        tmp.fill(0.0)
+    sim, order = dsortem(0,nxy,sim,2,b=order)
+    sim.fill(UNEST)
+    tmp.fill(0.0)
         print('Working on realization ' + str(ireal))
-#        print('Random Path'); print(order)
+#    print('Random Path'); print(order)
     
 # As the data to the closest grid node:
 
-        TINY = 0.0001
-        for idd in range(0,nd):
+    TINY = 0.0001
+    for idd in range(0,nd):
 #        print('data'); print(x[idd],y[idd])
-            ix = getindex(nx,xmn,xsiz,x[idd])
-            iy = getindex(ny,ymn,ysiz,y[idd])
-            ind = ix + (iy-1)*nx 
-            xx  = xmn + (ix)*xsiz
-            yy  = ymn + (iy)*ysiz
+        ix = getindex(nx,xmn,xsiz,x[idd])
+        iy = getindex(ny,ymn,ysiz,y[idd])
+        ind = ix + (iy-1)*nx 
+        xx  = xmn + (ix)*xsiz
+        yy  = ymn + (iy)*ysiz
 #        print('xx, yy' + str(xx) + ',' + str(yy))
-            test = abs(xx-x[idd]) + abs(yy-y[idd])
+        test = abs(xx-x[idd]) + abs(yy-y[idd])
 
 # As this data to the node (unless there is a closer data):
-            if sstrat == 1 or (sstrat == 0 and test <= TINY): 
-                if sim[ind] > UNEST:
-                    id2 = int(sim[ind]+0.5)
-                    test2 = abs(xx-x[id2]) + abs(yy-y[id2])
-                    if test <= test2: 
-                        sim[ind] = idd
-                else:
+        if sstrat == 1 or (sstrat == 0 and test <= TINY): 
+            if sim[ind] > UNEST:
+                id2 = int(sim[ind]+0.5)
+                test2 = abs(xx-x[id2]) + abs(yy-y[id2])
+                if test <= test2: 
                     sim[ind] = idd
-			
-# As a flag so that this node does not get simulated:
+            else:
+                sim[ind] = idd
 
+# As a flag so that this node does not get simulated:
+        
 # Another data values into the simulated grid:
-        for ind in range(0,nxy):              
-            idd = int(sim[ind]+0.5)
-            if idd > 0: 
-                sim[ind] = vr[idd]
-            else: 
-                tmp[ind] = sim[ind]
-                sim[ind] = UNEST
-        irepo = max(1,min((nxy/10),10000))          
+    for ind in range(0,nxy):              
+        idd = int(sim[ind]+0.5)
+        if idd > 0: 
+            sim[ind] = vr[idd]
+        else: 
+            tmp[ind] = sim[ind]
+            sim[ind] = UNEST
+    irepo = max(1,min((nxy/10),10000))          
 
 # LOOP OVER ALL THE NODES:
-        for ind in range(0,nxy):  
-            if (int(ind/irepo)*irepo) == ind:
-                print('   currently on node ' + str(ind))
+    for ind in range(0,nxy):  
+        if (int(ind/irepo)*irepo) == ind:
+            print('   currently on node ' + str(ind))
           
 # Find the index on the random path, check if assigned data and get location
 
-            index = int(order[ind]+0.5)
-            if (sim[index] > (UNEST+EPSLON)) or (sim[index] < (UNEST*2.0)): continue
-            iy   = int((index)/nx) 
-            ix   = index - (iy)*nx
-            xx = xmn + (ix)*xsiz
-            yy = ymn + (iy)*ysiz   
-            current_node = (yy,xx)
+        index = int(order[ind]+0.5)
+        if (sim[index] > (UNEST+EPSLON)) or (sim[index] < (UNEST*2.0)): continue
+        iy   = int((index)/nx) 
+        ix   = index - (iy)*nx
+        xx = xmn + (ix)*xsiz
+        yy = ymn + (iy)*ysiz   
+        current_node = (yy,xx)
 #        print('Current_node'); print(current_node)
 
 # Now we'll simulate the point ix,iy,iz.  First, get the close data
@@ -4471,23 +4473,23 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
 # we'll only keep the closest "ndmax" data, and look for previously
 # simulated grid nodes:
 
-            if sstrat == 0:
+        if sstrat == 0:
 #            print('searching for nearest data')
-                na = -1   # accounting for 0 as first index
-                if ndmax == 1:
-                    dist = np.zeros(1); nums = np.zeros(1)
-                    dist[0], nums[0] = tree.query(current_node,ndmax) # use kd tree for fast nearest data search
-                else:
-                    dist, nums = tree.query(current_node,ndmax)
+            na = -1   # accounting for 0 as first index
+            if ndmax == 1:
+                dist = np.zeros(1); nums = np.zeros(1)
+                dist[0], nums[0] = tree.query(current_node,ndmax) # use kd tree for fast nearest data search
+            else:
+                dist, nums = tree.query(current_node,ndmax)
             # remove any data outside search radius
             
 #            print('nums'); print(nums)
 #            print('dist'); print(dist)
-                na = len(dist)
-                nums = nums[dist<radius]
-                dist = dist[dist<radius] 
-                na = len(dist) 
-                if na < ndmin: continue     # bail if not enough data
+            na = len(dist)
+            nums = nums[dist<radius]
+            dist = dist[dist<radius] 
+            na = len(dist) 
+            if na < ndmin: continue     # bail if not enough data
 #            print('Found ' + str(na) + 'neighbouring data')            
                 
 #        print('node search inputs')
@@ -4496,69 +4498,69 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
     
 # Indicator transform the nearest node data
 #        print('start node search')
-            ncnode, icnode, cnodev, cnodex, cnodey = srchnd(ix,iy,nx,ny,xmn,ymn,xsiz,ysiz,sim,noct,nodmax,ixnode,iynode,nlooku,nctx,ncty,UNEST)
-            if ncnode > 0:
-                for icut in range(0,ncut): 
-                    cnodeiv[icut,:] = np.where((cnodev <= thresh[icut] + 0.5) & (cnodev > thresh[icut] - 0.5), '1', '0')
-            else:
-                for icut in range(0,ncut): 
-                    cnodeiv[icut,:] = np.where(cnodev <= thresh[icut], '1', '0')
-            cnodeiv[ncut,:] = cnodev
+        ncnode, icnode, cnodev, cnodex, cnodey = srchnd(ix,iy,nx,ny,xmn,ymn,xsiz,ysiz,sim,noct,nodmax,ixnode,iynode,nlooku,nctx,ncty,UNEST)
+        if ncnode > 0:
+            for icut in range(0,ncut): 
+                cnodeiv[icut,:] = np.where((cnodev <= thresh[icut] + 0.5) & (cnodev > thresh[icut] - 0.5), '1', '0')
+        else:
+            for icut in range(0,ncut): 
+                cnodeiv[icut,:] = np.where(cnodev <= thresh[icut], '1', '0')
+        cnodeiv[ncut,:] = cnodev
 
 #        print('indicator transformed nearest nodes'); print(cnodeiv)
     
 #       print('srchnd'); print(ncnode,icnode,cnodev,cnodex,cnodey)
 #       print('Result of srchnd, cnodex = '); print(cnodex)
-            nclose = na
+        nclose = na
 #        print('*****srch node, nclose ' + str(nclose) + ', ncnode ' + str(ncnode))
 #        print('near data'); print(nums)
 #        print('near data distance'); print(dist)
  #       print('nums'); print(nums)
 
 # What cdf value are we looking for?
-            zval   = UNEST
-            cdfval = np.random.rand()
+        zval   = UNEST
+        cdfval = np.random.rand()
 
 # Use the global distribution?
 # check inputs
  #       print('nst'); print(nst)
 
-            if nclose + ncnode <= 0:
+        if nclose + ncnode <= 0:
 #            print('nclose & ncnode'); print(nclose, ncnode)
-                zval = beyond(ivtype,ncut,thresh,gcdf,ng,gcut,gcdf,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,zval,cdfval)
-            else:
+            zval = beyond(ivtype,ncut,thresh,gcdf,ng,gcut,gcdf,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,zval,cdfval)
+        else:
 #            print('kriging')
 # Estimate the local distribution by indicator kriging:
 #            print('maxcov'); print(maxcov)
-                for ic in range(0,ncut):
+            for ic in range(0,ncut):
 #                print('check kriging cov model- icut '); print(ic)
 #                print('node data values for kriging'); print(cnodev)
 #                print(cc[ic],aa[ic],it[ic],ang[ic],anis[ic],rotmat[ic],maxcov[ic])
                 #ccdf([ic] = krige(ix,iy,iz,xx,yy,zz,ic,cdf(ic),MAXCTX,MAXCTY,MAXCTZ,MAXKR1,ccdf(ic),MAXROT)                             
-                    if ktype == 0:
-                        gmean = gcdf[ic]  
-                    elif ktype == 2:
-                        gmean = trend1d[index,ic]
-                    else:
-                        gmean = 0 # if locally variable mean it is set from trend in ikrige, otherwise not used
+                if ktype == 0:
+                    gmean = gcdf[ic]  
+                elif ktype == 2:
+                    gmean = trend1d[index,ic]
+                else:
+                    gmean = 0 # if locally variable mean it is set from trend in ikrige, otherwise not used
 #                    print('gmean'); print(gmean)
-                    ccdf[ic], cstdev = ikrige(ix,iy,nx,ny,xx,yy,ktype,x,y,vr[:,ic],sec,colocorr,gmean,trend[:,ic],nums,cov_table,nctx,ncty,
+                ccdf[ic], cstdev = ikrige(ix,iy,nx,ny,xx,yy,ktype,x,y,vr[:,ic],sec,colocorr,gmean,trend[:,ic],nums,cov_table,nctx,ncty,
                                       icnode,ixnode,iynode,cnodeiv[ic],cnodex,cnodey,nst[ic],c0[ic],9999.9,cc[ic],aa[ic],it[ic],ang[ic],anis[ic],
                                       rotmat[ic],maxcov[ic],MAXCTX,MAXCTY,MAXKR1,MAXKR2)   
  #           print('ccdf'); print(ccdf)
                     
 # Correct order relations:
-                ccdfo = ordrel(ivtype,ncut,ccdf)
+            ccdfo = ordrel(ivtype,ncut,ccdf)
 # Draw from the local distribution:
-                zval = beyond(ivtype,ncut,thresh,ccdfo,ng,gcut,gcdf,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,zval,cdfval)
-            sim[index] = zval
+            zval = beyond(ivtype,ncut,thresh,ccdfo,ng,gcut,gcdf,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,zval,cdfval)
+        sim[index] = zval
  #       print('zval'); print(zval)
     
 
 # END MAIN LOOP OVER SIMULATIONS:
-        for ind in range(0,nxy):
-            iy   = int((ind)/nx) 
-            ix   = ind - (iy)*nx
+    for ind in range(0,nxy):
+        iy   = int((ind)/nx) 
+        ix   = ind - (iy)*nx
             sim_out[ireal,ny-iy-1,ix] = sim[ind]
 
     return sim_out  
@@ -4938,22 +4940,22 @@ def setrot3D(vario3D):
         ang_azi = vario3D["azi"][ist]
         ang_dip = vario3D["dip"][ist]
         
-        DEG2RAD=np.pi/180.0; EPSLON=1e-20
+    DEG2RAD=np.pi/180.0; EPSLON=1e-20
         if (ang_azi >= 0.0)&(ang_azi<270.0):
             alpha = (90.0 - ang_azi) * DEG2RAD
-        else:
+    else:
             alpha = (450.0 - ang_azi) * DEG2RAD
         beta = -1.0 * ang_dip *DEG2RAD
         theta = 0.0 * DEG2RAD # assume 0 plunge
-        
-        sina = np.sin(alpha)
-        sinb = np.sin(beta)
-        sint = np.sin(theta)
-        cosa = np.cos(alpha)
-        cosb = np.cos(beta)
-        cost = np.cos(theta)
-        ### Construct the rotation matrix in the required memory
-        
+    
+    sina = np.sin(alpha)
+    sinb = np.sin(beta)
+    sint = np.sin(theta)
+    cosa = np.cos(alpha)
+    cosb = np.cos(beta)
+    cost = np.cos(theta)
+    ### Construct the rotation matrix in the required memory
+    
         afac1 = 1.0/max(anis_hori, EPSLON)
         afac2 = 1.0/max(anis_vert, EPSLON)
         rotmat = np.zeros((2,3,3))
@@ -5372,7 +5374,7 @@ def vmodel_3D(
     MAXROT=MAXNST+1
     EPSLON = 1.0e-20
     VERSION= 1.01
-
+  
 # Declare arrays
     index = np.zeros(nlag+1)
     h = np.zeros(nlag+1)
@@ -5389,7 +5391,7 @@ def vmodel_3D(
     dip = np.zeros(nst)
     anis = np.zeros(nst)
     anis_v = np.zeros(nst)
-   
+    
     cc = vario['cc']
     it = vario['it']
     azi = vario['azi']
@@ -5400,7 +5402,7 @@ def vmodel_3D(
     xoff = math.sin(DEG2RAD*mazm)*math.cos(DEG2RAD*mdip)*xlag
     yoff = math.cos(DEG2RAD*mazm)*math.cos(DEG2RAD*mdip)*xlag
     zoff = math.sin(DEG2RAD*mdip)*xlag
-    print(' x,y,z offsets = ' + str(xoff) + ',' + str(yoff) + ',' + str(zoff)) 
+    print(' x,y,z offsets = ' + str(xoff) + ',' + str(yoff) + ',' + str(zoff))
     rotmat = setrot3D(vario) 
     maxcov = vario['nug'] + np.sum(vario['cc'])
     xx = 0.0; yy = 0.0; zz = 0.0;
@@ -5413,7 +5415,7 @@ def vmodel_3D(
         zz = zz + zoff
         gam[il] = maxcov - cov[il]
         ro[il]  = cov[il]/maxcov
-        
+
 # finished
     return index,h,gam,cov,ro
 
@@ -5472,7 +5474,7 @@ def cova3(x1, y1, z1, x2, y2, z2, vario3D, rotmat, maxcov):
     :param it: TODO
     :param ang: TODO: not used
     :param anis: Horizontal aspect ratio
-    :param anis_v: Vertical aspect ratio
+	:param anis_v: Vertical aspect ratio
     :param rotmat: rotation matrices
     :param maxcov: TODO
     :return: TODO
@@ -5499,7 +5501,7 @@ def cova3(x1, y1, z1, x2, y2, z2, vario3D, rotmat, maxcov):
 #        dx1 = dx * rotmat[ist,0,0] + dy * rotmat[ist,0,1] + dz * rotmat[ist,0,2]
 #        dy1 = (dx * rotmat[ist,1,0] + dy * rotmat[ist,1,1] + dz * rotmat[ist,1,2] ) / anis_hori
 #        dz1 = (dx * rotmat[ist,2,0] + dy * rotmat[ist,2,1] + dz * rotmat[ist,2,2] ) / anis_vert
-        
+		
         dx1 = dx * rotmat[ist,0,0] + dy * rotmat[ist,0,1] + dz * rotmat[ist,0,2]
         dy1 = (dx * rotmat[ist,1,0] + dy * rotmat[ist,1,1] + dz * rotmat[ist,1,2] )
         dz1 = (dx * rotmat[ist,2,0] + dy * rotmat[ist,2,1] + dz * rotmat[ist,2,2] ) 
@@ -5522,8 +5524,8 @@ def cova3(x1, y1, z1, x2, y2, z2, vario3D, rotmat, maxcov):
             # Gaussian model
             hh = -3.0 * (h * h) / (vario3D["hmaj"][ist] * vario3D["hmaj"][ist])
             cova3_ = cova3_ + vario3D["cc"][ist] * np.exp(hh)
-    return cova3_
-
+    return cova3_	
+	
 @jit(nopython=True)
 def cova3_array(x1, y1, z1, x2, y2, z2, vario3D_array, rotmat, maxcov):
     """Calculate the covariance associated with a variogram model specified by a
@@ -5565,7 +5567,7 @@ def cova3_array(x1, y1, z1, x2, y2, z2, vario3D_array, rotmat, maxcov):
         anis_hori = vario3D_array[ist*7+2+5] / vario3D_array[ist*7+2+4]
         anis_vert = vario3D_array[ist*7+2+6] / vario3D_array[ist*7+2+4]
         it = vario3D_array[ist*7+2+0]
-    
+	
         # Compute the appropriate structural distance
 #        dx1 = dx * rotmat[ist,0,0] + dy * rotmat[ist,0,1] + dz * rotmat[ist,0,2]
 #        dy1 = (dx * rotmat[ist,1,0] + dy * rotmat[ist,1,1] + dz * rotmat[ist,1,2] ) / anis_hori
