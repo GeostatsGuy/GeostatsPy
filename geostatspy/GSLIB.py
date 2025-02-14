@@ -108,6 +108,7 @@ def GSLIB2ndarray(data_file, kcol, nx, ny):
                 array[ix] = head.split()[kcol]
     return array, col_name
 
+
 def GSLIB2ndarray_3D(data_file, kcol,nreal, nx, ny, nz):
     """Convert GSLIB Geo-EAS file to a 1D or 2D numpy ndarray for use with
     Python methods
@@ -1413,45 +1414,104 @@ def varmap(
     return varmap_
 
 
-def vmodel(
-    nlag,
-    step,
-    azi,
-    nug,
-    nst,
-    tstr1,
-    c1,
-    azi1,
-    rmaj1,
-    rmin1,
-    tstr2=1,
-    c2=0,
-    azi2=0,
-    rmaj2=0,
-    rmin2=0,
-):
-    """Variogram model, 2D wrapper for vmodel from GSLIB (.exe must be
-    available in PATH or working directory).
+def write_variogram(output_file, nug, nst, tstr, c,
+                    ang1, ang2, ang3, ahmax, ahmin, ahvert):
+    """Append variogram information to output file. This function is used to
+    write the variogram parameters to a file in the format required by GSLIB's
+    geostatistical programs.
 
-    :param nlag: TODO
-    :param step: TODO
-    :param azi: TODO
-    :param nug: TODO
-    :param nst: TODO
-    :param tstr1: TODO
-    :param c1: TODO
-    :param azi1: TODO
-    :param rmaj1: TODO
-    :param rmin1: TODO
-    :param tstr2: TODO
-    :param c2: TODO
-    :param azi2: TODO
-    :param rmaj2: TODO
-    :param rmin2: TODO
-    :return: TODO
+    :param output_file: file to append variogram information to
+    :param nst: number of nested structures
+    :param tstr: type of structure (1=spherical, 2=exponential, 3=gaussian, 4=power
+    model, 5=hole effect). Either a float (if nst==1) or a list of floats (if nst>1).
+    :param c: contribution of structure(s) to variance. Either a float (if nst==1)
+    or a list of floats (if nst>1).
+    :param ang1: angle(s) defining azimuth of geometric anisotropy. Either a float
+    (if nst==1) or a list of floats (if nst>1).
+    :param ang2: angle(s) defining dip of geometric anisotropy. Either a float (if
+    nst==1) or a list of floats (if nst>1).
+    :param ang3: angle(s) defining tilt of geometric anisotropy. Either a float
+    (if nst==1) or a list of floats (if nst>1).
+    :param ahmax: range(s) of structure(s) in direction of anisotropy. Either a
+    float (if nst==1) or a list of floats (if nst>1).
+    :param ahmin: range(s) of structure(s) perpendicular to anisotropy. Either a
+    float (if nst==1) or a list of floats (if nst>1).
+    :param ahvert: vertical range(s) of structure(s). Either a float (if nst==1)
+    or a list of floats (if nst>1).
     """
-    lag = []
-    gamma = []
+
+    with open(output_file, 'a') as f:
+        f.write("%d  %f          -nst, nugget effect \n" % (nst, nug))
+
+        # Write structures
+        for i in range(nst):
+            f.write("%d   %f  %f  %f  %f    -it,cc,ang1,ang2,ang3\n" % (tstr[i], c[i], ang1[i], ang2[i], ang3[i]))
+            f.write("         %f  %f  %f    -a_hmax, a_hmin, a_vert\n" % (ahmax[i], ahmin[i], ahvert[i]))
+
+
+def vmodel(ndir, nlag, azm, dip, lag_dist, nug, nst,
+           tstr, c, ang1, ang2, ang3, ahmax, ahmin, ahvert,
+           clean=False, quiet=False):
+    """Variogram model, wrapper for vmodel from GSLIB (.exe must be
+    available in PATH, GSLIB_DIR, or working directory).
+
+    :param ndir: number of directions in which to calculate modeled variograms
+    :param nlag: number of lags
+    :param azm: azimuth of direction(s) in which to calculate variograms. Either
+    a float (if ndir==1) or a list of floats (if ndir>1).
+    :param dip: dip of direction(s) in which to calculate variograms. Either a
+    float (if ndir==1) or a list of floats (if ndir>1).
+    :param lag_dist: lag distance(s) in which to calculate variograms. Either a
+    float (if ndir==1) or a list of floats (if ndir>1).
+    :param nug: nugget effect
+    :param nst: number of nested structures
+    :param tstr: type of structure (1=spherical, 2=exponential, 3=gaussian, 4=power
+    model, 5=hole effect). Either a float (if nst==1) or a list of floats (if nst>1).
+    :param c: contribution of structure(s) to variance. Either a float (if nst==1)
+    or a list of floats (if nst>1).
+    :param ang1: angle(s) defining azimuth of geometric anisotropy. Either a float
+    (if nst==1) or a list of floats (if nst>1).
+    :param ang2: angle(s) defining dip of geometric anisotropy. Either a float (if
+    nst==1) or a list of floats (if nst>1).
+    :param ang3: angle(s) defining tilt of geometric anisotropy. Either a float
+    (if nst==1) or a list of floats (if nst>1).
+    :param ahmax: range(s) of structure(s) in direction of anisotropy. Either a
+    float (if nst==1) or a list of floats (if nst>1).
+    :param ahmin: range(s) of structure(s) perpendicular to anisotropy. Either a
+    float (if nst==1) or a list of floats (if nst>1).
+    :param ahvert: vertical range(s) of structure(s). Either a float (if nst==1)
+    or a list of floats (if nst>1).
+    :param quiet: if True, suppress terminal output from GSLIB
+    :param clean: if True, remove temporary files after running GSLIB
+    :return lag: lag distances, numpy array of shape (nlag, ndir)
+    # :return var: gamma values, numpy array of shape (nlag, ndir)
+    """
+
+    # If only one direction, convert azm, dip and lag_dist to list
+    if isinstance(azm, float) or isinstance(azm, int):
+        azm = [azm]
+    if isinstance(dip, float) or isinstance(dip, int):
+        dip = [dip]
+    if isinstance(lag_dist, float) or isinstance(lag_dist, int):
+        lag_dist = [lag_dist]
+
+    # If only one structure, convert tstr, c, ang1, ang2, ang3, ahmax, ahmin and ahvert to list
+    if isinstance(tstr, float) or isinstance(tstr, int):
+        tstr = [tstr]
+    if isinstance(c, float) or isinstance(c, int):
+        c = [c]
+    if isinstance(ang1, float) or isinstance(ang1, int):
+        ang1 = [ang1]
+    if isinstance(ang2, float) or isinstance(ang2, int):
+        ang2 = [ang2]
+    if isinstance(ang3, float) or isinstance(ang3, int):
+        ang3 = [ang3]
+    if isinstance(ahmax, float) or isinstance(ahmax, int):
+        ahmax = [ahmax]
+    if isinstance(ahmin, float) or isinstance(ahmin, int):
+        ahmin = [ahmin]
+    if isinstance(ahvert, float) or isinstance(ahvert, int):
+        ahvert = [ahvert]
 
     with open("vmodel.par", "w") as f:
         f.write("\n")
@@ -1460,23 +1520,34 @@ def vmodel(
         f.write("\n")
         f.write("START OF PARAMETERS:\n")
         f.write("vmodel.var                   -file for variogram output\n")
-        f.write("1 " + str(nlag) + "          -number of directions and lags                \n")
-        f.write(str(azi) + " 0.0 " + str(step) + " -azm, dip, lag distance                  \n")
-        f.write(str(nst) + " " + str(nug) + " -nst, nugget effect                           \n")
-        f.write(str(tstr1) + " " + str(c1) + " " + str(azi1) + " 0.0   0.0   0.0 -it,cc,ang1,ang2,ang3 \n")
-        f.write(str(rmaj1) + " " + str(rmin1) + " 0.0 -a_hmax, a_hmin, a_vert               \n")
-        f.write(str(tstr2) + " " + str(c2) + " " + str(azi2) + " 0.0   0.0   0.0 -it,cc,ang1,ang2,ang3 \n")
-        f.write(str(rmaj2) + " " + str(rmin2) + " 0.0 -a_hmax, a_hmin, a_vert               \n")
+        f.write("%d  %d          -number of directions and lags \n" % (ndir, nlag))
 
-    os.system("vmodel.exe vmodel.par")
+        # Write directions in which to calculate variograms
+        for i in range(ndir):
+            f.write("%f  %f  %f -azm, dip, lag distance \n" % (azm[i], dip[i], lag_dist[i]))
 
-    with open("vmodel.var") as f:
-        next(f)  # skip the first line
+    write_variogram("vmodel.par", nug, nst, tstr, c, ang1, ang2, ang3, ahmax, ahmin, ahvert)
 
-        for line in f:
-            _, l, g, *_ = line.split()
-            lag.append(float(l))
-            gamma.append(float(g))
+    command = "vmodel.exe vmodel.par"
+
+    if quiet:
+        # If quiet, suppress GSLIB output
+        command += ' 2&> /dev/null'
+    os.system(command)
+
+    lag = np.empty((nlag+1, ndir), dtype=float)
+    gamma = np.empty((nlag+1, ndir), dtype=float)
+
+    # Read variogram output to numpy array
+    for i in range(ndir):
+        output = np.loadtxt('vmodel.var', skiprows=i*(nlag+3)+1, usecols=[1, 2], max_rows=(nlag+1))
+        lag[:, i] = output[:, 0]
+        gamma[:, i] = output[:, 1]
+
+    # Remove temporary files
+    if clean:
+        os.remove('vmodel.par')
+        os.remove('vmodel.var')
 
     return lag, gamma
 
