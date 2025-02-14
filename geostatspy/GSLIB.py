@@ -1453,7 +1453,7 @@ def vmodel(ndir, nlag, azm, dip, lag_dist, nug, nst,
            tstr, c, ang1, ang2, ang3, ahmax, ahmin, ahvert,
            clean=False, quiet=False):
     """Variogram model, wrapper for vmodel from GSLIB (.exe must be
-    available in PATH, GSLIB_DIR, or working directory).
+    available in PATH or working directory).
 
     :param ndir: number of directions in which to calculate modeled variograms
     :param nlag: number of lags
@@ -1554,7 +1554,7 @@ def vmodel(ndir, nlag, azm, dip, lag_dist, nug, nst,
 
 def declus(df, xcol, ycol, vcol, cmin, cmax, cnum, bmin, quiet=False, clean=False):
     """Cell-based declustering, 2D wrapper for declus from GSLIB (.exe must be
-    available in PATH, GSLIB_DIR, or working directory).
+    available in PATH or working directory).
 
     :param df: dataframe
     :param xcol: TODO
@@ -1622,7 +1622,7 @@ def declus(df, xcol, ycol, vcol, cmin, cmax, cnum, bmin, quiet=False, clean=Fals
 
 def sgsim_uncond(nreal, nx, ny, hsiz, seed, var, output_file, quiet=False, clean=False):
     """Sequential Gaussian simulation, 2D unconditional wrapper for sgsim from
-    GSLIB (.exe must be available in PATH, GSLIB_DIR, or working directory).
+    GSLIB (.exe must be available in PATH or working directory).
 
     :param nreal: TODO
     :param nx: TODO
@@ -1710,8 +1710,8 @@ def sgsim_uncond(nreal, nx, ny, hsiz, seed, var, output_file, quiet=False, clean
     return sim_array[0]
 
 
-def kb2d(df, xcol, ycol, vcol, nx, ny, hsiz, var, output_file,
-         quiet=False, clean=False):
+def kb2d(df, xcol, ycol, vcol, nx, ny, hsiz, var, output_file='tmp.dat', ndmin=1, ndmax=30,
+         radius=None, quiet=False, clean=False):
     """Kriging estimation, 2D wrapper for kb2d from GSLIB (.exe must be
     available in PATH or working directory).
 
@@ -1723,6 +1723,10 @@ def kb2d(df, xcol, ycol, vcol, nx, ny, hsiz, var, output_file,
     :param ny: TODO
     :param hsiz: TODO
     :param var: TODO
+    :param ndmin: minimum number of data points to use for kriging a block. Default of 1
+    :param ndmax: maximum number of data points to use for kriging a block. Default of 30
+    :param radius: maximum isotropic search radius. If not provided, use a search radius equal
+                   to the maximum of hmaj1 and hmin1 provided in var
     :param output_file: output file
     :param quiet: if True, suppress terminal output from GSLIB
     :param clean: if True, remove temporary files after running GSLIB
@@ -1746,6 +1750,10 @@ def kb2d(df, xcol, ycol, vcol, nx, ny, hsiz, var, output_file,
     max_range = max(hmaj1, hmaj2)
     hmn = hsiz * 0.5
 
+    # Ensure nx and ny are integers
+    nx = int(nx)
+    ny = int(ny)
+
     with open("kb2d.par", "w") as f:
         f.write("              Parameters for KB2D                                          \n")
         f.write("              ********************                                         \n")
@@ -1760,7 +1768,7 @@ def kb2d(df, xcol, ycol, vcol, nx, ny, hsiz, var, output_file,
         f.write(str(nx) + " " + str(hmn) + " " + str(hsiz) + "                             \n")
         f.write(str(ny) + " " + str(hmn) + " " + str(hsiz) + "                             \n")
         f.write("1    1                                -x and y block discretization        \n")
-        f.write("1    30                               -min and max data for kriging        \n")
+        f.write("%d    %d                               -min and max data for kriging        \n" % (ndmin, ndmax))
         f.write(str(max_range) + "                     -maximum search radius               \n")
         f.write("1    -9999.9                          -0=SK, 1=OK,  (mean if SK)           \n")
         f.write(str(nst) + " " + str(nug) + "          -nst, nugget effect                  \n")
@@ -1876,7 +1884,7 @@ def sgsim(nreal, df, xcol, ycol, vcol, nx, ny, hsiz, seed, var, output_file):
 def cosgsim_uncond(nreal, nx, ny, hsiz, seed, var, sec, correl, output_file,
                    quiet=False, clean=False):
     """Sequential Gaussian simulation, 2D unconditional wrapper for sgsim from
-    GSLIB (.exe must be available in PATH, GSLIB_DIR, or working directory).
+    GSLIB (.exe must be available in PATH or working directory).
 
     :param nreal: TODO
     :param nx: TODO
@@ -2202,7 +2210,7 @@ def make_variogram_3D(
 def sgsim_3D(nreal, df, xcol, ycol, zcol, vcol, nx, ny, nz, hsiz, vsiz, seed, var, output_file,
              quiet=False, clean=False):
     """Sequential Gaussian simulation, 2D wrapper for sgsim from GSLIB (.exe
-    must be available in path, GSLIB_DIR, or working directory).
+    must be available in PATH or working directory).
 
     :param nreal: TODO
     :param df: dataframe
