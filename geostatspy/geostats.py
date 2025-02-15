@@ -669,17 +669,18 @@ def srchnd(ix,iy,nx,ny,xmn,ymn,xsiz,ysiz,sim,noct,nodmax,ixnode,iynode,nlooku,nc
             ncnode = ncnode + 1  # moved to account for origin 0
     return ncnode, icnode, cnodev, cnodex, cnodey
 
-def beyond(ivtype,nccut,ccut,ccdf,ncut,cut,cdf,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,zval,cdfval):
+def beyond(ivtype,nccut,ccut,ccdf,ncut,cut,cdf,zmin,zmax,ltail,ltpar,
+           middle,mpar,utail,utpar,zval,cdfval):
     """GSLIB's BEYOND subroutine (Deutsch and Journel, 1998) converted from the
     original Fortran to Python by Michael Pyrcz, the University of Texas at
-    Austin (March, 2019).
+    Austin (March 2019).
     Note this was simplified to 2D only.
     """
     EPSLON = 1.0e-20; UNEST=-1.0
 
 # Check for both "zval" and "cdfval" defined or undefined:
-    ierr  = 1; 
-    if zval > UNEST and cdfva > UNEST: 
+    ierr  = 1
+    if zval > UNEST and cdfval > UNEST:
         return -1
     if zval <= UNEST and cdfval <= UNEST: 
         return - 1
@@ -699,7 +700,7 @@ def beyond(ivtype,nccut,ccut,ccdf,ncut,cut,cdf,zmin,zmax,ltail,ltpar,middle,mpar
 #                                       ipart = 2 - upper tail
     ierr  = 0
     ipart = 1
-    if zva > UNEST:
+    if zval > UNEST:
         if zval <= ccut[0]:       
             ipart = 0
         if zval >= ccut[nccut-1]:
@@ -758,7 +759,7 @@ def beyond(ivtype,nccut,ccut,ccdf,ncut,cut,cdf,zmin,zmax,ltail,ltpar,middle,mpar
                     if idat <= -1 or idat >= ncut-1:  # adjusted for 0 origin
                         zval = powint(0.0,cdf[0],zmin,cut[0],cdfval,1.)
                     else:
-                        zval = powint(cdf[idat],cdf[idat+1],cut[dat],cut[idat+1],temp,1.)
+                        zval = powint(cdf[idat],cdf[idat+1],cut[idat],cut[idat+1],temp,1.)
         else:
 
 # Error situation - unacceptable option:
@@ -813,7 +814,7 @@ def beyond(ivtype,nccut,ccut,ccdf,ncut,cut,cdf,zmin,zmax,ltail,ltpar,middle,mpar
 
 # Straight linear interpolation if no data; otherwise, local linear
 # interpolation:
-                if ilow <= -1 or ilow >= ncut-1 or iup <= -1 or iupp >= ncut-1 or iupp < ilow:
+                if ilow <= -1 or ilow >= ncut-1 or iupp <= -1 or iupp >= ncut-1 or iupp < ilow:
                     zval=powint(ccdf[cclow],ccdf[cchigh],ccut[cclow],ccut[cchigh],cdfval,1.)
                 else:
                     temp=powint(ccdf[cclow],ccdf[cchigh],cdf[ilow],cdf[iupp],cdfval,1.)
@@ -1881,7 +1882,7 @@ def declus_kriging(
             if i == j: 
                 cov = cov - c0
             cbb = cbb + cov
-        cbb = cbb/real(ndb*ndb)
+        cbb = cbb/np.real(ndb*ndb)
 
 # MAIN LOOP OVER ALL THE BLOCKS IN THE GRID:
     nk = 0
@@ -1936,7 +1937,7 @@ def declus_kriging(
                             dy = yy - ydb(i)
                             if (dx*dx+dy*dy) < EPSLON:
                                 cb = cb - c0
-                            cb = cb / real(ndb)
+                            cb = cb / np.real(ndb)
                     if ktype == 0:
                         s[0] = cb/cbb
                         est  = s[0]*vra[0] + (1.0-s[0])*skmean
@@ -1983,7 +1984,7 @@ def declus_kriging(
                                 dy = yy - ydb[j1]
                                 if (dx*dx+dy*dy) < EPSLON:
                                     cb = cb - c0
-                            cb = cb / real(ndb)
+                            cb = cb / np.real(ndb)
                         r[j]  = cb
                         rr[j] = r[j]
 
@@ -2880,7 +2881,7 @@ def kb2d(
             if i == j: 
                 cov = cov - c0
             cbb = cbb + cov
-        cbb = cbb/real(ndb*ndb)
+        cbb = cbb/np.real(ndb*ndb)
 
 # MAIN LOOP OVER ALL THE BLOCKS IN THE GRID:
     nk = 0
@@ -2935,7 +2936,7 @@ def kb2d(
                             dy = yy - ydb(i)
                             if (dx*dx+dy*dy) < EPSLON:
                                 cb = cb - c0
-                            cb = cb / real(ndb)
+                            cb = cb / np.real(ndb)
                     if ktype == 0:
                         s[0] = cb/cbb
                         est  = s[0]*vra[0] + (1.0-s[0])*skmean
@@ -2975,7 +2976,7 @@ def kb2d(
                                 dy = yy - ydb[j1]
                                 if (dx*dx+dy*dy) < EPSLON:
                                     cb = cb - c0
-                            cb = cb / real(ndb)
+                            cb = cb / np.real(ndb)
                         r[j]  = cb
                         rr[j] = r[j]
 
@@ -3077,6 +3078,7 @@ def kb3d(df,xcol,ycol,zcol,vcol,tmin,tmax,
     MAXKRG = MAXKD * MAXKD
     vario3D_array = variogram3D2ndarray(vario3D)    
     maxcov = vario3D['nug']+vario3D['cc'][0]+vario3D['cc'][1] # assume the sill as maxcov
+    c0 = vario3D['nug']
     #rotmat3D = setrot3D(vario3D) # rotation matrix with anisotropy ratios
     rotmat3D = setrot3D_array(vario3D_array) # rotation matrix with anisotropy ratios    
 # Allocate the needed memory:   
@@ -3164,7 +3166,7 @@ def kb3d(df,xcol,ycol,zcol,vcol,tmin,tmax,
             if i == j: 
                 cov = cov - c0
             cbb = cbb + cov
-        cbb = cbb/real(ndb*ndb)
+        cbb = cbb/np.real(ndb*ndb)
 
 # MAIN LOOP OVER ALL THE BLOCKS IN THE GRID:
     nk = 0
@@ -3246,7 +3248,7 @@ def kb3d(df,xcol,ycol,zcol,vcol,tmin,tmax,
                                 dx = xx - xdb(i); dy = yy - ydb(i); dz = zz - zdb(i)
                                 if (dx*dx+dy*dy+dz*dz) < EPSLON:
                                     cb = cb - c0
-                                cb = cb / real(ndb)
+                                cb = cb / np.real(ndb)
                         if ktype == 0:
                             #print(cbb)
                             #print(s)
@@ -3303,7 +3305,7 @@ def kb3d(df,xcol,ycol,zcol,vcol,tmin,tmax,
                                     dz = zz - zdb[j1]
                                     if (dx*dx+dy*dy+dz*dz) < EPSLON:
                                         cb = cb - c0
-                                cb = cb / real(ndb)
+                                cb = cb / np.real(ndb)
                             r[j]  = cb
                             rr[j] = r[j]
                             
@@ -3443,8 +3445,10 @@ def ik2d(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,nx,xm
 # Load the data
     df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]    # trim values outside tmin and tmax
     MAXDAT = len(df_extract)
+    nd = MAXDAT
     MAXCUT = ncut
     MAXNST = 2
+    UNEST = -999.
     MAXROT = MAXNST*MAXCUT+ 1
     ikout = np.zeros((nx,ny,ncut))
     maxcov = np.zeros(ncut)
@@ -3656,7 +3660,7 @@ def ik2d(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,nx,xm
     return ikout  
 
 def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtcol,zmin,zmax,ltail,ltpar,utail,utpar,nsim,
-          nx,xmn,xsiz,ny,ymn,ysiz,seed,ndmin,ndmax,nodmax,mults,nmult,noct,ktype,colocorr,sec_map,vario):
+          nx,xmn,xsiz,ny,ymn,ysiz,nz,zmn,zsiz,seed,ndmin,ndmax,nodmax,mults,nmult,noct,ktype,colocorr,sec_map,vario):
     
 # Hard Code Some Parameters for Ease of Use, Fixed Covariance Table - Added Mar. 21, 2024, 
     radius = max(vario['hmaj1'],vario['hmaj2'])
@@ -3729,30 +3733,35 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
     nums = np.zeros(ndmax,dtype = int)
     
 # Perform some quick checks
-    if nx > MAXX or ny> MAXY:
-        print('ERROR: available grid size: ' + str(MAXX) + ',' + str(MAXY) + ',' + str(MAXZ) +'.')
-        print('       you have asked for : ' + str(nx) + ',' + str(ny) + ',' + str(nz) + '.')
-        return sim
+    if nx > MAXX or ny> MAXY or nz > MAXZ:
+        message = 'ERROR: available grid size: ' + str(MAXX) + ',' + str(MAXY) + ',' + str(MAXZ) +'.'
+        message += '\n       you have asked for : ' + str(nx) + ',' + str(ny) + ',' + str(nz) + '.'
+        raise ValueError(message)
+
     if ltail != 1 and ltail != 2:
-        print('ERROR invalid lower tail option ' + str(ltail))
-        print('      only allow 1 or 2 - see GSLIB manual ')
-        return sim
+        message = 'ERROR invalid lower tail option ' + str(ltail)
+        message += '\n      only allow 1 or 2 - see GSLIB manual '
+        raise ValueError(message)
+
     if utail != 1 and utail != 2 and utail != 4:
-        print('ERROR invalid upper tail option ' + str(ltail))
-        print('      only allow 1,2 or 4 - see GSLIB manual ')
-        return sim 
+        message = 'ERROR invalid upper tail option ' + str(ltail)
+        message += '\n      only allow 1,2 or 4 - see GSLIB manual '
+        raise ValueError(message)
+
     if utail == 4 and utpar < 1.0:
-        print('ERROR invalid power for hyperbolic tail' + str(utpar))
-        print('      must be greater than 1.0!')
-        return sim
+        message = 'ERROR invalid power for hyperbolic tail' + str(utpar)
+        message += '\n      must be greater than 1.0!'
+        raise ValueError(message)
+
     if ltail == 2 and ltpar < 0.0:
-        print('ERROR invalid power for power model' + str(ltpar))
-        print('      must be greater than 0.0!')
-        return sim
+        message = 'ERROR invalid power for power model' + str(ltpar)
+        message += '\n      must be greater than 0.0!'
+        raise ValueError(message)
+
     if utail == 2 and utpar < 0.0: 
-        print('ERROR invalid power for power model' + str(utpar))
-        print('      must be greater than 0.0!')
-        return sim
+        message = 'ERROR invalid power for power model' + str(utpar)
+        message += '\n      must be greater than 0.0!'
+        raise ValueError(message)
      
 # Load the data
     df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]    # trim values outside tmin and tmax
@@ -3873,9 +3882,9 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
 # Do we need to get an external drift attribute for the data?
         if ktype == 3:
             for idd in range(0,nd): 
-                if sec[i] != UNEST:
-                    ix = getindx(nx,xmn,xsiz,x[idd])
-                    iy = getindx(ny,ymn,ysiz,y[idd])
+                if sec[idd] != UNEST:
+                    ix = getindex(nx,xmn,xsiz,x[idd])
+                    iy = getindex(ny,ymn,ysiz,y[idd])
                     ind = ix + (iy)*nx
                     sec[ind] = lvm[ind]
 
@@ -4155,11 +4164,10 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
     """
 # Checks
     if utail == 3 or ltail == 3 or middle == 3:
-        print('ERROR - distribution extrapolation option 3 with table is not available')
-        return sim_out
+        raise ValueError('ERROR - distribution extrapolation option 3 with table is not available')
+
     if xcol == "" or ycol == "":
-        print('ERROR - must have x and y column in the DataFrame')
-        return sim_out
+        raise ValueError('ERROR - must have x and y column in the DataFrame')
 	    
 # Hard Code Some Parameters for Ease of Use, Fixed Covariance Table - Added Mar. 21, 2024, 
     radius = 0.0; radius1 = 0.0
@@ -4175,7 +4183,7 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
     if ltail == 1:
         ltpar = zmin
     if utail == 1:
-        utpar == zmax
+        utpar = zmax
 
     sim_out = np.zeros((nreal,ny,nx))
 		  
@@ -4386,16 +4394,16 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
 # MAIN LOOP OVER ALL THE SIMULAUTIONS:
     for ireal in range(0,nreal):
           
-# Work out a random path for this realization:
-    sim = np.random.rand(nx*ny)
-    order = np.zeros(nxy)
-    ind = 0
-    for ixy in range(0,nxy): 
-        order[ixy] = ind  
-        ind = ind + 1
-# Multiple grid search works with multiples of 4 (yes, that is
-# soat arbitrary):
+        # Work out a random path for this realization:
+        sim = np.random.rand(nx*ny)
+        order = np.zeros(nxy)
+        ind = 0
+        for ixy in range(0,nxy):
+            order[ixy] = ind
+            ind = ind + 1
 
+    # Multiple grid search works with multiples of 4 (yes, that is
+    # sort arbitrary):
     if mults == 1:
         for imult in range(0,nmult): 
             nny = int(max(1,ny/((imult+1)*4)))
@@ -4410,11 +4418,11 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
                     index = jx + (jy-1)*nx
                     sim[index] = sim[index] - (imult+1)
 
-# Inlize the simulation:
+# Initialize the simulation:
     sim, order = dsortem(0,nxy,sim,2,b=order)
     sim.fill(UNEST)
     tmp.fill(0.0)
-        print('Working on realization ' + str(ireal))
+    print('Working on realization ' + str(ireal))
 #    print('Random Path'); print(order)
     
 # As the data to the closest grid node:
@@ -4561,7 +4569,7 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
     for ind in range(0,nxy):
         iy   = int((ind)/nx) 
         ix   = ind - (iy)*nx
-            sim_out[ireal,ny-iy-1,ix] = sim[ind]
+        sim_out[ireal,ny-iy-1,ix] = sim[ind]
 
     return sim_out  
     
@@ -4940,21 +4948,21 @@ def setrot3D(vario3D):
         ang_azi = vario3D["azi"][ist]
         ang_dip = vario3D["dip"][ist]
         
-    DEG2RAD=np.pi/180.0; EPSLON=1e-20
+        DEG2RAD=np.pi/180.0; EPSLON=1e-20
         if (ang_azi >= 0.0)&(ang_azi<270.0):
             alpha = (90.0 - ang_azi) * DEG2RAD
-    else:
+        else:
             alpha = (450.0 - ang_azi) * DEG2RAD
         beta = -1.0 * ang_dip *DEG2RAD
         theta = 0.0 * DEG2RAD # assume 0 plunge
     
-    sina = np.sin(alpha)
-    sinb = np.sin(beta)
-    sint = np.sin(theta)
-    cosa = np.cos(alpha)
-    cosb = np.cos(beta)
-    cost = np.cos(theta)
-    ### Construct the rotation matrix in the required memory
+        sina = np.sin(alpha)
+        sinb = np.sin(beta)
+        sint = np.sin(theta)
+        cosa = np.cos(alpha)
+        cosb = np.cos(beta)
+        cost = np.cos(theta)
+        ### Construct the rotation matrix in the required memory
     
         afac1 = 1.0/max(anis_hori, EPSLON)
         afac2 = 1.0/max(anis_vert, EPSLON)
