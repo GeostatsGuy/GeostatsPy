@@ -1074,7 +1074,7 @@ def make_variogram(
 def gamv_2d(df, xcol, ycol, vcol, nlag, lagdist, azi, atol, bstand,
             quiet=False, clean=False):
     """Irregularly sampled variogram, 2D wrapper for gam from GSLIB (.exe must
-    be available in PATH, GSLIB_DIR, or working directory).
+    be available in PATH or working directory).
 
     :param df: dataframe
     :param xcol: TODO
@@ -1143,7 +1143,7 @@ def gamv_2d(df, xcol, ycol, vcol, nlag, lagdist, azi, atol, bstand,
 def gamv_3d(df, xcol, ycol, zcol, vcol, nlag, lagdist, lag_tol, azi, atol, bandh, dip, dtol, bandv, isill,
             quiet=False, clean=False):
     """Irregularly sampled variogram, 3D wrapper for gam from GSLIB (.exe must
-    be available in PATH, GSLIB_DIR, or working directory).
+    be available in PATH or working directory).
 
     :param df: dataframe
     :param xcol: TODO
@@ -1228,7 +1228,7 @@ def varmapv_2d(
     quiet=False,
     clean=False):
     """Irregular spaced data, 2D wrapper for varmap from GSLIB (.exe must be
-    available in PATH, GSLIB_DIR, or working directory).
+    available in PATH or working directory).
 
     :param df: dataframe
     :param xcol: TODO
@@ -1332,7 +1332,7 @@ def varmap(
     clean=False,
 ):
     """Regular spaced data, 2D wrapper for varmap from GSLIB (.exe must be
-    available in PATH, GSLIB_DIR, or working directory).
+    available in PATH or working directory).
 
     :param array: ndarray
     :param nx: TODO
@@ -1794,91 +1794,188 @@ def kb2d(df, xcol, ycol, vcol, nx, ny, hsiz, var, output_file='tmp.dat', ndmin=1
     return est_array[0], var_array[0]
 
 
-def sgsim(nreal, df, xcol, ycol, vcol, nx, ny, hsiz, seed, var, output_file):
-    """Sequential Gaussian simulation, 2D wrapper for sgsim from GSLIB (.exe
-    must be available in PATH or working directory).
+def sgsim(nreal, df, vcol, var, xcol=None, ycol=None, zcol=None, wtcol=None,
+          nx=1, ny=1, nz=1, dx=1, dy=1, dz=1, xmn=None, ymn=None, zmn=None,
+          ndmin=0, ndmax=8, ncnode=12, sstrat=0, 
+          hmax=None, hmin=None, hvert=None, sang1=None, sang2=None, sang3=None,
+          seed=69069, output_file='sgsim_temp.dat',
+          quiet=False, clean=False, return_array=True):
+    """Perform 1D, 2D or 3D sequential Gaussian simulation using GSLIB
 
-    :param nreal: TODO
-    :param df: dataframe
-    :param xcol: TODO
-    :param ycol: TODO
-    :param vcol: TODO
-    :param nx: TODO
-    :param ny: TODO
-    :param hsiz: TODO
-    :param seed: TODO
-    :param var: TODO
-    :param output_file: output file
-    :return: TODO
+    :param nreal: number of realizations to generate
+    :param df: dataframe containing the coordinates, values and weights, if any
+    :param vcol: name of the column containing the variable to be simulated
+    :param var: variogram parameters. This must be a dict in which each value 
+    is a list of floats, with one value for each nested structure. To get a list 
+    of required keys, see the documentation for the write_variogram function.
+    :param xcol: name of the column containing the x coordinates. Optional, if 
+    not provided, sgsim will ignore this dimension (ie, a 1D or 2D simulation)
+    :param ycol: name of the column containing the y coordinates. Optional, if 
+    not provided, sgsim will ignore this dimension (ie, a 1D or 2D simulation)
+    :param zcol: name of the column containing the z coordinates. Optional, if 
+    not provided, sgsim will ignore this dimension (ie, a 1D or 2D simulation)
+    :param wtcol: name of the column containing the weights. Optional, if not
+    provided, all data will be weighted equally
+    :param nx: number of cells in x direction. Optional, default is 1
+    :param ny: number of cells in y direction. Optional, default is 1
+    :param nz: number of cells in z direction. Optional, default is 1
+    :param dx: cell size in x direction. Optional, default is 1
+    :param dy: cell size in y direction. Optional, default is 1
+    :param dz: cell size in z direction. Optional, default is 1
+    :param xmn: x coordinate of the first grid cell. Optional, default is dx/2
+    :param ymn: y coordinate of the first grid cell. Optional, default is dy/2
+    :param zmn: z coordinate of the first grid cell. Optional, default is dz/2
+    :param ndmin: minimum number of original data used to simulate a grid node.
+    If there are fewer than ndmin data points, the node is not simulated.
+    Optional, default is 0.
+    :param ndmax: maximum number of original data used to simulate a grid node.
+    Optional, default is 8.
+    :param ncnode: maximum number of previously simulated nodes to use for the 
+    simulation of a new node. Optional, default is 12.
+    :param sstrat: search strategy. If sstrat=0, search the hard data using a 
+    super block search strategy, then search simulated data using spiral search
+    strategy. If sstrat=1, assign hard data to grid and search both hard data and  
+    the simulated nodes using a spiral search strategy. Optional, default is 0.
+    :param hmax: search radius in max horizontal direction. Optional, default is 
+    set by the ellipsoid of the first variogram structure in var
+    :param hmin: search radius in min horizontal direction. Optional, default is
+    set by the ellipsoid of the first variogram structure in var
+    :param hvert: search radius in vertical direction. Optional, default is set
+    by the ellipsoid of the first variogram structure in var 
+    :param sang1: azimuth of the search ellipsoid. Optional, default is set by 
+    the ellipsoid of the first variogram structure in var
+    :param sang2: dip of the search ellipsoid. Optional, default is set by the
+    ellipsoid of the first variogram structure in var
+    :param sang3: tilt of the search ellipsoid. Optional, default is set by the
+    ellipsoid of the first variogram structure in var
+    :param seed: random number seed. Optional, default is 69069
+    :param output_file: output file. Optional, default is "sgsim_temp.dat"
+    :param quiet: if True, suppress output from GSLIB    
+    :param clean: if True, remove sgsim.par and output_file after running sgsim
+    :param return_array: if True, return ndarray of the simulations. Otherwise,
+    do not load the array and just generate the simulation in `output_file`
+    :param exe_path: path to the GSLIB sgsim executable. Default is "sgsim.exe"
     """
-    x = df[xcol]
-    y = df[ycol]
+    
+    # Get number of dimensions based on columns provided
     v = df[vcol]
     var_min = v.values.min()
     var_max = v.values.max()
-    df_temp = pd.DataFrame({"X": x, "Y": y, "Var": v})
+    df_temp = pd.DataFrame({"Var": v})
+    
+    # Populate df_temp with dimensions and weights, if requested
+    if xcol is not None:
+        df_temp["X"] = df[xcol]
+    if ycol is not None:
+        df_temp["Y"] = df[ycol]
+    if zcol is not None:
+        df_temp["Z"] = df[zcol]
+    if wtcol is not None:
+        df_temp["Wt"] = df[wtcol]
+        
+    # Get indices of dimension and weight columns to provide these to GSLIB
+    # (Note that vcol is always the first column)
+    ixcol, iycol, izcol, iwtcol = 0, 0, 0, 0  # 0 means that dimension is not used
+    if xcol is not None:
+        ixcol = df_temp.columns.get_loc("X") + 1
+    if ycol is not None:
+        iycol = df_temp.columns.get_loc("Y") + 1
+    if zcol is not None:
+        izcol = df_temp.columns.get_loc("Z") + 1
+    if wtcol is not None:
+        iwtcol = df_temp.columns.get_loc("Wt") + 1
+
+    if ixcol+iycol+izcol == 0:
+        raise ValueError("Must provide at least one dimension column")
+    
+    # If not provided, assume first grid node is 1/2 cell size from origin
+    if xmn is None:
+        xmn = dx/2
+    if ymn is None:
+        ymn = dy/2
+    if zmn is None:
+        zmn = dz/2
+    
     Dataframe2GSLIB("data_temp.dat", df_temp)
 
-    nug = var["nug"]
-    nst = var["nst"]
-    it1 = var["it1"]
-    cc1 = var["cc1"]
-    azi1 = var["azi1"]
-    hmaj1 = var["hmaj1"]
-    hmin1 = var["hmin1"]
-    it2 = var["it2"]
-    cc2 = var["cc2"]
-    azi2 = var["azi2"]
-    hmaj2 = var["hmaj2"]
-    hmin2 = var["hmin2"]
-    max_range = max(hmaj1, hmaj2)
-    hmn = hsiz * 0.5
-    hctab = int(max_range / hsiz) * 2 + 1
+    if hmax is None:
+        hmax = var["ahmax"][0]
+    if hmin is None:
+        hmin = var["ahmin"][0]
+    if hvert is None:
+        hvert = var["ahvert"][0]
+    
+    if sang1 is None:
+        sang1 = var["ang1"][0]
+    if sang2 is None:
+        sang2 = var["ang2"][0]
+    if sang3 is None:
+        sang3 = var["ang3"][0]
+
+    # Calculate size of covariance lookup table based on hmax and cell size
+    nctx = int(hmax / dx) * 2 + 1
+    ncty = int(hmin / dy) * 2 + 1
+    nctz = int(hvert / dz) * 2 + 1
 
     with open("sgsim.par", "w") as f:
         f.write("              Parameters for SGSIM \n")
         f.write("              ******************** \n")
         f.write("\n")
-        f.write("START OF PARAMETER:                                                        \n")
+        f.write("START OF PARAMETERS: \n")
         f.write("data_temp.dat           - file with data \n")
-        f.write("1  2  0  3  0  0              -  columns for X,Y,Z,vr,wt,sec.var.          \n")
+        f.write("%d  %d  %d  1  %d  0    - columns for X,Y,Z,vr,wt \n" % (ixcol, iycol,
+                                                                          izcol, iwtcol))
         f.write("-1.0e21 1.0e21          - trimming limits \n")
-        f.write("1                             -transform the data (0=no, 1=yes)            \n")
+        f.write("0                       - transform the data (0=no, 1=yes)\n")
         f.write("none.trn                - file for output trans table \n")
         f.write("0                       - consider ref. dist (0=no, 1=yes) \n")
         f.write("none.dat                - file with ref. dist distribution \n")
-        f.write("1  0                          -  columns for vr and wt                     \n")
-        f.write(str(var_min) + " " + str(var_max) + "   zmin,zmax(tail extrapolation)       \n")
-        f.write("1   " + str(var_min) + "      -  lower tail option, parameter              \n")
-        f.write("1   " + str(var_max) + "      -  upper tail option, parameter              \n")
+        f.write("0  0                    - columns of vr and wt within none.dat \n")
+        f.write("%f  %f                  - zmin,zmax \n" % (var_min, var_max))
+        f.write("1   %f                  - lower tail option, parameter \n" % var_min)
+        f.write("1   %f                  - upper tail option, parameter \n" % var_max)
         f.write("0                       - debugging level: 0,1,2,3 \n")
         f.write("nonw.dbg                - file for debugging output \n")
-        f.write(str(output_file) + "           -file for simulation output                  \n")
-        f.write(str(nreal) + "                 -number of realizations to generate          \n")
-        f.write(str(nx) + " " + str(hmn) + " " + str(hsiz) + "                              \n")
-        f.write(str(ny) + " " + str(hmn) + " " + str(hsiz) + "                              \n")
-        f.write("1 0.0 1.0                     - nz zmn zsiz                                \n")
-        f.write(str(seed) + "                  -random number seed                          \n")
-        f.write("0     8                       -min and max original data for sim           \n")
-        f.write("12                            -number of simulated nodes to use            \n")
-        f.write("0                             -assign data to nodes (0=no, 1=yes)          \n")
-        f.write("1     3                       -multiple grid search (0=no, 1=yes),num      \n")
+        f.write("%s                      - file for simulation output \n" % output_file) 
+        f.write("%d                      - number of realizations to generate \n" % nreal)
+        f.write("%d  %f  %f              - nx, xmn, xsiz \n" % (nx, xmn, dx))
+        f.write("%d  %f  %f              - ny, ymn, ysiz \n" % (ny, ymn, dy))
+        f.write("%d  %f  %f              - nz, zmn, zsiz \n" % (nz, zmn, dz))
+        f.write("%s                      - random number seed \n" % seed)
+        f.write("%d %d                   - min/max data to use \n" % (ndmin, ndmax))
+        f.write("%d                      - max simulated nodes to use \n" % ncnode)
+        f.write("%d                      - assign data to nodes (0=no, 1=yes) \n" % sstrat)
+        f.write("1     3                 - multiple grid search (0=no, 1=yes), nmult \n")
         f.write("0                       - maximum data per octant (0=not used) \n")
-        f.write(str(max_range) + " " + str(max_range) + " 1.0 -maximum search  (hmax,hmin,vert) \n")
-        f.write(str(azi1) + "   0.0   0.0       -angles for search ellipsoid                 \n")
-        f.write(str(hctab) + " " + str(hctab) + " 1 -size of covariance lookup table        \n")
+        f.write("%f %f %f                - search radii \n" % (hmax, hmin, hvert))
+        f.write("%.1f  %.1f  %.1f        - search ellipsoid \n" % (sang1, sang2, sang3))
+        f.write("%d %d %d                - covariance lookup table \n" % (nctx, ncty, nctz))
         f.write("0     0.60   1.0        - ktype: 0=SK,1=OK,2=LVM,3=EXDR,4=COLC \n")
         f.write("none.dat                - file with LVM, EXDR, or COLC variable \n")
         f.write("4                       - column for secondary variable \n")
-        f.write(str(nst) + " " + str(nug) + "  -nst, nugget effect                          \n")
-        f.write(str(it1) + " " + str(cc1) + " " + str(azi1) + " 0.0 0.0 -it,cc,ang1,ang2,ang3\n")
-        f.write(" " + str(hmaj1) + " " + str(hmin1) + " 1.0 - a_hmax, a_hmin, a_vert        \n")
-        f.write(str(it2) + " " + str(cc2) + " " + str(azi2) + " 0.0 0.0 -it,cc,ang1,ang2,ang3\n")
-        f.write(" " + str(hmaj2) + " " + str(hmin2) + " 1.0 - a_hmax, a_hmin, a_vert        \n")
 
-    os.system("sgsim.exe sgsim.par")
-    sim_array = GSLIB2ndarray(output_file, 0, nx, ny)
-    return sim_array[0]
+    write_variogram("sgsim.par", **var)
+
+    command = "sgsim sgsim.par"
+    if quiet:
+        # If quiet, suppress GSLIB output
+        command += ' 2&> /dev/null'
+    os.system(command)
+
+    # Only read and return array if requested
+    if return_array:
+        sim_array = GSLIB2ndarray_3D(output_file, 0, nx, ny)[0]
+    else:
+        sim_array = None
+
+    # Remove temporary files
+    if clean:
+        os.remove('sgsim.par')
+        os.remove('data_temp.dat')
+        os.remove('sgsim_temp.dat')
+        os.remove('nonw.dbg')
+
+    return sim_array
 
 
 def cosgsim_uncond(nreal, nx, ny, hsiz, seed, var, sec, correl, output_file,
@@ -2296,9 +2393,9 @@ def sgsim_3D(nreal, df, xcol, ycol, zcol, vcol, nx, ny, nz, hsiz, vsiz, seed, va
         f.write("4                             -  column for secondary variable             \n")
         f.write(str(nst) + " " + str(nug) + "  -nst, nugget effect                          \n")
         f.write(str(it1) + " " + str(cc1) + " " + str(azi1) + "  " + str(dip1) +" 0.0 -it,cc,ang1,ang2,ang3\n")
-        f.write(" " + str(hmax1) + " 	" + str(hmed1) +  "		" + str(hmin1) + "  - a_hmax, a_hmin, a_vert        \n")
+        f.write(" " + str(hmax1) + " 	" + str(hvert1) +  "		" + str(hmin1) + "  - a_hmax, a_hmin, a_vert        \n")
         f.write(str(it2) + " " + str(cc2) + " 	" + str(azi2) + "		" + str(dip2) +" 0.0 -it,cc,ang1,ang2,ang3\n")
-        f.write(" " + str(hmax2) + " " + str(hmed2) +  " " +str(hmin2) + " - a_hmax, a_hmin, a_vert        \n")
+        f.write(" " + str(hmax2) + " " + str(hvert2) +  " " +str(hmin2) + " - a_hmax, a_hmin, a_vert        \n")
 
     command = "sgsim.exe sgsim.par"
 
