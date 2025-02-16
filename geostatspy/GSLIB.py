@@ -1141,7 +1141,7 @@ def gamv_2d(df, xcol, ycol, vcol, nlag, lagdist, azi, atol, bstand,
 
 
 def gamv_3d(df, xcol, ycol, zcol, vcol, nlag, lagdist, lag_tol, azi, atol, bandh, dip, dtol, bandv, isill,
-            quiet=False, clean=False):
+            quiet=False, clean=False, dry_run=False):
     """Irregularly sampled variogram, 3D wrapper for gam from GSLIB (.exe must
     be available in PATH or working directory).
 
@@ -1157,6 +1157,7 @@ def gamv_3d(df, xcol, ycol, zcol, vcol, nlag, lagdist, lag_tol, azi, atol, bandh
     :param bstand: TODO
     :param quiet: if True, suppress terminal output from GSLIB
     :param clean: if True, remove temporary files after running GSLIB
+    :param dry_run: if True, do not run GSLIB, just write gamv.par
     :return: TODO
     """
     lag = []
@@ -1185,11 +1186,16 @@ def gamv_3d(df, xcol, ycol, zcol, vcol, nlag, lagdist, lag_tol, azi, atol, bandh
         f.write("1                                 -number of variograms                    \n")
         f.write("1   1   1                         -tail var., head var., variogram type    \n")
 
+    # If requested, exit prior to running GSLIB
+    if dry_run:
+        return
+
     command = "gamv.exe gamv.par"
     
     # Suppress GSLIB output
     if quiet:
         command += ' > %s' % os.devnull
+
     os.system(command)
 
     with open("gamv.out") as f:
@@ -1451,7 +1457,7 @@ def write_variogram(output_file, nug, nst, tstr, c,
 
 def vmodel(ndir, nlag, azm, dip, lag_dist, nug, nst,
            tstr, c, ang1, ang2, ang3, ahmax, ahmin, ahvert,
-           clean=False, quiet=False):
+           clean=False, quiet=False, dry_run=False):
     """Variogram model, wrapper for vmodel from GSLIB (.exe must be
     available in PATH or working directory).
 
@@ -1483,7 +1489,7 @@ def vmodel(ndir, nlag, azm, dip, lag_dist, nug, nst,
     or a list of floats (if nst>1).
     :param quiet: if True, suppress terminal output from GSLIB
     :param clean: if True, remove temporary files after running GSLIB
-    :return lag: lag distances, numpy array of shape (nlag, ndir)
+    :return dry_run: if True, do not run GSLIB, just write vmodel.par
     # :return var: gamma values, numpy array of shape (nlag, ndir)
     """
 
@@ -1527,6 +1533,10 @@ def vmodel(ndir, nlag, azm, dip, lag_dist, nug, nst,
             f.write("%f  %f  %f -azm, dip, lag distance \n" % (azm[i], dip[i], lag_dist[i]))
 
     write_variogram("vmodel.par", nug, nst, tstr, c, ang1, ang2, ang3, ahmax, ahmin, ahvert)
+
+    # If requested, exit prior to running GSLIB
+    if dry_run:
+        return
 
     command = "vmodel.exe vmodel.par"
 
@@ -1711,7 +1721,7 @@ def sgsim_uncond(nreal, nx, ny, hsiz, seed, var, output_file, quiet=False, clean
 
 
 def kb2d(df, xcol, ycol, vcol, nx, ny, hsiz, var, output_file='tmp.dat', ndmin=1, ndmax=30,
-         radius=None, quiet=False, clean=False):
+         radius=None, quiet=False, clean=False, dry_run=False):
     """Kriging estimation, 2D wrapper for kb2d from GSLIB (.exe must be
     available in PATH or working directory).
 
@@ -1730,6 +1740,7 @@ def kb2d(df, xcol, ycol, vcol, nx, ny, hsiz, var, output_file='tmp.dat', ndmin=1
     :param output_file: output file
     :param quiet: if True, suppress terminal output from GSLIB
     :param clean: if True, remove temporary files after running GSLIB
+    :param dry_run: if True, do not run GSLIB, just write kb2d.par
     :return: TODO
     """
     df_temp = pd.DataFrame({"X": df[xcol], "Y": df[ycol], "Var": df[vcol]})
@@ -1775,6 +1786,10 @@ def kb2d(df, xcol, ycol, vcol, nx, ny, hsiz, var, output_file='tmp.dat', ndmin=1
         f.write(str(it1) + " " + str(cc1) + " " + str(azi1) + " " + str(hmaj1) + " " + str(hmin1) + " -it, c ,azm ,a_max ,a_min \n")
         f.write(str(it2) + " " + str(cc2) + " " + str(azi2) + " " + str(hmaj2) + " " + str(hmin2) + " -it, c ,azm ,a_max ,a_min \n")
 
+    # If requested, exit prior to running GSLIB
+    if dry_run:
+        return
+
     command = "kb2d.exe kb2d.par"
 
     # Suppress GSLIB output
@@ -1799,7 +1814,7 @@ def sgsim(nreal, df, vcol, var, xcol=None, ycol=None, zcol=None, wtcol=None,
           ndmin=0, ndmax=8, ncnode=12, sstrat=0, 
           hmax=None, hmin=None, hvert=None, sang1=None, sang2=None, sang3=None,
           seed=69069, output_file='sgsim_temp.dat',
-          quiet=False, clean=False, return_array=True):
+          quiet=False, clean=False, return_array=True, dry_run=False):
     """Perform 1D, 2D or 3D sequential Gaussian simulation using GSLIB
 
     :param nreal: number of realizations to generate
@@ -1854,7 +1869,7 @@ def sgsim(nreal, df, vcol, var, xcol=None, ycol=None, zcol=None, wtcol=None,
     :param clean: if True, remove sgsim.par and output_file after running sgsim
     :param return_array: if True, return ndarray of the simulations. Otherwise,
     do not load the array and just generate the simulation in `output_file`
-    :param exe_path: path to the GSLIB sgsim executable. Default is "sgsim.exe"
+    :param dry_run: if True, do not run GSLIB, just write sgsim.par
     """
     
     # Get number of dimensions based on columns provided
@@ -1955,6 +1970,10 @@ def sgsim(nreal, df, vcol, var, xcol=None, ycol=None, zcol=None, wtcol=None,
         f.write("4                       - column for secondary variable \n")
 
     write_variogram("sgsim.par", **var)
+
+    # If requested, exit prior to running GSLIB
+    if dry_run:
+        return
 
     command = "sgsim sgsim.par"
     if quiet:

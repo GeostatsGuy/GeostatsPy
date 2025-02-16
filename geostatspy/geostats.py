@@ -1576,7 +1576,7 @@ def declus(df, xcol, ycol, vcol, iminmax, noff, ncell, cmin, cmax, verbose=True)
 
     # Main loop over cell sizes
     # 0 index is the 0.0 cell, note n + 1 in Fortran
-    for lp in tqdm(range(1, ncell + 2)):
+    for lp in tqdm(range(1, ncell + 2), disable=not verbose):
         xcs = xcs + xinc
         ycs = ycs + yinc
 
