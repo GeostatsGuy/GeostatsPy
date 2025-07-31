@@ -4444,7 +4444,7 @@ def sisim(df,xcol,ycol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin
         for ind in range(0,nxy):              
             idd = int(sim[ind]+0.5)
             if idd > 0: 
-                sim[ind] = vr[idd]
+                sim[ind] = vr[idd,ncut]
             else: 
                 tmp[ind] = sim[ind]
                 sim[ind] = UNEST
