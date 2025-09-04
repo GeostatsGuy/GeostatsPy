@@ -6033,3 +6033,1261 @@ def unflatten(top,base,nx,xmn,xsiz,ny,ymn,ysiz,zmin,zmax,dfwell,Xs,Ys,Zf): # unf
         wellbz[index] = (zs - zmin)/(zmax - zmin)*(top_well - base_well) + base_well
         index = index + 1
     return wellbz
+
+#@jit(nopython=True) # all NumPy array operations included in this function for precompile with NumBa
+def setrot_3D(vario3D):
+    """Sets up an Anisotropic Rotation Matrix - 3D
+    
+    Sets up the matrix to transform cartesian coordinates to coordinates
+    accounting for angles and anisotropy
+    
+    Converted from original fortran GSLIB (Deutsch and Journel, 1998) to Python by Wendi Liu, University of Texas at Austin
+    
+    INPUT PARAMETERS:
+
+    ang1             Azimuth angle for principal direction
+    ang2             Dip angle for principal direction
+    ang3             Third rotation angle
+    anis1            First anisotropy ratio
+    anis2            Second anisotropy ratio
+    ind              matrix indicator to initialize
+    rotmat           rotation matrices
+    
+    Converts the input angles to three angles which make more mathematical sense:
+
+          alpha   angle between the major axis of anisotropy and the
+                  E-W axis. Note: Counter clockwise is positive.
+          beta    angle between major axis and the horizontal plane.
+                  (The dip of the ellipsoid measured positive down)
+          theta   Angle of rotation of minor axis about the major axis
+                  of the ellipsoid."""
+
+    for ist in range(0,vario3D["nst"]):
+        anis_hori = vario3D["hmin"][ist] / vario3D["hmaj"][ist]
+        anis_vert = vario3D["hvert"][ist] / vario3D["hmaj"][ist]
+        ang_azi = vario3D["azi"][ist]
+        ang_dip = vario3D["dip"][ist]
+        
+        DEG2RAD=np.pi/180.0; EPSLON=1e-20
+        if (ang_azi >= 0.0)&(ang_azi<270.0):
+            alpha = (90.0 - ang_azi) * DEG2RAD
+        else:
+            alpha = (450.0 - ang_azi) * DEG2RAD
+        beta = -1.0 * ang_dip *DEG2RAD
+        theta = 0.0 * DEG2RAD # assume 0 plunge
+        
+        sina = np.sin(alpha)
+        sinb = np.sin(beta)
+        sint = np.sin(theta)
+        cosa = np.cos(alpha)
+        cosb = np.cos(beta)
+        cost = np.cos(theta)
+		
+        ### Construct the rotation matrix in the required memory
+        afac1 = 1.0/max(anis_hori, EPSLON)
+        afac2 = 1.0/max(anis_vert, EPSLON)
+        rotmat = np.zeros((2,3,3))
+        rotmat[ist,0,0] = cosb * cosa
+        rotmat[ist,0,1] = cosb * sina
+        rotmat[ist,0,2] = -sinb
+        rotmat[ist,1,0] = afac1*(-cost*sina + sint*sinb*cosa)
+        rotmat[ist,1,1] = afac1*(cost*cosa + sint*sinb*sina)
+        rotmat[ist,1,2] = afac1*( sint * cosb)
+        rotmat[ist,2,0] = afac2*(sint*sina + cost*sinb*cosa)
+        rotmat[ist,2,1] = afac2*(-sint*cosa + cost*sinb*sina)
+        rotmat[ist,2,2] = afac2*(cost * cosb)  
+    return rotmat
+
+#@jit(nopython=True)
+def cova_3D(x1, y1, z1, x2, y2, z2, vario3D, rotmat, maxcov):
+    """Calculate the covariance associated with a variogram model specified by a
+    nugget effect and nested variogram structures.
+    :param x1: x coordinate of first point
+    :param y1: y coordinate of first point
+    :param z1: z coordinate of first point
+    :param x2: x coordinate of second point
+    :param y2: y coordinate of second point
+    :param z2: z coordinate of second point
+    :param nst: number of nested structures (maximum of 4)
+    :param c0: isotropic nugget constant (TODO: not used)
+    :param pmx: TODO
+    :param cc: multiplicative factor of each nested structure
+    :param aa: parameter `a` of each nested structure
+    :param it: TODO
+    :param ang: TODO: not used
+    :param anis: Horizontal aspect ratio
+    :param anis_v: Vertical aspect ratio
+    :param rotmat: rotation matrices
+    :param maxcov: TODO
+    :return: TODO
+    """
+    """ Revised from Wendi Liu's code """
+
+    EPSLON = 0.000001
+
+    # Check for very small distance
+    dx = x2 - x1
+    dy = y2 - y1
+    dz = z2 - z1
+    if (dx * dx + dy * dy + dz * dz) < EPSLON:
+        cova3_ = maxcov
+        return cova3_
+
+    # Non-zero distance, loop over all the structures
+    cova3_ = 0.0
+    for ist in range(0, vario3D['nst']):
+        anis_hori = vario3D["hmin"][ist] / vario3D["hmaj"][ist]
+        anis_vert = vario3D["hvert"][ist] / vario3D["hmaj"][ist]
+        it = vario3D['it'][ist]
+# structural distance        
+        dx1 = dx * rotmat[ist,0,0] + dy * rotmat[ist,0,1] + dz * rotmat[ist,0,2]
+        dy1 = (dx * rotmat[ist,1,0] + dy * rotmat[ist,1,1] + dz * rotmat[ist,1,2] )
+        dz1 = (dx * rotmat[ist,2,0] + dy * rotmat[ist,2,1] + dz * rotmat[ist,2,2] ) 
+        h = math.sqrt(max((dx1 * dx1 + dy1 * dy1 + dz1 * dz1 ), 0.0))
+        if it == 1:
+            # Spherical model
+            hr = h / vario3D["hmaj"][ist]
+            if hr < 1.0:
+                cova3_ = cova3_ + vario3D['cc'][ist] * (1.0 - hr * (1.5 - 0.5 * hr * hr))
+        elif it == 2:
+            # Exponential model
+            cova3_ = cova3_ + vario3D['cc'][ist] * np.exp(-3.0 * h / vario3D["hmaj"][ist])
+        elif it == 3:
+            # Gaussian model
+            hh = -3.0 * (h * h) / (vario3D["hmaj"][ist] * vario3D["hmaj"][ist])
+            cova3_ = cova3_ + vario3D["cc"][ist] * np.exp(hh)
+    return cova3_
+
+def ctable_3D(MAXCTX,MAXCTY,MAXCTZ,xsiz,ysiz,zsiz,vario): # just used for spiral search
+    """GSLIB's CTABLE subroutine (Deutsch and Journel, 1998) converted from the
+    original Fortran to Python by Michael Pyrcz, the University of Texas at
+    Austin (March, 2019).
+    Note this was simplified to 2D only, WARNING: only spiral search setup works currently. Corrected for any table size, Mar.21, 2024
+    Updated to 3D in August, 2025
+    """
+# Declare constants
+    TINY = 1.0e-10
+    PMX = 9999.9
+    MAXROT=2  
+    nctx = int(((MAXCTX-1)/2))
+    ncty = int(((MAXCTY-1)/2))
+    nctz = int(((MAXCTZ-1)/2))
+    
+#    print('CTable check')
+#    print('nctx ' + str(nctx) + ', ncty ' + str(ncty))
+    
+    ixnode = np.zeros((MAXCTZ,MAXCTY,MAXCTX))
+    iynode = np.zeros((MAXCTZ,MAXCTY,MAXCTX))
+    iznode = np.zeros((MAXCTZ,MAXCTY,MAXCTX))
+    covtab = np.zeros((MAXCTZ,MAXCTY,MAXCTX))
+# Initialize the covariance subroutine and cbb at the same time:
+    rotmat = setrot_3D(vario) # over all structures 
+    # print(rotmat.shape)
+    maxcov = vario['nug'] + np.sum(vario['cc'])
+    nst = vario['nst']
+# Now, set up the table and keep track of the node offsets that are
+# within the search radius:
+    for ik,k in enumerate(range(-nctz,nctz+1)):   # cover entire range      
+        zz = k * zsiz
+        for ij,j in enumerate(range(-ncty,ncty+1)):   # cover entire range      
+            yy = j * ysiz
+            for ii, i in enumerate(range(-nctx,nctx+1)):   # cover entire range   
+                xx = i * xsiz
+                covtab[ik,ij,ii] = cova_3D(0.0,0.0,0.0,xx,yy,zz,vario,rotmat,maxcov) # sums over all structures
+    nlooku = np.sum(covtab > 0.0) 
+    
+    covtab_flat_indices = np.argsort(covtab, axis=None)
+    covtab_flat_indices = covtab_flat_indices[::-1]
+    
+    iznode, iynode, ixnode = np.unravel_index(covtab_flat_indices, covtab.shape)
+                                   
+    return covtab,ixnode,iynode,iznode,nlooku
+
+def srchnd_3D(ix,iy,iz,nx,ny,nz,xmn,ymn,zmn,xsiz,ysiz,zsiz,sim,noct,nodmax,ixnode,iynode,iznode,nlooku,nctx,ncty,nctz,UNEST):
+    """GSLIB's SRCHND subroutine (Deutsch and Journel, 1998) converted from the
+    original Fortran to Python by Michael Pyrcz, the University of Texas at
+    Austin (August, 2025) - updated to 3D and sim as a 3D ndarray
+    """
+# Consider all the nearby nodes until enough have been found:
+    ncnode = 0; 
+    icnode = np.zeros(nodmax,dtype=int); icnode.fill(-1) 
+    cnodev = np.zeros(nodmax); cnodex = np.zeros(nodmax); cnodey = np.zeros(nodmax); cnodez = np.zeros(nodmax);
+
+    nearest_nodes = np.zeros((5,nodmax))
+    
+    if noct > 0:
+        ninoct = np.zeros(8)
+    for il in range(0,nlooku):
+        # print(il)
+        if ncnode == nodmax: return ncnode, nearest_nodes
+        i = ix + (int(ixnode[il])-nctx)
+
+        # print('ix, ixnode, nctx, i')
+        # print(ix,ixnode[il],nctx,i)
+        
+        j = iy + (int(iynode[il])-ncty)
+        k = iz + (int(iznode[il])-nctz)
+        if i < 0 or j < 0 or k < 0: continue
+        if i >= nx or j >= ny or k >= nz: continue
+        # print('i,j,k,v')
+        # print(i,j,k,sim[k,j,i])
+        # print(sim.shape); print(k,j,i)
+        if sim[k,j,i] > UNEST:
+            nearest_nodes[0,ncnode] = il
+            nearest_nodes[1,ncnode] = xmn + (i)*xsiz # adjust for 0 origin
+            nearest_nodes[2,ncnode] = ymn + (j)*ysiz
+            nearest_nodes[3,ncnode] = zmn + (k)*zsiz
+            nearest_nodes[4,ncnode] = sim[k,j,i] 
+            ncnode = ncnode + 1  # moved to account for origin 0
+    return ncnode, nearest_nodes
+
+def krige_3D(ix,iy,iz,nx,ny,nz,current_node,lktype,data_locs,data_values,sec,colocorr,gmean,lvm,close_data,nctx,ncty,nctz,
+              ncnode,nearest_nodes,vario,rotmat,maxcov,MAXKR1,MAXKR2):
+    """GSLIB's KRIGE subroutine (Deutsch and Journel, 1998) converted from the
+    original Fortran to Python and modified for indicator kriging  by Michael Pyrcz, the University of Texas at
+    Austin (March, 2019).
+    Note this was simplified to 2D only. WARNING: tested only for ktype 0,1,2 (2 is local proportion model / local mean provided, not residual approach)
+    """
+    EPSLON = 1.0e-20
+    xx = current_node[2]; yy = current_node[1]; zz = current_node[0]
+    #print('Current Node = ', str(current_node))
+    nclose = len(close_data)
+    vra = np.zeros(MAXKR1); vrea = np.zeros(MAXKR1)
+    r = np.zeros(MAXKR1); rr = np.zeros(MAXKR1); s = np.zeros(MAXKR1); a = np.zeros(MAXKR2)
+    cbb = cova_3D(0.0,0.0,0.0,0.0,0.0,0.0,vario,rotmat,maxcov) # sums over all structures 
+
+# Size of the kriging system:
+    first = False
+    na  = nclose + ncnode
+    if lktype == 0: neq = na
+    if lktype == 1:
+        neq = na + 1
+    if lktype == 2: neq = na
+    if lktype == 3: neq = na + 2
+    if lktype == 4: neq = na + 1
+
+# local mean
+    if lktype == 2: 
+        gmean = lvm[iz,iy,ix]
+    
+# Set up kriging matrices:
+    iin=-1 # acocunting for 0 origin
+    for j in range(0,na):
+
+# Sort out the actual location of point "j"
+        if j < nclose: # adjusted for 0 index origin
+            index  = int(close_data[j])
+            x1     = data_locs[index,2]
+            y1     = data_locs[index,1]
+            z1     = data_locs[index,0]
+            vra[j] = data_values[index]
+            vrea[j] = 0.0 # added this - no effect
+        else:
+            
+# It is a previously simulated node (keep index for table look-up):
+
+            index  = j-(nclose) # adjust for 0 index  
+            x1     = nearest_nodes[1,index]
+            y1     = nearest_nodes[2,index]
+            z1     = nearest_nodes[3,index]
+            vra[j] = nearest_nodes[4,index]
+
+        for i in range(0,na): # we need the full matrix 
+
+# Sort out the actual location of point "i"
+            if i < nclose:
+                index  = int(close_data[i])
+                x2     = data_locs[index,2]
+                y2     = data_locs[index,1]
+                z2     = data_locs[index,0]       
+            else:
+
+# It is a previously simulated node (keep index for table look-up):
+                index  = i-(nclose) # adjust for 0 index  
+                x2     = nearest_nodes[1,index]
+                y2     = nearest_nodes[2,index]
+                z2     = nearest_nodes[3,index]
+
+# Now, get the covariance value:
+            iin = iin + 1
+            # print(rotmat,maxcov)
+            cov = cova_3D(x1,y1,z1,x2,y2,z2,vario,rotmat,maxcov) # sums over all structures
+            # print(cov)
+            a[iin] = cov
+
+# Get the RHS value:
+        cov = cova_3D(x1,y1,z1,xx,yy,zz,vario,rotmat,maxcov) # sums over all structures    
+        r[j] = cov        
+        rr[j] = r[j]
+        if lktype == 1: # we need the full array
+            iin = iin + 1
+            a[iin] = 1.0 
+        if lktype == 4: # we need the full array
+            iin = iin + 1
+            a[iin] = colocorr*r[j]    
+# Addition of OK constraint:
+    if lktype == 1 or lktype == 3:
+        for i in range(0,na):
+            iin    = iin + 1
+            a[iin] = 1.0
+        iin       = iin + 1
+        a[iin]    = 0.0
+        r[na]  = 1.0
+        rr[na] = 1.0
+
+# Addition of the External Drift Constraint:
+    if lktype == 3:
+        print('External Drift note available for SGSIM_3D')
+
+# Addition of Collocated Cosimulation Constraint:
+    if lktype == 4:
+        colc = True
+        sfmin =  1.0e21
+        sfmax = -1.0e21
+        for i in range(0,na):
+            iin    = iin + 1
+            a[iin] = colocorr*r[i]
+            if a[iin] < sfmin: sfmin = a[iin]
+            if a[iin] > sfmax: sfmax = a[iin]
+        iin    = iin + 1
+        a[iin] = 1.0
+        ii     = na
+        r[ii]  = colocorr
+        rr[ii] = r[ii]
+#        if (sfmax-sfmin) < EPSLON: 
+#            neq = neq - 1
+#            colc = False
+
+# Solve the Kriging System:
+    if neq == 1 and lktype != 3:
+        s[0]  = r[0] / a[0]
+    else:
+        s = ksol_numpy(neq,a,r)          
+
+# Compute the estimate and kriging variance.  Recall that kriging type
+#     0 = Simple Kriging:
+#     1 = Ordinary Kriging:
+#     2 = Locally Varying Mean:
+#     3 = External Drift:
+#     4 = Collocated Cosimulation:
+
+    cmean  = 0.0
+    cstdev = cbb 
+    sumwts = 0.0
+    for i in range(0,na):
+        cmean  = cmean  + s[i]*vra[i]
+        cstdev = cstdev - s[i]*rr[i]
+        sumwts = sumwts + s[i]
+    if lktype == 1: 
+        cstdev = cstdev - s[na]
+    if lktype == 4 and colc == True: # we may drop colocated if low covariance dispersion
+        ind    = ix + (iy-1)*nx
+        cmean  = cmean  + s[na]*lvm[cur_index]
+        cstdev = cstdev - s[na] *rr[na]
+    if lktype == 0 or lktype == 2:
+        cmean = cmean + (1.0-sumwts)*gmean
+       
+# Error message if negative variance:
+    if cstdev < 0.0:
+#        print('ERROR: Negative Variance: ' + str(cstdev))
+        cstdev = 0.0
+    cstdev = math.sqrt(max(cstdev,0.0))
+#    print('kriging estimate and variance' + str(cmean) + ', ' + str(cstdev))
+    return cmean, cstdev
+
+def ikrige_3D(ix,iy,iz,nx,ny,nz,current_node,lktype,data_locs,data_values,sec,colocorr,gmean,lvm,close_data,nctx,ncty,nctz,
+              ncnode,nearest_nodes,nearest_nodes_ind,vario,rotmat,maxcov,MAXKR1,MAXKR2):
+    """GSLIB's KRIGE subroutine (Deutsch and Journel, 1998) converted from the
+    original Fortran to Python and modified for indicator kriging  by Michael Pyrcz, the University of Texas at
+    Austin (March, 2019).
+    Note this was simplified to 2D only. WARNING: tested only for ktype 0,1,2 (2 is local proportion model / local mean provided, not residual approach)
+    """
+    EPSLON = 1.0e-20
+    xx = current_node[2]; yy = current_node[1]; zz = current_node[0]
+    #print('Current Node = ', str(current_node))
+    nclose = len(close_data)
+    vra = np.zeros(MAXKR1); vrea = np.zeros(MAXKR1)
+    r = np.zeros(MAXKR1); rr = np.zeros(MAXKR1); s = np.zeros(MAXKR1); a = np.zeros(MAXKR2)
+    cbb = cova_3D(0.0,0.0,0.0,0.0,0.0,0.0,vario,rotmat,maxcov) # sums over all structures 
+
+# Size of the kriging system:
+    first = False
+    na  = nclose + ncnode
+    if lktype == 0: neq = na
+    if lktype == 1:
+        neq = na + 1
+    if lktype == 2: neq = na
+    if lktype == 3: neq = na + 2
+    if lktype == 4: neq = na + 1
+ 
+# Set up kriging matrices:
+    iin=-1 # acocunting for 0 origin
+    for j in range(0,na):
+
+# Sort out the actual location of point "j"
+        if j < nclose: # adjusted for 0 index origin
+            index  = int(close_data[j])
+            x1     = data_locs[index,2]
+            y1     = data_locs[index,1]
+            z1     = data_locs[index,0]
+            vra[j] = data_values[index]
+            vrea[j] = 0.0 # added this - no effect
+        else:
+            
+# It is a previously simulated node (keep index for table look-up):
+
+            index  = j-(nclose) # adjust for 0 index  
+            x1     = nearest_nodes[1,index]
+            y1     = nearest_nodes[2,index]
+            z1     = nearest_nodes[3,index]
+            vra[j] = nearest_nodes_ind[index]
+
+        for i in range(0,na): # we need the full matrix 
+
+# Sort out the actual location of point "i"
+            if i < nclose:
+                index  = int(close_data[i])
+                x2     = data_locs[index,2]
+                y2     = data_locs[index,1]
+                z2     = data_locs[index,0]       
+            else:
+
+# It is a previously simulated node (keep index for table look-up):
+                index  = i-(nclose) # adjust for 0 index  
+                x2     = nearest_nodes[1,index]
+                y2     = nearest_nodes[2,index]
+                z2     = nearest_nodes[3,index]
+
+# Now, get the covariance value:
+            iin = iin + 1
+            # print(rotmat,maxcov)
+            cov = cova_3D(x1,y1,z1,x2,y2,z2,vario,rotmat,maxcov) # sums over all structures
+            # print(cov)
+            a[iin] = cov
+
+# Get the RHS value:
+        cov = cova_3D(x1,y1,z1,xx,yy,zz,vario,rotmat,maxcov) # sums over all structures    
+        r[j] = cov        
+        rr[j] = r[j]
+        if lktype == 1: # we need the full array
+            iin = iin + 1
+            a[iin] = 1.0 
+        if lktype == 4: # we need the full array
+            iin = iin + 1
+            a[iin] = colocorr*r[j]    
+# Addition of OK constraint:
+    if lktype == 1 or lktype == 3:
+        for i in range(0,na):
+            iin    = iin + 1
+            a[iin] = 1.0
+        iin       = iin + 1
+        a[iin]    = 0.0
+        r[na]  = 1.0
+        rr[na] = 1.0
+
+# Addition of the External Drift Constraint:
+    if lktype == 3:
+        print('External Drift note available for SISIM_3D')
+
+# Addition of Collocated Cosimulation Constraint:
+    if lktype == 4:
+        colc = True
+        sfmin =  1.0e21
+        sfmax = -1.0e21
+        for i in range(0,na):
+            iin    = iin + 1
+            a[iin] = colocorr*r[i]
+            if a[iin] < sfmin: sfmin = a[iin]
+            if a[iin] > sfmax: sfmax = a[iin]
+        iin    = iin + 1
+        a[iin] = 1.0
+        ii     = na
+        r[ii]  = colocorr
+        rr[ii] = r[ii]
+#        if (sfmax-sfmin) < EPSLON: 
+#            neq = neq - 1
+#            colc = False
+
+# Solve the Kriging System:
+    if neq == 1 and lktype != 3:
+        s[0]  = r[0] / a[0]
+    else:
+        s = ksol_numpy(neq,a,r)          
+
+# Compute the estimate and kriging variance.  Recall that kriging type
+#     0 = Simple Kriging:
+#     1 = Ordinary Kriging:
+#     2 = Locally Varying Mean:
+#     3 = External Drift:
+#     4 = Collocated Cosimulation:
+
+    cmean  = 0.0
+    cstdev = cbb 
+    sumwts = 0.0
+    for i in range(0,na):
+        cmean  = cmean  + s[i]*vra[i]
+        cstdev = cstdev - s[i]*rr[i]
+        sumwts = sumwts + s[i]
+    if lktype == 1: 
+        cstdev = cstdev - s[na]
+    if lktype == 4 and colc == True: # we may drop colocated if low covariance dispersion
+        ind    = ix + (iy-1)*nx
+        cmean  = cmean  + s[na]*lvm[cur_index]
+        cstdev = cstdev - s[na] *rr[na]
+    if lktype == 0 or lktype == 2:
+        cmean = cmean + (1.0-sumwts)*gmean
+       
+# Error message if negative variance:
+    if cstdev < 0.0:
+        cstdev = 0.0
+    cstdev = math.sqrt(max(cstdev,0.0))
+    return cmean, cstdev
+
+def sgsim_3D(df,xcol,ycol,zcol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtcol,zmin,zmax,ltail,ltpar,utail,utpar,nreal,
+          nx,xmn,xsiz,ny,ymn,ysiz,nz,zmn,zsiz,seed,ndmin,ndmax,nodmax,mults,nmult,noct,ktype,colocorr,sec_map,vario):
+    
+# Hard Code Some Parameters for Ease of Use, Fixed Covariance Table - Added Mar. 21, 2024, 
+    radius = 0.0; radius1 = 0.0; radius2 = 0.0
+    radius = max(vario['hmaj'][0],vario['hmaj'][1],radius)
+    radius1 = max(vario['hmin'][0],vario['hmin'][1],radius1)
+    radius2 = max(vario['hvert'][0],vario['hvert'][1],radius2)
+    if vario['hmaj'][1] > vario['hmaj'][0]:
+        sang1 = vario['azi'][1] # use the angle for the longest range
+    else:
+        sang1 = vario['azi'][0]
+    maxctx = int(radius/min(xsiz,ysiz))*2 + 1
+    maxcty = int(radius/min(xsiz,ysiz))*2 + 1
+    maxctz = int(radius2/zsiz)*2 + 1
+
+    nctx = int(((maxctx-1)/2))
+    ncty = int(((maxcty-1)/2))
+    nctz = int(((maxctz-1)/2))
+    
+    if ltail == 1:
+        ltpar = zmin
+    if utail == 1:
+        utpar == zmax
+        
+    sim_out = np.zeros((nreal,nz,ny,nx))
+    
+# Parameters from sgsim.inc    
+    MAXNST=2; MAXROT=2; UNEST=-99.0; EPSLON=1.0e-20; VERSION=2.907
+    KORDEI=12; MAXOP1=KORDEI+1; MAXINT=2**30
+    
+# Set other parameters
+    np.random.seed(seed)
+    nxyz = nx*ny*nz
+    sstrat = 0 # search data and nodes by default, turned off if unconditional
+    radsqd = radius * radius
+    sanis1 = radius1/radius
+    if ktype == 4: varred = 1.0     
+
+    maxkr1 = nodmax + ndmax + 1
+    maxkr2 = maxkr1 * maxkr1
+    
+# Declare arrays
+
+    dist = np.zeros(ndmax)
+    nums = np.zeros(ndmax,dtype = int)
+    
+# Perform some quick checks
+    if ltail != 1 and ltail != 2:
+        print('ERROR invalid lower tail option ' + str(ltail))
+        print('      only allow 1 or 2 - see GSLIB manual ')
+        return sim
+    if utail != 1 and utail != 2 and utail != 4:
+        print('ERROR invalid upper tail option ' + str(ltail))
+        print('      only allow 1,2 or 4 - see GSLIB manual ')
+        return sim 
+    if utail == 4 and utpar < 1.0:
+        print('ERROR invalid power for hyperbolic tail' + str(utpar))
+        print('      must be greater than 1.0!')
+        return sim
+    if ltail == 2 and ltpar < 0.0:
+        print('ERROR invalid power for power model' + str(ltpar))
+        print('      must be greater than 0.0!')
+        return sim
+    if utail == 2 and utpar < 0.0: 
+        print('ERROR invalid power for power model' + str(utpar))
+        print('      must be greater than 0.0!')
+        return sim
+
+# load the variogram
+    MAXNST = 2
+    cc = np.zeros((MAXNST)) 
+    aa = np.zeros((MAXNST),dtype=int); it = np.zeros((MAXNST),dtype=int) 
+    ang = np.zeros((MAXNST)); anish = np.zeros((MAXNST)); anisv = np.zeros((MAXNST)) 
+    nst = int(vario['nst'])
+    c0 = vario['nug']; cc[0] = vario['cc'][0]; it[0] = vario['it'][0]; 
+    ang[0] = vario['azi'][0]; 
+    aa[0] = vario['hmaj'][0]; 
+    anish[0] = vario['hmin'][0]/vario['hmaj'][0]; anisv[0] = vario['hvert'][0]/vario['hmaj'][0];
+    maxcov = vario['nug'] + vario['cc'][0]
+    if nst == 2:
+        cc[1] = vario['cc'][1]; it[1] = vario['it'][1]; ang[1] = vario['azi'][1]; 
+        aa[1] = vario['hmaj'][1]
+        anish[1] = vario['hmin'][1]/vario['hmaj'][1]; anisv[1] = vario['hvert'][1]/vario['hmaj'][1];
+        maxcov[icut] = maxcov[icut] + vario['cc'][1]
+    
+# Load the data
+    df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]    # trim values outside tmin and tmax
+    nd = len(df_extract)
+    ndmax = min(ndmax,nd) # otherwise tree search will return values outside the range if it runs out of data
+    x = df_extract[xcol].values
+    y = df_extract[ycol].values
+    vr = df_extract[vcol].values    
+    vr_orig = np.copy(vr)
+    wt = []; wt = np.array(wt)
+    if wcol > -1: 
+        wt = df_extract[wcol].values 
+    else:
+        wt = np.ones(nd)
+    sec = []; sec = np.array(sec)
+    if scol > -1:
+        sec = df_extract[scol].values
+    if itrans == 1:
+        if ismooth == 1:
+            dftrans_extract = dftrans.loc[(dftrans[tcol] >= tmin) & (dftrans[tcol] <= tmax)] 
+            ntr = len(dftrans_extract)
+            vrtr = dftrans_extract[tcol].values
+            if twtcol > -1: 
+                vrgtr = dftrans_extract[twtcol].values
+            else:
+                vrgtr = np.ones(ntr) 
+        else:
+            vrtr = df_extract[vcol].values
+            ntr = len(df_extract)  
+            vrgtr = np.copy(wt)
+        twt = np.sum(vrgtr)     
+        vrtr,vrgtr = dsortem(0,ntr,vrtr,2,b=vrgtr) # sort   
+        
+# Compute the cumulative probabilities and write transformation table
+        twt   = max(twt,EPSLON)
+        oldcp = 0.0
+        cp    = 0.0
+        for j in range(0,ntr):               
+            cp =  cp + vrgtr[j]/twt
+            w  = (cp + oldcp)*0.5
+            vrg = gauinv(w)
+            oldcp =  cp
+# Now, reset the weight to the normal scores value:
+            vrgtr[j] = vrg
+              
+        twt = np.sum(wt)             
+# Normal scores transform the data
+        for id in range(0,nd):
+            if itrans == 1: 
+                vrr = vr[id]
+                j = dlocate(vrtr,1,ntr,vrr)
+                j   = min(max(0,j),(ntr-2))
+                vrg = dpowint(vrtr[j],vrtr[j+1],vrgtr[j],vrgtr[j+1],vrr,1.0)
+                if vrg < vrgtr[0]: vrg = vrgtr[0]
+                if(vrg > vrgtr[ntr-1]): vrg = vrgtr[ntr-1]
+                vr[id] = vrg   
+
+    data_values = vr
+    
+    weighted_stats_orig = DescrStatsW(vr_orig,weights=wt)
+    orig_av = weighted_stats_orig.mean        
+    orig_ss = weighted_stats_orig.var   
+    
+    weighted_stats = DescrStatsW(vr,weights=wt)
+    av = weighted_stats.mean        
+    ss = weighted_stats.var        
+
+    print('\n Data for SGSIM: Number of acceptable data     = ' + str(nd))
+    print('                 Number trimmed                = ' + str(len(df)- nd))
+    print('                 Weighted Average              = ' + str(round(orig_av,4)))
+    print('                 Weighted Variance             = ' + str(round(orig_ss,4)))
+    print('                 Weighted Transformed Average  = ' + str(round(av,4)))
+    print('                 Weighted Transformed Variance = ' + str(round(ss,4)))
+              
+# Read in secondary data           
+    sim = np.random.rand(nz,ny,nx)    
+    lvm = []; lvm = np.array(lvm)
+    if ktype >= 2:
+        ind = 0
+        lvm = np.zeros(nz,ny,nx)
+        for iz in range(0,nz):
+            for iy in range(0,ny):
+                for ix in range(0,nx):
+                    lvm[ind] = sec_map[nz,ny-iy-1,ix]    
+                    ind = ind + 1
+        if ktype == 2 and itrans == 1: 
+            for iz in range(0,nz):
+                for iy in range(0,ny):
+                    for ix in range(0,nx):
+# Do we to transform the secondary variable for a local mean?
+                        vrr = lvm[iz,iy,ix]
+                        j = dlocate(vrtr,1,ntr,vrr)
+                        j   = min(max(0,j),(ntr-2))
+                        vrg = dpowint(vrtr[j],vrtr[j+1],vrgtr[j],vrgtr[j+1],vrr,1.0)
+                        if vrg < vrgtr[0]: vrg = vrgtr[0]
+                        if(vrg > vrgtr[ntr-1]): vrg = vrgtr[nd-1]
+                        lvm[iz,iy,ix] = vrg 
+                    
+        av = np.average(lvm.flatten())
+        ss = np.var(lvm.flatten())
+        print(' Secondary Data: Number of data             = ' + str(nx*ny))
+        print('                 Equal Weighted Average     = ' + str(round(av,4)))
+        print('                 Equal Weighted Variance    = ' + str(round(ss,4)))             
+
+# Do we need to work with data residuals? (Locally Varying Mean)
+        if ktype == 2:
+            sec = np.zeros(nd)
+            for idd in range(0,nd): 
+                ix = getindex(nx,xmn,xsiz,x[idd])
+                iy = getindex(ny,ymn,ysiz,y[idd])
+                iz = getindex(nz,zmn,zsiz,z[idd])
+                sec[idd] = lvm[iz,iy,ix]
+# Calculation of residual moved to krige subroutine: vr(i)=vr(i)-sec(i)
+
+
+# Do we need to get an external drift attribute for the data?
+        if ktype == 3:
+            for idd in range(0,nd): 
+                if sec[idd] != UNEST:
+                    ix = getindx(nx,xmn,xsiz,x[idd])
+                    iy = getindx(ny,ymn,ysiz,y[idd])
+                    iz = getindx(nz,zmn,zsiz,z[idd])
+                    sec[idd] = lvm[iz,iy,ix]
+
+# Transform the secondary attribute to normal scores?
+        if ktype == 4:
+            ranks = rankdata(lvm.flatten(), method='average')
+            quantiles = (ranks - 0.5) / nxyz
+            gaussian = gauinv(quantiles)
+            lvm = gaussian.reshape(lvm.shape) * varred
+
+# Set up the rotation/anisotropy matrices that are needed for the
+# variogram and search:
+
+#    print('Setting up rotation matrices for variogram and search')
+    rotmat = setrot_3D(vario)
+
+# Make a KDTree for fast search of nearest neighbours   
+    data_locs = np.column_stack((z,y,x))
+    tree = sp.cKDTree(data_locs, leafsize=16, compact_nodes=True, copy_data=False, balanced_tree=True)
+    
+# Set up the covariance table and the spiral search based just on the first variogram
+# This is ok as we are not using the covariance look up table, just spiral search for previous nodes
+
+    cov_table,ixnode,iynode,iznode,nlooku = ctable_3D(maxctx,maxcty,maxctz,xsiz,ysiz,zsiz,vario) # just for spiral search  
+
+     # MAIN LOOP OVER ALL THE SIMULAUTIONS:
+    for ireal in range(0,nreal):
+          
+# Work out a random path for this realization:
+        sim = np.random.rand(nz, ny, nx)
+        if mults == 1:  # multigrid is selected
+            for imult in range(0,nmult): 
+                nnz = int(max(1,nz/((imult+1)*4)))
+                nny = int(max(1,ny/((imult+1)*4)))
+                nnx = int(max(1,nx/((imult+1)*4)))
+                jz = 1; jy  = 1; jx  = 1
+                for iz in range(0,nnz):
+                    if nnz > 0: jz = iz*(imult+1)*4            
+                    for iy in range(0,nny): 
+                        if nny > 0: jy = iy*(imult+1)*4
+                        for ix in range(0,nnx):
+                            if nnx > 0: jx = ix*(imult+1)*4
+                            sim[jz,jy,jx] = sim[jz,jy,jx] - (imult+1)
+        
+        path_indices = np.argsort(sim, axis=None)
+        iz_path, iy_path, ix_path = np.unravel_index(path_indices, (nz, ny, nx))
+        random_path = np.stack([iz_path, iy_path, ix_path], axis=1)
+
+        sim.fill(UNEST)
+        print('Working on realization ' + str(ireal))
+    
+# Assign the data to the closest grid node:
+
+        TINY = 0.0001
+        for idd in range(0,nd):
+            ix = getindex(nx,xmn,xsiz,x[idd])
+            iy = getindex(ny,ymn,ysiz,y[idd])
+            iz = getindex(nz,zmn,zsiz,z[idd])
+            xx  = xmn + (ix)*xsiz
+            yy  = ymn + (iy)*ysiz
+            zz  = zmn + (iz)*zsiz
+            test = abs(xx-x[idd]) + abs(yy-y[idd]) + abs(zz-z[idd])
+            if sstrat == 1 or (sstrat == 0 and test <= TINY): # assign this data to the node (unless there is a closer data):
+                
+                if sim[iz,iy,ix] > UNEST:
+                    id2 = int(sim[iz,iy,ix]+0.5)
+                    test2 = abs(xx-x[id2]) + abs(yy-y[id2]) + abs(zz-z[id2])
+                    if test <= test2: 
+                        sim[iz,iy,ix] = idd
+                else:
+                    sim[iz,iy,ix] = idd  # a flag so that this node does not get simulated       
+        data_mask = sim != UNEST # replace nodes with data indexes with the nearest data values
+        sim[data_mask] = data_values[sim[data_mask].astype(int)]
+        irepo = max(1,min((nxyz/10),10000))          
+
+# LOOP OVER ALL THE NODES:
+        for ind in range(0,nxyz):  
+            if (int(ind/irepo)*irepo) == ind:
+                print('   currently on node ' + str(ind))
+          
+# Find the index on the random path, check if assigned data and get location
+            iz = random_path[ind,0]; iy = random_path[ind,1]; ix = random_path[ind,2]
+            if (sim[iz,iy,ix] > (UNEST+EPSLON)) or (sim[iz,iy,ix] < (UNEST*2.0)): continue
+            xx = xmn + (ix)*xsiz
+            yy = ymn + (iy)*ysiz 
+            zz = zmn + (iz)*zsiz 
+            current_node = (zz,yy,xx)
+
+# Now we'll simulate the point iz,iy,ix.  First, get the close data
+# and make sure that there are enough to actually simulate a value,
+# we'll only keep the closest "ndmax" data, and look for previously
+# simulated grid nodes:
+
+            if sstrat == 0:
+                na = -1   # accounting for 0 as first index
+                if ndmax == 1:
+                    nearest_data = np.zeros(1)
+                    _, nearest_data[0] = tree.query(current_node,ndmax) # use kd tree for fast nearest data search
+                else:
+                    _, nearest_data = tree.query(current_node,ndmax)
+                nearest_data = nearest_data.astype(int)  # NumPy array of ints
+                cov_temp = np.zeros((len(nearest_data)))
+               
+                for ind in range(0,len(nearest_data)):
+                    xd = df['X'][nearest_data[ind]]; yd = df['Y'][nearest_data[ind]]; zd = df['Z'][nearest_data[ind]]
+                    cov_temp[ind] = cova_3D(current_node[2],current_node[1],current_node[0],xd,yd,zd,vario,rotmat,maxcov) # sums over all structures
+                nearest_data = nearest_data[cov_temp > 0.0] # filter out all data that are not correlated, in addition to max data
+                nclose = len(nearest_data)
+          
+                if nclose < ndmin: continue     # bail if not enough data
+
+# find the nearest previously simulated nodes and apply the indicator transform
+
+            ncnode, nearest_nodes = srchnd_3D(ix,iy,iz,nx,ny,nz,xmn,ymn,zmn,xsiz,ysiz,zsiz,sim,noct,nodmax,ixnode,iynode,iznode,nlooku,
+                                              nctx,ncty,nctz,UNEST)
+
+# Calculate the conditional mean and standard deviation.  This will be
+# done with kriging if there are data, otherwise, the global mean and
+# standard deviation will be used:
+
+            if ktype == 2:
+                gmean = lvm[index]
+            else:
+                gmean = 0.0
+
+            if nclose+ncnode < 1:
+                cmean  = gmean
+                cstdev = 1.0
+
+#Perform the kriging.  Note that if there are fewer than four data
+# then simple kriging is prefered so that the variance of the
+# realization does not become artificially inflated:
+
+            else:           
+                lktype = ktype
+                if ktype == 1 and (nclose+ncnode) < 4: lktype=0
+                cmean, cstdev = krige_3D(ix,iy,iz,nx,ny,nz,current_node,ktype,data_locs,data_values,sec,colocorr,gmean,
+                                    lvm,nearest_data,nctx,ncty,nctz,ncnode,nearest_nodes,vario,rotmat,
+                                    maxcov,maxkr1,maxkr2)           
+                    
+# Draw a random number and assign a value to this node:
+            xp = np.random.normal(0, 1)
+            sim[iz,iy,ix] = xp * cstdev + cmean
+
+# Quick check for far out results:
+            if abs(cmean) > 5.0 or abs(cstdev) > 5.0 or abs(sim[iz,iy,ix]) > 6.0:
+                print('WARNING: grid node location: ' + str(ix) + ',' + str(iy))
+                print('         conditional mean and stdev:  ' + str(cmean) + ',' + str(cstdev))
+                print('         simulated value:    ' + str(sim[iz,iy,ix]))
+
+# Do we need to reassign the data to the grid nodes?
+        if sstrat == 0:
+            print('Reassigning data to nodes')
+            for iid in range(0,nd): 
+                ix = getindex(nx,xmn,xsiz,x[iid])
+                iy = getindex(ny,ymn,ysiz,y[iid])
+                iz = getindex(nz,zmn,zsiz,z[iid])
+                xx  = xmn + (ix)*xsiz
+                yy  = ymn + (iy)*ysiz
+                zz  = zmn + (iz)*zsiz
+                test=abs(xx-x[iid])+abs(yy-y[iid])+abs(zz-z[iid])
+                if test <= TINY: sim[iz,iy,ix] = data_values[iid]
+
+# Back transform each value and write results:    
+        ne = 0
+        av = 0.0
+        ss = 0.0
+        for iz in range(0,nz):
+            for iy in range(0,ny):
+                for ix in range(0,nx):
+                    simval = sim[iz,iy,ix]
+                    if simval > -9.0 and simval < 9.0:
+                        ne = ne + 1
+                        av = av + simval
+                        ss = ss + simval*simval
+                    if itrans == 1 and simval > (UNEST+EPSLON):
+                        simval = backtr_value(simval,vrtr,vrgtr,zmin,zmax,ltail,ltpar,utail,utpar)
+                        if simval < zmin: simval = zmin
+                        if simval > zmax: simval = zmax
+                        sim[iz,iy,ix] = simval
+        av = av / max(ne,1.0)
+        ss =(ss / max(ne,1.0)) - av * av
+        print('\n Realization ' + str(ireal) + ': number   = ' + str(ne))
+        print('                                   mean     = ' + str(round(av,4)) + ' (close to 0.0?)')
+        print('                                   variance = ' + str(round(ss,4)) + ' (close to gammabar(V,V)? approx. 1.0)')
+
+# END MAIN LOOP OVER SIMULATIONS:
+        sim_out[ireal,:] = sim[:,::-1,:].copy() # flip the y axis due to NumPy's default reverse order    
+    return sim_out,vrtr,vrgtr
+
+def sisim_3D(df,xcol,ycol,zcol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,nreal,
+          nx,xmn,xsiz,ny,ymn,ysiz,nz,zmn,zsiz,seed,ndmin,ndmax,nodmax,mults,nmult,noct,ktype,varios):
+          
+    """A 2D version of GSLIB's SISIM Indicator Simulation program (Deutsch and Journel, 1998) converted from the
+    original Fortran to Python by Michael Pyrcz, the University of Texas at
+    Austin (March, 2019). WARNING: only tested for cateogrical ktype 0, 1 and 2 (locally variable proportion).
+    :param df: pandas DataFrame with the spatial data
+    :param xcol: name of the x coordinate column
+    :param ycol: name of the y coordinate column
+    :param vcol: name of the property column (cateogorical or continuous - note continuous is untested)
+    :param ivtype: variable type, 0 - categorical, 1 - continuous
+    :param koption: kriging option, 0 - estimation, 1 - cross validation (under construction)
+    :param ncut: number of categories or continuous thresholds
+    :param thresh: an ndarray with the category labels or continuous thresholds
+    :param gcdf: global CDF, not used if trend is present
+    :param trend: an ndarray [ny,ny,ncut] with the local trend proportions or cumulative CDF values
+    :param tmin: property trimming limit
+    :param tmax: property trimming limit
+    :param nx: definition of the grid system (x axis)
+    :param xmn: definition of the grid system (x axis)
+    :param xsiz: definition of the grid system (x axis)
+    :param ny: definition of the grid system (y axis)
+    :param ymn: definition of the grid system (y axis)
+    :param ysiz: definition of the grid system (y axis)
+    :param nxdis: number of discretization points for a block
+    :param nydis: number of discretization points for a block
+    :param ndmin: minimum number of data points to use for kriging a block
+    :param ndmax: maximum number of data points to use for kriging a block
+    :param radius: maximum isotropic search radius
+    :param ktype: kriging type, 0 - simple kriging and 1 - ordinary kriging
+    :param vario: list with all of the indicator variograms (sill of 1.0) in consistent order with above parameters
+    :return:
+    """
+
+    sim_out = np.random.rand(nreal,nz, ny, nx)
+# Checks
+    if utail == 3 or ltail == 3 or middle == 3:
+        print('ERROR - distribution extrapolation option 3 with table is not available')
+        return sim_out
+    if xcol == "" or ycol == "":
+        print('ERROR - must have x and y column in the DataFrame')
+        return sim_out
+	    
+# Hard Code Some Parameters for Ease of Use, Fixed Covariance Table - Added Mar. 21, 2024, 
+    radius = 0.0; radius1 = 0.0; radius2 = 0.0
+    for icut in range(0,ncut):
+        radius = max(varios[icut]['hmaj'][0],varios[icut]['hmaj'][1],radius)
+        radius1 = max(varios[icut]['hmin'][0],varios[icut]['hmin'][1],radius1)
+        radius2 = max(varios[icut]['hvert'][0],varios[icut]['hvert'][1],radius2)
+        if varios[icut]['hmaj'][1] > varios[icut]['hmaj'][0]:
+            sang1 = varios[icut]['azi'][1] # use the angle for the longest range
+        else:
+            sang1 = varios[icut]['azi'][0]
+    maxctx = int(radius/min(xsiz,ysiz))*2 + 1
+    maxcty = int(radius/min(xsiz,ysiz))*2 + 1
+    maxctz = int(radius2/zsiz)*2 + 1
+
+    nctx = int(((maxctx-1)/2))
+    ncty = int(((maxcty-1)/2))
+    nctz = int(((maxctz-1)/2))
+    
+    if ltail == 1:
+        ltpar = zmin
+    if utail == 1:
+        utpar == zmax
+		  
+# Set parameters from the include
+    UNEST = -99.0
+    EPSLON = 1.0e-20
+    VERSION = 0.001
+    np.random.seed(seed)
+    colocorr = 0.0 # no collocated cokriging
+    lvm = 0 # no kriging with a locally variable mean
+    sec = []; sec = np.array(sec) # no secondary data
+    ng = 0 # no tabulated values 
+
+# Find the needed parameters:
+    PMX = 9999.9
+    MAXSAM = ndmax + 1
+    MAXEQ = MAXSAM + 1
+    nxyz   = nx*ny*nz
+    mik = 0  # full indicator kriging
+    use_trend = False
+    trend1d = np.zeros((nz,ny,nx,1)) # no trend make a dummy trend
+    if trend.shape[0] == nz and trend.shape[1] == ny and trend.shape[2] == nx and trend.shape[3] == ncut: # check trend shape
+        use_trend = True
+        
+    MAXORD = nxyz
+    MAXNOD = nodmax
+    
+    nearest_nodes_ind = np.zeros((ncut+1,MAXNOD))
+    
+    sstrat = 0 # search data and nodes by default, turned off if unconditional
+    sang1 = 0 # using isotropic search now
+    sanis1 = 1.0
+   
+# Kriging system
+    MAXKR1 = 2 * MAXNOD + 2 * MAXSAM + 1
+    MAXKR2 = MAXKR1 * MAXKR1
+    MAXSBX = 1
+    if nx > 1:
+        MAXSBX = int(nx/2)
+    if MAXSBX > 50:
+        MAXSBX=50
+    MAXSBY = 1
+    if ny > 1:
+        MAXSBY = int(ny/2)
+    if MAXSBY > 50: 
+        MAXSBY=50
+#    print('ncut'); print(ncut)
+
+    maxcov = np.zeros(ncut)
+# load the variogram
+    MAXNST = 2
+    nst = np.zeros(ncut,dtype=int); c0 = np.zeros(ncut); cc = np.zeros((ncut,MAXNST)) 
+    aa = np.zeros((ncut,MAXNST),dtype=int); it = np.zeros((ncut,MAXNST),dtype=int) 
+    ang = np.zeros((ncut,MAXNST)); anish = np.zeros((ncut,MAXNST)); anisv = np.zeros((ncut,MAXNST)) 
+    for icut in range(0,ncut):
+#        print('icut'); print(icut)
+        nst[icut] = int(varios[icut]['nst'])
+        c0[icut] = varios[icut]['nug']; cc[icut,0] = varios[icut]['cc'][0]; it[icut,0] = varios[icut]['it'][0]; 
+        ang[icut,0] = varios[icut]['azi'][0]; 
+        aa[icut,0] = varios[icut]['hmaj'][0]; 
+        anish[icut,0] = varios[icut]['hmin'][0]/varios[icut]['hmaj'][0]; anisv[icut,0] = varios[icut]['hvert'][0]/varios[icut]['hmaj'][0];
+        maxcov[icut] = varios[icut]['nug'] + varios[icut]['cc'][0]
+        if nst[icut] == 2:
+            cc[icut,1] = varios[icut]['cc'][1]; it[icut,1] = vario[icut]['it'][1]; ang[icut,1] = varios[icut]['azi'][1]; 
+            aa[icut,1] = varios[icut]['hmaj'][1]
+            anish[icut,1] = varios[icut]['hmin'][1]/varios[icut]['hmaj'][1]; anisv[icut,1] = varios[icut]['hvert'][1]/varios[icut]['hmaj'][1];
+            maxcov[icut] = maxcov[icut] + varios[icut]['cc'][1]
+    
+# Load the data
+    df_extract = df.loc[(df[vcol] >= tmin) & (df[vcol] <= tmax)]    # trim values outside tmin and tmax
+    MAXDAT = len(df_extract)
+    nd = MAXDAT
+    MAXCUT = ncut
+    MAXNST = 2
+    MAXROT = MAXNST*MAXCUT+ 1
+    ikout = np.zeros((nx,ny,ncut))
+
+# Allocate the needed memory:   
+    xa = np.zeros(MAXSAM)
+    ya = np.zeros(MAXSAM)
+    vra = np.zeros(MAXSAM)
+    dist = np.zeros(MAXSAM)
+    nums = np.zeros(MAXSAM)
+    r = np.zeros(MAXEQ)
+    rr = np.zeros(MAXEQ)
+    s = np.zeros(MAXEQ)
+    a = np.zeros(MAXEQ*MAXEQ)
+    ikmap = np.zeros((nx,ny,ncut))
+    data_values = np.zeros((MAXDAT,MAXCUT+1))
+        
+    ccdf = np.zeros(ncut)
+    ccdfo = np.zeros(ncut)
+    ikout = np.zeros((nx,ny,ncut))
+    
+    x = df_extract[xcol].values
+    y = df_extract[ycol].values
+    z = df_extract[zcol].values
+    v = df_extract[vcol].values
+
+    ndmax = min(ndmax,len(v))
+    
+    MAXTAB = MAXDAT + MAXCUT # tabulated probabilities not used 
+    gcut = np.zeros(MAXTAB)
+    
+# The indicator data are constructed knowing the thresholds and the
+# data value.
+    
+#    print('ncut'); print(ncut)
+    if ivtype == 0:
+        for icut in range(0,ncut): 
+            data_values[:,icut] = np.where((v <= thresh[icut] + 0.5) & (v > thresh[icut] - 0.5), '1', '0')
+    else:
+        for icut in range(0,ncut): 
+            data_values[:,icut] = np.where(v <= thresh[icut], '1', '0')
+    data_values[:,ncut] = v # add the actual values
+
+# Make a KDTree for fast search of nearest neighbours   
+    #dp = list((z[i], y[i], x[i]) for i in range(0,MAXDAT))
+    data_locs = np.column_stack((z,y,x))
+    tree = sp.cKDTree(data_locs, leafsize=16, compact_nodes=True, copy_data=False, balanced_tree=True)
+    
+# Summary statistics of the input data
+    avg = data_values[:,ncut].mean()
+    stdev = data_values[:,ncut].std()
+    ss = stdev**2.0
+    vrmin = data_values[:,ncut].min()
+    vrmax = data_values[:,ncut].max()
+    print('Data for SISIM3D: Variable column ' + str(vcol))
+    print('  Number spatial data samples  = ' + str(MAXDAT))
+    ndh = MAXDAT
+    
+    actloc = np.zeros(MAXDAT, dtype = int) # need to set up data at node locations
+    for i in range(1,MAXDAT):
+        actloc[i] = i
+    
+# Set up the rotation/anisotropy matrices that are needed for the
+# variogram and search:
+
+#    print('Setting up rotation matrices for variogram and search')
+    rotmats = []
+    for icut in range(0,ncut):  
+        rotmat_temp = setrot_3D(varios[icut])
+        rotmats.append(rotmat_temp) 
+    
+# Set up the covariance table and the spiral search based just on the first variogram
+# This is ok as we are not using the covariance look up table, just spiral search for previous nodes
+
+    cov_table,ixnode,iynode,iznode,nlooku = ctable_3D(maxctx,maxcty,maxctz,xsiz,ysiz,zsiz,varios[0]) # just for spiral search       
+ 
+# MAIN LOOP OVER ALL THE SIMULAUTIONS:
+    for ireal in range(0,nreal):
+          
+# Work out a random path for this realization:
+        sim = np.random.rand(nz, ny, nx)
+        # print(nz,ny,nx)
+        if mults == 1:  # multigrid is selected
+            for imult in range(0,nmult): 
+                nnz = int(max(1,nz/((imult+1)*4)))
+                nny = int(max(1,ny/((imult+1)*4)))
+                nnx = int(max(1,nx/((imult+1)*4)))
+                jz = 1; jy  = 1; jx  = 1
+                for iz in range(0,nnz):
+                    if nnz > 0: jz = iz*(imult+1)*4            
+                    for iy in range(0,nny): 
+                        if nny > 0: jy = iy*(imult+1)*4
+                        for ix in range(0,nnx):
+                            if nnx > 0: jx = ix*(imult+1)*4
+                            sim[jz,jy,jx] = sim[jz,jy,jx] - (imult+1)
+        
+        path_indices = np.argsort(sim, axis=None)
+        iz_path, iy_path, ix_path = np.unravel_index(path_indices, (nz, ny, nx))
+        random_path = np.stack([iz_path, iy_path, ix_path], axis=1)
+
+        sim.fill(UNEST)
+        print('Working on realization ' + str(ireal))
+    
+# Assign the data to the closest grid node:
+
+        TINY = 0.0001
+        for idd in range(0,nd):
+            ix = getindex(nx,xmn,xsiz,x[idd])
+            iy = getindex(ny,ymn,ysiz,y[idd])
+            iz = getindex(nz,zmn,zsiz,z[idd])
+            xx  = xmn + (ix)*xsiz
+            yy  = ymn + (iy)*ysiz
+            zz  = zmn + (iz)*zsiz
+            # if ix == 0 and iy == 0 and iz == 0:
+            #     print('Data in cell 0,0,0')
+            #     print(xx,yy,zz)
+
+            test = abs(xx-x[idd]) + abs(yy-y[idd]) + abs(zz-z[idd])
+            if sstrat == 1 or (sstrat == 0 and test <= TINY): # assign this data to the node (unless there is a closer data):
+                
+                if sim[iz,iy,ix] > UNEST:
+                    id2 = int(sim[iz,iy,ix]+0.5)
+                    test2 = abs(xx-x[id2]) + abs(yy-y[id2]) + abs(zz-z[id2])
+                    if test <= test2: 
+                        sim[iz,iy,ix] = idd
+                        print('added data to node')
+                else:
+                    sim[iz,iy,ix] = idd  # a flag so that this node does not get simulated       
+        data_mask = sim != UNEST # replace nodes with data indexes with the nearest data values
+        sim[data_mask] = data_values[sim[data_mask].astype(int),ncut]
+        irepo = max(1,min((nxyz/10),10000))          
+
+# LOOP OVER ALL THE NODES:
+        for ind in range(0,nxyz):  
+            if (int(ind/irepo)*irepo) == ind:
+                print('   currently on node ' + str(ind))
+          
+# Find the index on the random path, check if assigned data and get location
+            iz = random_path[ind,0]; iy = random_path[ind,1]; ix = random_path[ind,2]
+#            if ix == 0 and iy == 0: print('current_node, ix = ' + str(ix) + ', iy = ' + str(iy) + ', iz = ' + str(iz)) 
+            if (sim[iz,iy,ix] > (UNEST+EPSLON)) or (sim[iz,iy,ix] < (UNEST*2.0)): continue
+            xx = xmn + (ix)*xsiz
+            yy = ymn + (iy)*ysiz 
+            zz = zmn + (iz)*zsiz 
+            current_node = (zz,yy,xx)
+#        print('Current_node'); print(current_node)
+
+# Now we'll simulate the point iz,iy,ix.  First, get the close data
+# and make sure that there are enough to actually simulate a value,
+# we'll only keep the closest "ndmax" data, and look for previously
+# simulated grid nodes:
+
+            if sstrat == 0:
+                #print('searching for nearest data')
+                na = -1   # accounting for 0 as first index
+                if ndmax == 1:
+                    nearest_data = np.zeros(1)
+                    _, nearest_data[0] = tree.query(current_node,ndmax) # use kd tree for fast nearest data search
+                else:
+                    _, nearest_data = tree.query(current_node,ndmax)
+                nearest_data = nearest_data.astype(int)  # NumPy array of ints
+                cov_temp = np.zeros((len(nearest_data)))
+               
+                for ind in range(0,len(nearest_data)):
+                    xd = df['X'][nearest_data[ind]]; yd = df['Y'][nearest_data[ind]]; zd = df['Z'][nearest_data[ind]]
+                    cov_temp[ind] = cova_3D(current_node[2],current_node[1],current_node[0],xd,yd,zd,varios[icut],rotmats[icut],maxcov[icut]) # sums over all structures
+                nearest_data = nearest_data[cov_temp > 0.0] # filter out all data that are not correlated, in addition to max data
+                nclose = len(nearest_data)
+          
+                if nclose < ndmin: continue     # bail if not enough data
+
+# find the nearest previously simulated nodes and apply the indicator transform
+
+            ncnode, nearest_nodes = srchnd_3D(ix,iy,iz,nx,ny,nz,xmn,ymn,zmn,xsiz,ysiz,zsiz,sim,noct,nodmax,ixnode,iynode,iznode,nlooku,
+                                              nctx,ncty,nctz,UNEST)
+            if ncnode > 0:
+                for icut in range(0,ncut): 
+                    nearest_nodes_ind[icut,:] = np.where((nearest_nodes[4,:] <= thresh[icut] + 0.5) & (nearest_nodes[4,:] > thresh[icut] - 0.5), '1', '0')
+            else:
+                for icut in range(0,ncut): 
+                    nearest_nodes_ind[icut,:] = np.where(nearest_nodes[4,:] <= thresh[icut], '1', '0')
+            nearest_nodes_ind[ncut,:] = nearest_nodes[4,:]
+
+# What cdf value are we looking for?
+            zval   = UNEST
+            cdfval = np.random.rand()
+
+# If no conditional data nor previously simulated nodes, just draw from the global distribution  
+            #if ix == 0 and iy == 0: print('Nclose: ' + str(nclose) + ', ncnode: ' + str(ncnode))
+            if nclose + ncnode <= 0:
+#            print('nclose & ncnode'); print(nclose, ncnode)
+                zval = beyond(ivtype,ncut,thresh,gcdf,ng,gcut,gcdf,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,zval,cdfval)
+#               print('No data - sim value: ' + str(zval))
+            else:
+# Estimate the local distribution by indicator kriging:
+                for icut in range(0,ncut):                          
+                    if ktype == 0:
+                        gmean = gcdf[icut]  
+                    elif ktype == 2:
+                        gmean = trend1d[iz,iy,ix,ic]
+                    else:
+                        gmean = 0 # if locally variable mean it is set from trend in ikrige, otherwise not used
+                    ccdf[icut], cstdev = ikrige_3D(ix,iy,iz,nx,ny,nz,current_node,ktype,data_locs,data_values[:,icut],sec,colocorr,gmean,
+                                    trend[:,icut],nearest_data,nctx,ncty,nctz,ncnode,nearest_nodes,nearest_nodes_ind[icut,:],varios[icut],rotmats[icut],
+                                    maxcov[icut],MAXKR1,MAXKR2)   
+                
+# Correct order relations:
+                ccdfo = ordrel(ivtype,ncut,ccdf)
+#                if ix == 0 and iy == 0: print('Sim CDF: ' + str(ccdfo))
+# Draw from the local distribution:
+                zval = beyond(ivtype,ncut,thresh,ccdfo,ng,gcut,gcdf,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,zval,cdfval)
+            sim[iz,iy,ix] = zval
+            #if ix == 0 and iy == 0: print('Sim Value: ' + str(zval))
+# Write the realization to the multiple realization output array
+        sim_out[ireal,:] = sim[:,::-1,:].copy()  
+    return sim_out  
