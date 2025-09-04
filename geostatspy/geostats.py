@@ -6635,6 +6635,7 @@ def sgsim_3D(df,xcol,ycol,zcol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,t
     ndmax = min(ndmax,nd) # otherwise tree search will return values outside the range if it runs out of data
     x = df_extract[xcol].values
     y = df_extract[ycol].values
+    z = df_extract[zcol].values
     vr = df_extract[vcol].values    
     vr_orig = np.copy(vr)
     wt = []; wt = np.array(wt)
@@ -6937,7 +6938,7 @@ def sgsim_3D(df,xcol,ycol,zcol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,t
 
 # END MAIN LOOP OVER SIMULATIONS:
         sim_out[ireal,:] = sim[:,::-1,:].copy() # flip the y axis due to NumPy's default reverse order    
-    return sim_out,vrtr,vrgtr
+    return sim_out
 
 def sisim_3D(df,xcol,ycol,zcol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,tmax,zmin,zmax,ltail,ltpar,middle,mpar,utail,utpar,nreal,
           nx,xmn,xsiz,ny,ymn,ysiz,nz,zmn,zsiz,seed,ndmin,ndmax,nodmax,mults,nmult,noct,ktype,varios):
