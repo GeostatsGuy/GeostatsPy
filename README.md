@@ -118,7 +118,7 @@ I have built out many well-documented workflow in Jupyter Notebooks using Geosta
 
 A minimum environment includes:
 
-* Python 3.10 - 3.13 - due to the depdendency of GeostatsPy on the [Numba](https://pypi.org/project/numba/) package for code acceleration with a Just-In-Time compiler for numerical functions in Python 
+* Python 3.10 - 3.13, numpy  < 2.2.x - due to the depdendency of GeostatsPy on the [Numba](https://pypi.org/project/numba/) package for code acceleration with a Just-In-Time compiler for numerical functions in Python 
 
 ***
 
