@@ -118,7 +118,7 @@ I have built out many well-documented workflow in Jupyter Notebooks using Geosta
 
 A minimum environment includes:
 
-* Python 3.7.10 - due to the depdendency of GeostatsPy on the Numba package for code acceleration
+* Python 3.10 - 3.13 - due to the depdendency of GeostatsPy on the [Numba](https://pypi.org/project/numba/) package for code acceleration with a Just-In-Time compiler for numerical functions in Python 
 
 ***
 
@@ -126,10 +126,16 @@ A minimum environment includes:
 
 GeostatsPy is available on the Python Package Index (PyPI) [GeostatsPy PyPI](https://pypi.org/project/geostatspy/).
 
-To install GeostatsPy, use pip
+To install GeostatsPy, use pip command,
 
 ```console
 pip install geostatspy
+```
+
+To update GeostatsPy to the most recent version, use pip,
+
+```console
+pip install --upgrade --force-reinstall geostatspy
 ```
 
 ***
@@ -138,24 +144,60 @@ pip install geostatspy
 
 The functions rely on the following packages:
 
-1. **numpy** - for ndarrays
-2. **pandas** - for DataFrames
-3. **numpy.linalg** - for linear algebra
-4. **numba** - for numerical speed up
-5. **scipy** - for fast nearest neighbor search
-6. **matplotlib.pyplot** - for plotting
-7. **tqdm** - for progress bar
-8. **statsmodels** - for weighted (debiased) statistics                
+| Package / Component           | Included by Default in Anaconda? | Notes                                                  | Application in GeostatsPy                      |
+|------------------------------|----------------------------------|--------------------------------------------------------|-------------------------------------------------|
+| **numpy**                    | ✅ Yes                           | Core numerical package                                 | arrays with ndarrays                            |
+| **pandas**                   | ✅ Yes                           | Essential for dataframes and time series              | data tables with DataFrames                      |
+| **numpy.linalg**             | ✅ Yes                           | Part of NumPy (not a separate package)                | linear algebra for solving kriging systems       |
+| **scipy**                    | ✅ Yes                           | Scientific computing tools, including optimization    | fast data search with KD Trees,                  |
+| **matplotlib.pyplot**        | ✅ Yes                           | From the Matplotlib library for plotting              | standard plots, location maps, pixel plots, etc. |
+| **numba**                    | ✅ Yes (often included)          | JIT compiler; included in most full Anaconda installs | for numerical speed up of array math             |
+| **tqdm**                     | ❌ No                            | Not included by default — install manually            | for progress bar                                 |
+| **statsmodels**              | ❌ No                            | Often used, but not in the default distribution       | for weighted (debiased) statistics               |               
 
-These packages should be available with any modern Python distribution (e.g. https://www.anaconda.com/download/).
+Most of these packages should be available with any modern Python distribution, like [Anaconda](https://www.anaconda.com/download/).
 
-If you get a package import error, you may have to first install some of these packages. This can usually be accomplished by opening up a command window on Windows and then typing 'python -m pip install [package-name]'. More assistance is available with the respective package docs.  
+* pip and conda installs may be applied to install [tqdm](https://github.com/tqdm/tqdm) and [statsmodels](https://www.statsmodels.org/stable/index.html).
+
+```console
+pip install tqdm
+pip install statsmodels
+```
+
+If you get a package import error, you may have to first install some of these packages. This can usually be accomplished by opening up a command window on Windows and then typing 
+
+```console
+python -m pip install [package-name]
+```
+More assistance is available with the respective package docs.  
 
 ***
 
 #### Recent Updates
 
 Here's some highlights from recent updates:
+
+##### What's New with Version 0.70
+
+New contributions from Dr. Misael Morales,
+
+* ensemble Kalman filtering (ENFk), ENFK()
+
+* ensemble smoothing ESMDA, ESMDA()
+
+##### What's New with Version 0.46 
+
+* 2D indicator simulation, sisim()
+
+* 2D kriging at a list of locations instead of a grid, kb2d_locations()
+
+* sampling functions
+
+* simulated realizations post processing, postsim()
+
+* gamma bar calculation for volume variance, gammabar()
+
+* 3D irregular data variogram calculation, gamv()
 
 ##### What's New with Version 0.33
 
@@ -230,12 +272,14 @@ Spatial Continuity
 20. **varmapv** - irregular spaced data, 2D wrapper for varmap from GSLIB (.exe must be in working directory)
 21. **vmodel** - variogram model, 2D wrapper for vmodel from GSLIB (.exe must be in working directory)
 
-Spatial Modeling
+Spatial Modeling with GSLIB Wrappers
+
+The functions in geostatspy.GSLIB that write out parameter files, run GSLIB executables and then read the output in,
 
 22. **kb2d** - kriging estimation, 2D wrapper for kb2d from GSLIB (GSLIB's kb2d.exe must be in working directory)
-23. **sgsim_uncond** - sequential Gaussian simulation, 2D unconditional wrapper for sgsim from GSLIB (GSLIB's sgsim.exe must be in working directory)
-24. **sgsim** - sequential Gaussian simulation, 2D and 3D wrapper for sgsim from GSLIB (GSLIB's sgsim.exe must be in working directory)
-25. **cosgsim_uncond** - sequential Gaussian simulation, 2D unconditional wrapper for sgsim from GSLIB (GSLIB's sgsim.exe must be in working directory)
+24. **sgsim_uncond** - sequential Gaussian simulation, 2D unconditional wrapper for sgsim from GSLIB (GSLIB's sgsim.exe must be in working directory)
+25. **sgsim** - sequential Gaussian simulation, 2D and 3D wrapper for sgsim from GSLIB (GSLIB's sgsim.exe must be in working directory)
+26. **cosgsim_uncond** - sequential Gaussian simulation, 2D unconditional wrapper for sgsim from GSLIB (GSLIB's sgsim.exe must be in working directory)
 
 Spatial Model Resampling
 
@@ -247,11 +291,11 @@ Spatial Model Resampling
 
 ##### geostatspy.geostats Functions
 
-Numerical methods in GSLIB (Deutsch and Journel, 1998) translated to Python:
+Numerical methods, functions in GSLIB (Deutsch and Journel, 1998) translated to Python:
 
-31. **correct_trend** - correct the order relations of an indicator-based trend model
-32. **backtr** - GSLIB's backtr function  to transform a distribution
-33. **declus** - GSLIB's DECLUS program reimplimented for cell-based declustering in 2D
+31. **correct_trend** - correct the order relations of an indicator-based trend model with L1 normalizer at each grid location to impose probability closure
+32. **backtr** - GSLIB's backtr function to transform a distribution with a provided 2 column transformation table for back transformation from Gaussian to original data space
+33. **declus** - GSLIB's DECLUS program reimplimented for cell-based declustering in 2D to calculate data weights to debias spatial data
 34. **gam** - GSLIB's GAM program reimplimented for variogram calculation with regular data in 2D
 35. **gamv** - GSLIB's GAMV program reimplimented for variogram calculation with iregular data in 2D 
 36. **varmapv** - GSLIB's VARMAP program reimplimented for irregularly spaced spatial data in 2D 
@@ -260,8 +304,11 @@ Numerical methods in GSLIB (Deutsch and Journel, 1998) translated to Python:
 39. **kb2d** - GSLIB's KB2D program reimplimented for 2D kriging-based spatial estimation
 40. **ik2d** - GSLIB's IK3D program reimplimented for 2D indicator-based kriging estimation
 41. **kb3d** - GSLIB's kt3d program reimplimented for 3D kriging-based spatial kriging estimation
-42. **sgsim** - GSLIB's sgsim program reimplimented for 2D spatial simulation
-43. **postsim** - GSLIB's postsim program reimplimented for summarizing over multiple realizations
+42. **sgsim** - GSLIB's sgsim program reimplimented for 2D spatial sequential Gaussian simulation
+43. **sisim** - GSLIB's sisim program reimplimented for 2d cateogorical spatial sequential indicator simulation
+45. **postsim** - GSLIB's postsim program reimplimented for summarizing over multiple realizations
+46. **sgsim_3D** - GSLIB's sgsim program reimplimented for 3D spatial sequential Gaussian simulation
+47. **sisim_3D** - GSLIB's sisim program reimplimented for 3D spatial sequential indicator simulation
 
 More functionality will continue to be added.
 
