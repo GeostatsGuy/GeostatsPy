@@ -6,6 +6,8 @@
 
 <h1 align="center">GeostatsPy Python Package: Open-source Spatial Data Analytics and Geostatistics</h1>
 
+<h3 align="center"> Now in 3D! </h3>
+
 <h3 align="center"></h3>
 
 [![Documentation Status](https://readthedocs.org/projects/geostatspy/badge/?version=latest)](https://geostatspy.readthedocs.io/en/latest/?badge=latest)
