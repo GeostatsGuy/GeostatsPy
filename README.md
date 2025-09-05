@@ -15,6 +15,71 @@
 Pyrcz, M.J., Jo. H., Kupenko, A., Liu, W., Gigliotti, A.E., Salomaki, T., and Santos, J., 2021, GeostatsPy Python Package: Open-source Spatial Data Analytics and Geostatistics, DOI: /doi/10.5281/zenodo.13835444.
 
 [![DOI](https://zenodo.org/badge/139197285.svg)](https://zenodo.org/doi/10.5281/zenodo.13835444)
+
+___
+
+#### NEW: 3D Sequential Indicator Simulation (SISIM) and 3D Sequential Gaussian Simulation (SGSIM)
+
+I have a confession: many of the GSLIB functions in the GeostatsPy Python package were ported or written from scratch by me—often late at night and into the early morning hours—just in time for the next day’s lecture.
+
+Back in 2018, I desperately needed a usable, open-source geostatistics Python package to teach my courses. I found one, but on the first day of the semester, it broke due to an update in a dependent package. With no alternatives, I decided to build my own. My goal was simple: implement the minimum necessary tools to teach geostatistics in practice, not just in theory.
+
+Because:
+
+* you can’t teach geostatistics without algorithms, and…
+
+* students weren’t going to edit parameter files and run old FORTRAN GSLIB executables. (I tried that once—many students dropped the course in the first week!)
+
+* my [Excel demonstrations](https://github.com/GeostatsGuy/ExcelNumericalDemos) are great for theory and math, but they don’t support building full models.
+
+So, in those early days, I made a key decision, everything would be in 2D only. Why?
+
+* it made testing and debugging much easier.
+
+* it was perfect for live demos and slides: easy to explain, visualize, and diagnose.
+
+Fast forward to now... I’m lucky to have an amazing graduate student team—typically 12–15 students, mostly PhDs—and many of them want to build 3D geostatistical models. So, I couldn’t help myself. I went back and updated everything—search algorithms, kriging, distance metrics with geometric anisotropy, and more... and finally,
+
+* sgsim_3D - a 3D implimentation of sequential Gaussian simulation
+
+* sisim_3D - a 3D implimentation of sequetial indicator simulation
+
+##### Notes on this First Version:
+
+Tested:
+
+1. simple and ordinary kriging
+
+2. stationary mean or proportion realizations
+
+3. data conditioning
+
+Not yet tested:
+
+1. locally variable mean / proportion
+
+2. collocated cokriging
+
+I’ll be asking one of my PhD students to test these soon!
+
+##### Improvements Along the Way
+
+I made some improvements over the current 2D implimentations,
+
+1. continued to replace legacy FORTRAN-style loops from GSLIB with NumPy broadcasting, making the code more readable, robust, and concise.
+
+2. fixed the reference distribution option in sgsim_3D, allowing users to transform/back-transform with limited conditioning data using an external Gaussian table.
+
+I did make a couple of improvements,
+
+* I'm always looking to replace the FORTRAN loops of GSLIB with broadcast methods from NumPy for more robust, readable and concise codes.
+
+* I have fixed the reference distribution option for SGSIM, so you can use few data and another file to provide the Gaussian transformation and back-transformation table.
+
+##### Special Thanks
+
+Huge thanks to [Professor Honggeun Jo](https://www.linkedin.com/in/honggeun-jo/?originalSubdomain=kr), whose prior work on 3D variograms, covariance functions, and more made this possible. Your contributions to GeostatsPy have been incredible. Also, I still need to add your 3D kriging function—coming soon! 
+
 ___
 
 #### NEW: Check out the new e-book, Applied Geostatistics in Python: A Hands-on Guide with GeostatsPy, by Michael J. Pyrcz
