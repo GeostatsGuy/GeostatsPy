@@ -80,7 +80,7 @@ I did make a couple of improvements,
 
 ##### Special Thanks
 
-Huge thanks to [Professor Honggeun Jo](https://www.linkedin.com/in/honggeun-jo/?originalSubdomain=kr), whose prior work on 3D variograms, covariance functions, and more made this possible. Your contributions to GeostatsPy have been incredible. Also, I still need to add your 3D kriging function—coming soon! 
+Huge thanks to [Professor Honggeun Jo](https://www.linkedin.com/in/honggeun-jo/?originalSubdomain=kr), whose prior work on 3D variograms, covariance functions, and more made this possible. Your contributions to GeostatsPy have been incredible.
 
 ___
 
