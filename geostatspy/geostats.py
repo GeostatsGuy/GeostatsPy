@@ -7240,7 +7240,7 @@ def sisim_3D(df,xcol,ycol,zcol,vcol,ivtype,koption,ncut,thresh,gcdf,trend,tmin,t
                 cov_temp = np.zeros((len(nearest_data)))
                
                 for ind in range(0,len(nearest_data)):
-                    xd = df['X'][nearest_data[ind]]; yd = df['Y'][nearest_data[ind]]; zd = df['Z'][nearest_data[ind]]
+                    xd = x[nearest_data[ind]]; yd = y[nearest_data[ind]]; zd = z[nearest_data[ind]]
                     cov_temp[ind] = cova_3D(current_node[2],current_node[1],current_node[0],xd,yd,zd,varios[icut],rotmats[icut],maxcov[icut]) # sums over all structures
                 nearest_data = nearest_data[cov_temp > 0.0] # filter out all data that are not correlated, in addition to max data
                 nclose = len(nearest_data)
