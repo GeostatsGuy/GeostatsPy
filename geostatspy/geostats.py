@@ -3962,7 +3962,7 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
 #            print('data'); print(x[idd],y[idd])
             ix = getindex(nx,xmn,xsiz,x[idd])
             iy = getindex(ny,ymn,ysiz,y[idd])
-            ind = ix + (iy-1)*nx 
+            ind = ix + iy*nx
             xx  = xmn + (ix)*xsiz
             yy  = ymn + (iy)*ysiz
 #            print('xx, yy' + str(xx) + ',' + str(yy))
@@ -4083,7 +4083,7 @@ def sgsim(df,xcol,ycol,vcol,wcol,scol,tmin,tmax,itrans,ismooth,dftrans,tcol,twtc
                 iy = getindex(ny,ymn,ysiz,y[iid])
                 xx  = xmn + (ix)*xsiz
                 yy  = ymn + (iy)*ysiz
-                ind = ix + (iy-1)*nx 
+                ind = ix + iy*nx
                 test=abs(xx-x[iid])+abs(yy-y[iid])
                 if test <= TINY: sim[ind] = vr[iid]
 
